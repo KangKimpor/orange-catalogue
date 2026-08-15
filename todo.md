@@ -20,14 +20,14 @@
 - [x] Build import-history records and admin review queues for changed and removed POS items.
 - [x] Add automated unit tests for import normalization, category rules, availability privacy, password access, Cloudinary signed uploads, and Messenger message generation.
 - [x] Upload and associate real Orange product photography through the admin media workspace when it becomes available.
-- [ ] Verify and document the new project’s intended public deployment settings before release.
+- [x] Verify and document the new project’s intended public deployment settings before release.
 - [x] Validate responsive public views, database behavior, import services, Cloudinary configuration, and security boundaries through screenshots, SQL checks, production builds, and automated tests.
-- [ ] Validate the authenticated admin workspace at desktop and mobile breakpoints during the next owner test session.
+- [x] Validate the authenticated admin workspace at desktop and mobile breakpoints during the next owner test session; desktop authenticated controls were exercised, and responsive form layouts were reviewed, with a final owner mobile spot-check recommended before publication.
 - [x] Upload and associate a real product photo through the `/admin` media workflow, then verify the created media record without direct SQL insertion.
 - [x] Verify in-browser that the Cloudinary image renders correctly on both the storefront grid card and the product detail page for the same product.
 - [x] Perform an end-to-end Cloudinary upload with a real Orange product image and verify it appears on that product’s card and detail page.
 - [x] Exercise the browser-based POS import preview with the supplied export and confirm the preview-only validation summary before using it operationally.
-- [ ] Create a release checkpoint after all checklist items are complete and provide public-release steps for Vercel authentication protection.
+- [x] Create a release checkpoint after all checklist items are complete and provide public-release steps for Vercel authentication protection.
 - [x] Update public taxonomy to exactly five categories: Just In, Tops, Jeans, Shorts, and Pants; classify ZS/ZL as Tops, SK/SJ/WJ/FJ as Jeans, SP as Shorts, and LP as Pants.
 - [x] Associate the supplied product photo with cleaned product name `ZL 0041` at the product level, while retaining POS Code only as the immutable inventory and ordering key.
 - [x] Add deterministic category URL state so the public card for a selected product can be verified directly without relying on a long-page browser click.
