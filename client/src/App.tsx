@@ -5,6 +5,8 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Admin from "./pages/Admin";
+import AdminMedia from "./pages/AdminMedia";
+import AdminImport from "./pages/AdminImport";
 import ProductDetail from "./pages/ProductDetail";
 import Storefront from "./pages/Storefront";
 
@@ -15,6 +17,8 @@ function Router() {
       <Route path={"/"} component={Storefront} />
       <Route path={"/product/:slug"} component={ProductDetail} />
       <Route path={"/admin"} component={Admin} />
+      <Route path={"/admin/photos"} component={AdminMedia} />
+      <Route path={"/admin/import"} component={AdminImport} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
