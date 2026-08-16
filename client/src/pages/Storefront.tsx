@@ -27,7 +27,6 @@ export default function Storefront() {
         <Link href="/" className="brand-mark" aria-label="Orange home">
           <img src={LOGO_URL} alt="Orange" />
         </Link>
-        <div className="header-note">WOMEN&apos;S CLOTHING</div>
       </header>
 
       <nav className="category-nav" aria-label="Product categories">
@@ -45,7 +44,6 @@ export default function Storefront() {
 
       <main>
         <section className="catalogue-intro">
-          <p className="eyebrow">ORANGE COLLECTION</p>
           <h1>{data?.categories.find(c => c.slug === activeCategory)?.label}</h1>
           <p>Choose a piece, select your color and size, then message us to order.</p>
         </section>
@@ -58,7 +56,7 @@ export default function Storefront() {
               <Link href={`/product/${product.slug}`} className="product-card" key={product.id}>
                 <div className="product-image" style={!primary ? { backgroundColor: firstColor?.hex ?? "#d9d0c1" } : undefined}>
                   {primary ? <img src={primary.url} alt={primary.altText || product.displayName || product.cleanedCode} /> : <span>{firstColor?.englishName || "Orange"}</span>}
-                  <span className={`availability ${product.available ? "available" : "soldout"}`}>{product.available ? "Available" : "Sold Out"}</span>
+                  {!product.available && <span className="availability soldout">Sold Out</span>}
                 </div>
                 <div className="product-meta">
                   <h2>{product.displayName || product.cleanedCode}</h2>
@@ -74,7 +72,7 @@ export default function Storefront() {
         </section>
         {!products.length && <p className="empty-state">No pieces are available in this category yet.</p>}
       </main>
-      <footer className="store-footer"><span>Orange</span><span>Message us on Messenger to order</span><Link href="/admin">Admin</Link></footer>
+      <footer className="store-footer"><span>Orange</span><a href="https://m.me/OfficiallyDavit" target="_blank" rel="noreferrer">Message us on Messenger to order</a><Link href="/admin">Admin</Link></footer>
     </div>
   );
 }

@@ -20,4 +20,12 @@ describe("public storefront branding and responsiveness", () => {
     expect(stylesheet).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
     expect(stylesheet).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
   });
+
+  it("uses the requested compact copy, Messenger footer link, and sold-out-only product labels", () => {
+    expect(storefront).not.toContain("WOMEN&apos;S CLOTHING");
+    expect(storefront).not.toContain("ORANGE COLLECTION");
+    expect(storefront).toContain('href="https://m.me/OfficiallyDavit"');
+    expect(storefront).toContain("!product.available && <span className=\"availability soldout\">Sold Out</span>");
+    expect(detail).toContain("!selectedVariant?.available && <p className=\"detail-status soldout\">Sold Out</p>");
+  });
 });

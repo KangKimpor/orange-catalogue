@@ -181,17 +181,17 @@
 
 @layer components {
   .store-shell { min-height: 100svh; overflow-x: clip; background: #f6f1e8; color: #28251f; }
-  .store-header { max-width: 1600px; min-height: 132px; margin: 0 auto; padding: clamp(16px, 2.25vw, 30px) clamp(22px, 4vw, 68px); display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; border-bottom: 1px solid #d8d0c3; }
-  .store-header.compact { min-height: 106px; }
+  .store-header { max-width: 1600px; min-height: 104px; margin: 0 auto; padding: clamp(14px, 1.6vw, 22px) clamp(22px, 4vw, 68px); display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; border-bottom: 1px solid #d8d0c3; }
+  .store-header.compact { min-height: 88px; }
   .brand-mark { grid-column: 2; width: clamp(124px, 11vw, 172px); min-width: 0; display: block; }
   .brand-mark img { display: block; width: 100%; height: auto; max-height: 48px; object-fit: contain; object-position: center; }
   .header-note { grid-column: 3; justify-self: end; font: 500 10px/1 "DM Mono", monospace; letter-spacing: .12em; color: #73695b; }
   .back-link { grid-column: 3; justify-self: end; color: #28251f; text-decoration: underline; text-underline-offset: 4px; font-size: 13px; }
-  .category-nav { position: sticky; top: 0; z-index: 20; display: flex; justify-content: center; gap: clamp(18px, 3vw, 52px); overflow-x: auto; overscroll-behavior-x: contain; padding: 12px max(22px, env(safe-area-inset-right)) 12px max(22px, env(safe-area-inset-left)); background: #f6f1e8; border-bottom: 1px solid #d8d0c3; white-space: nowrap; scrollbar-width: none; }
+  .category-nav { position: sticky; top: 0; z-index: 20; display: flex; justify-content: center; gap: clamp(18px, 3vw, 52px); overflow-x: auto; overscroll-behavior-x: contain; padding: 8px max(22px, env(safe-area-inset-right)) 8px max(22px, env(safe-area-inset-left)); background: #f6f1e8; border-bottom: 1px solid #d8d0c3; white-space: nowrap; scrollbar-width: none; }
   .category-nav::-webkit-scrollbar { display: none; }
-  .category-nav button { flex: 0 0 auto; min-height: 40px; border: 0; background: transparent; color: #413b32; font: 500 11px/1 "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; padding: 0 0 5px; border-bottom: 1px solid transparent; }
+  .category-nav button { flex: 0 0 auto; min-height: 36px; border: 0; background: transparent; color: #413b32; font: 500 11px/1 "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; padding: 0 0 5px; border-bottom: 1px solid transparent; }
   .category-nav button.is-active { border-color: #8b603c; color: #8b603c; }
-  .catalogue-intro { max-width: 1600px; margin: 0 auto; padding: clamp(54px, 6vw, 96px) clamp(22px, 4vw, 68px) clamp(38px, 4vw, 60px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .8fr); column-gap: clamp(28px, 8vw, 150px); align-items: end; }
+  .catalogue-intro { max-width: 1600px; margin: 0 auto; padding: clamp(40px, 4vw, 64px) clamp(22px, 4vw, 68px) clamp(28px, 3vw, 42px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .8fr); column-gap: clamp(28px, 8vw, 150px); align-items: end; }
   .eyebrow { margin: 0 0 12px; color: #8a6444; font: 500 10px/1 "DM Mono", monospace; letter-spacing: .12em; }
   .catalogue-intro h1, .detail-content h1, .admin-heading h1, .login-card h1 { font-family: "Playfair Display", serif; font-weight: 500; letter-spacing: -.035em; }
   .catalogue-intro h1 { margin: 0; font-size: clamp(40px, 6vw, 88px); line-height: .95; }
@@ -202,7 +202,7 @@
   .product-image { position: relative; aspect-ratio: .78; overflow: hidden; display: grid; place-items: center; color: rgba(40,37,31,.45); font: 10px "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
   .product-image img, .detail-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .availability { position: absolute; top: 12px; left: 12px; padding: 5px 7px; background: #f6f1e8; font: 500 9px/1 "DM Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
-  .availability.soldout, .detail-status.soldout { color: #9a453d; } .availability.available, .detail-status.available { color: #47613d; }
+  .availability.soldout, .detail-status.soldout { color: #9a453d; }
   .product-meta { padding: 16px clamp(12px, 1.2vw, 18px) 20px; } .product-meta h2 { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin: 0 0 5px; font-size: clamp(13px, 1.05vw, 15px); font-weight: 500; }
   .product-code, .detail-code { margin: 0; color: #756b5e; font: 10px/1.4 "DM Mono", monospace; letter-spacing: .03em; } .price { margin: 9px 0 13px; font-size: 13px; }
   .swatches { display: flex; gap: 6px; align-items: center; min-height: 13px; } .swatches span { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(40,37,31,.18); } .swatches span.out { opacity: .26; }

@@ -58,3 +58,8 @@
 - [x] Validate public storefront and direct product pages at iPhone 13/15/17 Pro and MacBook, VivoBook, Dell, and ASUS laptop viewport dimensions; screenshots passed at iPhone 13 (390×844), iPhone 15 (393×852), iPhone 17 Pro (402×874), a larger iPhone (430×932), 1366×768, 1440×900, and 1536×864.
 - [x] Replace the temporary managed asset URL with the Cloudinary-hosted user-supplied logo URL so the mark renders in external Vercel production.
 - [x] Re-verify the Cloudinary-hosted logo and responsive public storefront on the live production domain; production deployment `dpl_HyctLs5E9ziAuPHuNcwMsfEU6TFv` is READY, and the final browser screenshot at `orange-catalogue.vercel.app/?category=tops` visibly renders the supplied Orange script mark in the header.
+- [x] Tighten the desktop storefront header and introduction composition so key category content fits more comfortably in common windowed laptop screens.
+- [x] Remove the header label “Women’s Clothing” and the introductory label “Orange Collection”.
+- [x] Link the footer sentence “Message us on Messenger to order” directly to the configured Messenger storefront page.
+- [x] Remove Available status badges from product cards while retaining Sold Out badges for unavailable products.
+- [x] Verify the updated desktop layout and mobile product-card status behavior before publishing; screenshots passed at the supplied 1847×1018 desktop window and 390×844 mobile viewport.

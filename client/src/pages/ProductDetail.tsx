@@ -39,7 +39,7 @@ export default function ProductDetail() {
           <p className="detail-price">{selectedVariant ? money(selectedVariant.price) : money(product.priceMin)}</p>
           <div className="choice-block"><span>Color</span><div className="choice-row">{product.colors.map((item, index) => <button key={item.id ?? item.englishName} onClick={() => { setColorIndex(index); setSize(null); }} className={index === colorIndex ? "choice is-selected" : "choice"}><i style={{ backgroundColor: item.hex }} />{item.englishName}</button>)}</div></div>
           {sizes.length > 0 && <div className="choice-block"><span>Size</span><div className="choice-row">{sizes.map(item => <button key={item} onClick={() => setSize(item)} className={size === item ? "size-choice is-selected" : "size-choice"}>{item}</button>)}</div></div>}
-          <p className={`detail-status ${selectedVariant?.available ? "available" : "soldout"}`}>{selectedVariant?.available ? "Available" : "Sold Out"}</p>
+          {!selectedVariant?.available && <p className="detail-status soldout">Sold Out</p>}
           <a className={`message-button ${selectedVariant?.available ? "" : "is-disabled"}`} href={selectedVariant?.available ? orderUrl : undefined} target="_blank" rel="noreferrer">Message to Order</a>
           <p className="message-note">Messenger opens with your selected product details ready to send.</p>
         </div>
