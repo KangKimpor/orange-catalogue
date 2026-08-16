@@ -41,3 +41,7 @@ The visible desktop **Next** button was activated directly in the browser. The r
 ## Reciprocal desktop control verification — 2026-08-16
 
 After the direct Next interaction, the visible **Previous** control was activated from keyboard focus. The rendered track returned to `transform: translateX(0%)`, proving both visible desktop controls use the same selected-color photo index and move in opposite directions.
+
+## Production workspace smoke test — 2026-08-16
+
+The deployed production Photos workspace at `orange-catalogue.vercel.app/admin/photos` loaded successfully in an authenticated session after deployment `dpl_CkwCkYTMxNLPEJyXhARuSn8UL7UW` reached READY. The live UI displayed the redesigned cleaned-code model search, loaded its 80-item first result set from the 534-model catalogue, showed the selected model’s POS Attribute colors, and presented the color-specific photo association panel.
