@@ -101,3 +101,8 @@
 - [x] Update the website-item example from “Silly Tee” to “Graphic Tee”; no live item record with the former name existed in the catalogue.
 - [x] Change Just In from an automatic fallback category to an initially empty, staff-curated category, with explicit item selection in admin; cleared the 304 previous assignments.
 - [x] Add regression coverage and validate the simplified admin workspace, tab routes, item naming, and curated Just In behavior; targeted tests, TypeScript validation, production build, and diff check passed, while the full local suite requires unavailable Supabase environment variables.
+
+- [x] Audit and refine public storefront and admin alignment at common windowed laptop and iPhone-class viewport widths.
+- [x] Make the public Orange logo and the five category-navigation labels visibly larger while retaining fit, scroll behavior, and mobile touch targets.
+- [x] Reduce the public category heading and ordering-instruction section into a compact, balanced transition above the product grid.
+- [x] Validate revised responsive layouts with live 1440px and 390px storefront/product screenshots, TypeScript, build, and targeted regression checks; the full local suite remains blocked by intentionally unavailable Supabase and session-key environment variables, while 10 targeted tests passed.
