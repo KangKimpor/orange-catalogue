@@ -110,3 +110,8 @@
 - [x] Replace the admin rail’s Orange text wordmark with the approved Orange logo, sized for clear desktop and mobile presentation.
 - [x] Add deliberate clearance between the admin logo and sidebar navigation so the Overview tab no longer clashes with branding.
 - [x] Verify the revised admin rail layout compiles, preserves the existing admin-route regression tests, and is released to a READY production deployment.
+
+- [x] Select a small two-item set of live items for the staff-curated Just In category without overpopulating it: SP 009 and ZL 0041.
+- [x] Correct gallery media de-duplication and color-specific fallback so its photo count matches the selected color’s intended images; removed two confirmed duplicate ZL 0041 media records and added regression coverage.
+- [x] Simplify gallery previous/next controls into compact glass arrow buttons and refine feedback motion for product, category, and primary-action interactions, with reduced-motion support.
+- [x] Validate the curated Just In results, gallery behavior, responsive interaction polish, and production release; the deployment is READY, the live Just In page shows two items, targeted tests and build passed, and production reported no runtime errors.
