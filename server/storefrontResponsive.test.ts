@@ -7,7 +7,7 @@ const stylesheet = readFileSync(new URL("../client/src/index.css", import.meta.u
 
 describe("public storefront branding and responsiveness", () => {
   it("uses the user-supplied Orange logo in both public navigation surfaces", () => {
-    const userLogo = "/manus-storage/orange-logo-user-supplied_22a23d9a.png";
+    const userLogo = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
     expect(storefront).toContain(userLogo);
     expect(detail).toContain(userLogo);
   });

@@ -2,7 +2,7 @@ import { Link } from "wouter";
 import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 
-const LOGO_URL = "/manus-storage/orange-logo-user-supplied_22a23d9a.png";
+const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
 
 function money(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
