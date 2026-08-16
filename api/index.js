@@ -713,7 +713,7 @@ var systemRouter = router({
 });
 
 // server/storeRouter.ts
-import crypto3 from "node:crypto";
+import crypto4 from "node:crypto";
 import { TRPCError as TRPCError4 } from "@trpc/server";
 import { SignJWT as SignJWT2, jwtVerify as jwtVerify2 } from "jose";
 import { parse as parseCookie } from "cookie";
@@ -1001,6 +1001,37 @@ async function checkAdminLoginRateLimit(clientKey, result) {
   });
 }
 
+// server/cloudinaryMedia.ts
+import crypto3 from "node:crypto";
+function assertOrangeProductPublicId(publicId) {
+  if (!publicId.startsWith("orange/products/")) {
+    throw new Error("The media asset is outside the approved Orange product folder.");
+  }
+}
+function cloudinaryDestroySignature(publicId, timestamp2, apiSecret) {
+  return crypto3.createHash("sha1").update(`public_id=${publicId}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
+}
+async function destroyCloudinaryProductImage(publicId, config, request = fetch) {
+  assertOrangeProductPublicId(publicId);
+  const timestamp2 = Math.floor(Date.now() / 1e3);
+  const body = new URLSearchParams({
+    public_id: publicId,
+    timestamp: String(timestamp2),
+    api_key: config.apiKey,
+    signature: cloudinaryDestroySignature(publicId, timestamp2, config.apiSecret)
+  });
+  const response = await request(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/destroy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body
+  });
+  if (!response.ok) throw new Error("Cloudinary could not remove the photo.");
+  const payload = await response.json();
+  if (payload.result === "ok") return "ok";
+  if (payload.result === "not found") return "not found";
+  throw new Error("Cloudinary could not confirm photo removal.");
+}
+
 // server/storeRouter.ts
 var ADMIN_COOKIE = "orange_admin_session";
 var ADMIN_PASSWORD_KEY = "admin_password_hash";
@@ -1016,19 +1047,19 @@ function tokenKey() {
   return new TextEncoder().encode(secret);
 }
 function hashPassword(password) {
-  const salt = crypto3.randomBytes(16).toString("hex");
-  return `${salt}:${crypto3.scryptSync(password, salt, 64).toString("hex")}`;
+  const salt = crypto4.randomBytes(16).toString("hex");
+  return `${salt}:${crypto4.scryptSync(password, salt, 64).toString("hex")}`;
 }
 function passwordMatches(password, encoded) {
   const [salt, expected] = encoded.split(":");
   if (!salt || !expected) return false;
-  const actual = crypto3.scryptSync(password, salt, 64).toString("hex");
-  return actual.length === expected.length && crypto3.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+  const actual = crypto4.scryptSync(password, salt, 64).toString("hex");
+  return actual.length === expected.length && crypto4.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
 }
 function safeTextEqual(left, right) {
   const a = Buffer.from(left);
   const b = Buffer.from(right);
-  return a.length === b.length && crypto3.timingSafeEqual(a, b);
+  return a.length === b.length && crypto4.timingSafeEqual(a, b);
 }
 async function readStoredPasswordHash() {
   const rows = await supabaseRequest(`store_settings?select=value&key=eq.${ADMIN_PASSWORD_KEY}&limit=1`);
@@ -1129,7 +1160,7 @@ async function applyImport(input) {
     let product = products2.get(item.cleanedCode);
     if (!product) {
       let slug = item.slug;
-      if (usedSlugs.has(slug)) slug = `${slug}-${crypto3.createHash("sha1").update(item.cleanedCode).digest("hex").slice(0, 6)}`;
+      if (usedSlugs.has(slug)) slug = `${slug}-${crypto4.createHash("sha1").update(item.cleanedCode).digest("hex").slice(0, 6)}`;
       [product] = await supabaseRequest("products", { method: "POST", body: JSON.stringify({ slug, cleaned_code: item.cleanedCode, category_id: category?.id ?? null, category_source: item.categorySlug ? "rule" : "unassigned", review_status: item.categorySlug ? "clean" : "needs_review" }) });
       products2.set(item.cleanedCode, product);
       usedSlugs.add(slug);
@@ -1237,7 +1268,7 @@ var storeRouter = router({
       const timestamp2 = Math.floor(Date.now() / 1e3);
       const folder = `orange/products/${normalized}`;
       const tags = `orange,product:${normalized},category:${input.categorySlug},color:${input.colorTag}`;
-      const signature = crypto3.createHash("sha1").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
+      const signature = crypto4.createHash("sha1").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
       return { uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp: timestamp2, folder, tags, signature };
     }),
     registerMedia: publicProcedure.input(z2.object({ productId: z2.number().int(), variantId: z2.number().int().nullable().optional(), publicId: z2.string().min(1), secureUrl: z2.string().url(), altText: z2.string().max(255).nullable().optional(), colorTag: z2.string().max(128).nullable().optional(), isPrimary: z2.boolean().default(false) })).mutation(async ({ ctx, input }) => {
@@ -1246,6 +1277,23 @@ var storeRouter = router({
       const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
       if (input.isPrimary) await supabaseRequest(`product_media?${supabaseEq("product_id", input.productId)}`, { method: "PATCH", body: JSON.stringify({ is_primary: false }) });
       await supabaseRequest("product_media", { method: "POST", body: JSON.stringify({ product_id: input.productId, variant_id: input.variantId ?? null, cloudinary_public_id: input.publicId, optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${input.publicId}`, alt_text: input.altText ?? null, color_tag: input.colorTag ?? null, is_primary: input.isPrimary }) });
+      return { success: true };
+    }),
+    deleteMedia: publicProcedure.input(z2.object({ mediaId: z2.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requireAdmin(ctx);
+      const mediaRows = await supabaseRequest(`product_media?select=id,cloudinary_public_id&${supabaseEq("id", input.mediaId)}&limit=1`);
+      const media = mediaRows[0];
+      if (!media) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected photo record was not found." });
+      const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+      const apiKey = process.env.CLOUDINARY_API_KEY;
+      const apiSecret = process.env.CLOUDINARY_API_SECRET;
+      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+      try {
+        await destroyCloudinaryProductImage(media.cloudinary_public_id, { cloudName, apiKey, apiSecret });
+      } catch (error) {
+        throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
+      }
+      await supabaseRequest(`product_media?${supabaseEq("id", media.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
       return { success: true };
     })
   })

@@ -1553,3 +1553,52 @@ html {
   background: transparent !important;
   animation: none !important;
 }
+
+
+/* Cloudinary photo deletion controls in the admin color photo studio. */
+.photo-thumb-grid .media-thumb {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #f0dce3;
+  background: #ffffff;
+}
+
+.photo-thumb-grid .media-thumb img {
+  display: block;
+  width: 100%;
+  aspect-ratio: .8;
+  object-fit: cover;
+}
+
+.delete-photo-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: calc(100% - 12px);
+  min-height: 34px;
+  margin: 6px;
+  border: 1px solid #f0dce3;
+  background: #ffffff;
+  color: #000000;
+  font: 500 9px/1 "DM Mono", monospace;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.delete-photo-action:hover:not(:disabled),
+.delete-photo-action:focus-visible {
+  background: #fff0f5;
+  border-color: #f7c4d3;
+}
+
+.delete-photo-action:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.delete-photo-action svg {
+  width: 13px;
+  height: 13px;
+}

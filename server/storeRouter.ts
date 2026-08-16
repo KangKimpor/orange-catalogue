@@ -9,6 +9,7 @@ import { supabaseEq, supabaseRequest } from "./supabase";
 import { MAX_POS_IMPORT_BASE64_LENGTH, parsePosWorkbook } from "./posImport";
 import { adminLoginClientKey, checkAdminLoginRateLimit } from "./loginRateLimit";
 import { publicProcedure, router } from "./_core/trpc";
+import { destroyCloudinaryProductImage } from "./cloudinaryMedia";
 
 const ADMIN_COOKIE = "orange_admin_session";
 const ADMIN_PASSWORD_KEY = "admin_password_hash";
@@ -89,6 +90,7 @@ const importInput = z.object({ filename: z.string().min(1).max(255), base64: z.s
 type DbProduct = { id: number; cleaned_code: string; slug: string; category_source: string };
 type DbVariant = { id: number; product_id: number; color_id: number | null; pos_code: string; size: string | null; price: string | number; stock_quantity: number };
 type DbColor = { id: number; normalized_key: string };
+type DbProductMedia = { id: number; cloudinary_public_id: string };
 
 export async function createPreview(input: z.infer<typeof importInput>) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
@@ -140,5 +142,22 @@ export const storeRouter = router({
     resolveImportChange: publicProcedure.input(z.object({ id: z.number().int(), reviewStatus: z.enum(["accepted", "ignored"]) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`import_changes?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ review_status: input.reviewStatus }) }); return { success: true }; }),
     signMediaUpload: publicProcedure.input(z.object({ productCode: z.string().min(1), categorySlug: z.string().min(1), colorTag: z.string().min(1) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const cloudName = process.env.CLOUDINARY_CLOUD_NAME; const apiKey = process.env.CLOUDINARY_API_KEY; const apiSecret = process.env.CLOUDINARY_API_SECRET; if (!cloudName || !apiKey || !apiSecret) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." }); const normalized = input.productCode.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); const timestamp = Math.floor(Date.now() / 1000); const folder = `orange/products/${normalized}`; const tags = `orange,product:${normalized},category:${input.categorySlug},color:${input.colorTag}`; const signature = crypto.createHash("sha1").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp}${apiSecret}`).digest("hex"); return { uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp, folder, tags, signature }; }),
     registerMedia: publicProcedure.input(z.object({ productId: z.number().int(), variantId: z.number().int().nullable().optional(), publicId: z.string().min(1), secureUrl: z.string().url(), altText: z.string().max(255).nullable().optional(), colorTag: z.string().max(128).nullable().optional(), isPrimary: z.boolean().default(false) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); if (!input.publicId.startsWith("orange/products/")) throw new TRPCError({ code: "BAD_REQUEST", message: "The uploaded media is not in an approved Orange product folder." }); const cloudName = process.env.CLOUDINARY_CLOUD_NAME; if (input.isPrimary) await supabaseRequest(`product_media?${supabaseEq("product_id", input.productId)}`, { method: "PATCH", body: JSON.stringify({ is_primary: false }) }); await supabaseRequest("product_media", { method: "POST", body: JSON.stringify({ product_id: input.productId, variant_id: input.variantId ?? null, cloudinary_public_id: input.publicId, optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${input.publicId}`, alt_text: input.altText ?? null, color_tag: input.colorTag ?? null, is_primary: input.isPrimary }) }); return { success: true }; }),
+    deleteMedia: publicProcedure.input(z.object({ mediaId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requireAdmin(ctx as Context);
+      const mediaRows = await supabaseRequest<DbProductMedia[]>(`product_media?select=id,cloudinary_public_id&${supabaseEq("id", input.mediaId)}&limit=1`);
+      const media = mediaRows[0];
+      if (!media) throw new TRPCError({ code: "NOT_FOUND", message: "The selected photo record was not found." });
+      const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+      const apiKey = process.env.CLOUDINARY_API_KEY;
+      const apiSecret = process.env.CLOUDINARY_API_SECRET;
+      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+      try {
+        await destroyCloudinaryProductImage(media.cloudinary_public_id, { cloudName, apiKey, apiSecret });
+      } catch (error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
+      }
+      await supabaseRequest(`product_media?${supabaseEq("id", media.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+      return { success: true };
+    }),
   }),
 });

@@ -11,6 +11,7 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import { type AdminWorkspace as Workspace, workspaceFromPath } from "@/lib/adminWorkspace";
 import { trpc } from "@/lib/trpc";
@@ -75,6 +76,7 @@ export default function Admin() {
   const changePassword = trpc.store.admin.changePassword.useMutation();
   const signUpload = trpc.store.admin.signMediaUpload.useMutation();
   const registerMedia = trpc.store.admin.registerMedia.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
+  const deleteMedia = trpc.store.admin.deleteMedia.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
 
   const [workspace, setWorkspace] = useState<Workspace>(() => workspaceFromPath(location, window.location.search));
   const [itemSearch, setItemSearch] = useState("");
@@ -139,6 +141,10 @@ export default function Admin() {
     setImportFile(file);
     setPreview(null);
     setImportBase64(file ? await fileToBase64(file) : "");
+  }
+  async function deleteColorMedia(mediaId: number) {
+    if (!window.confirm("Delete this photo from Cloudinary and the Orange catalogue? This cannot be undone.")) return;
+    await deleteMedia.mutateAsync({ mediaId });
   }
   async function uploadColorMedia() {
     if (!selectedProduct || !selectedColor || !mediaFile) return;
@@ -245,7 +251,7 @@ export default function Admin() {
                   <div className="color-picker"><p className="eyebrow">SELECT POS ATTRIBUTE COLOR</p><div>{selectedProduct.colors.map((color, index) => <button type="button" key={`${color.id}-${color.englishName}`} onClick={() => setSelectedColorIndex(index)} className={index === selectedColorIndex ? "is-selected" : ""}><i style={{ backgroundColor: color.hex }} />{color.englishName}</button>)}</div></div>
                   <div className="photo-association"><div><p className="eyebrow">PHOTO WILL BE LINKED TO</p><h4>{selectedColor.englishName}</h4><p>This color comes directly from the POS Attribute column. Its first POS variant is used only as the secure photo association key.</p><code>{selectedColor.variants[0]?.posCode ?? "No POS variant"}</code></div><label className="upload-dropzone"><CloudUpload aria-hidden="true" /><span>{mediaFile ? mediaFile.name : "Choose an image file"}</span><small>JPG, PNG, or WebP</small><input type="file" accept="image/*" onChange={(event: ChangeEvent<HTMLInputElement>) => setMediaFile(event.target.files?.[0] ?? null)} /></label></div>
                   <div className="form-actions"><button type="button" className="primary-action" onClick={uploadColorMedia} disabled={!mediaFile || signUpload.isPending || registerMedia.isPending}>{signUpload.isPending || registerMedia.isPending ? "Uploading color photo…" : `Upload for ${selectedColor.englishName}`}</button>{registerMedia.error && <p className="form-error">{registerMedia.error.message}</p>}</div>
-                  <div className="photo-library"><div><p className="eyebrow">CURRENT COLOR PHOTOS</p><h4>{selectedColor.englishName}</h4></div>{selectedColorMedia.length ? <div className="photo-thumb-grid">{selectedColorMedia.map(media => <img key={media.id} src={media.url} alt={media.altText || `${selectedColor.englishName} item`} />)}</div> : <p className="empty-media">No photo is linked to this color yet. Upload the first one above.</p>}</div>
+                  <div className="photo-library"><div><p className="eyebrow">CURRENT COLOR PHOTOS</p><h4>{selectedColor.englishName}</h4></div>{selectedColorMedia.length ? <div className="photo-thumb-grid">{selectedColorMedia.map(media => <article className="media-thumb" key={media.id}><img src={media.url} alt={media.altText || `${selectedColor.englishName} item`} /><button type="button" className="delete-photo-action" onClick={() => deleteColorMedia(media.id)} disabled={deleteMedia.isPending} aria-label={`Delete ${selectedColor.englishName} photo`}>{deleteMedia.isPending ? "Deleting…" : <><Trash2 aria-hidden="true" />Delete photo</>}</button></article>)}</div> : <p className="empty-media">No photo is linked to this color yet. Upload the first one above.</p>}{deleteMedia.error && <p className="form-error">{deleteMedia.error.message}</p>}</div>
                 </> : <div className="empty-workspace">Search for a cleaned-code item, then select one of its POS Attribute colors.</div>}
               </section>
             </div>
