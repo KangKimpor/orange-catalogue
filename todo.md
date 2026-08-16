@@ -115,3 +115,8 @@
 - [x] Correct gallery media de-duplication and color-specific fallback so its photo count matches the selected color’s intended images; removed two confirmed duplicate ZL 0041 media records and added regression coverage.
 - [x] Simplify gallery previous/next controls into compact glass arrow buttons and refine feedback motion for product, category, and primary-action interactions, with reduced-motion support.
 - [x] Validate the curated Just In results, gallery behavior, responsive interaction polish, and production release; the deployment is READY, the live Just In page shows two items, targeted tests and build passed, and production reported no runtime errors.
+
+- [x] Add an independent `is_just_in` membership field so an item can appear in both its primary category and Just In.
+- [x] Update catalogue composition, storefront filtering, and the admin item editor to manage separate Just In membership without overwriting primary category assignment.
+- [x] Restore SP 009 and ZL 0041 to their original primary categories, then seed exactly eight example items in Just In for owner review: SP 009, ZL 0041, Sp 710, Lp 08, Lp 613, Wj 0038, Wj 0037, and Zs 00176.
+- [x] Add coverage and verify that the eight Just In examples remain present in their normal categories before releasing the feature; the live Just In, Tops, and Shorts pages confirmed the behavior and production reports no recent runtime errors.
