@@ -63,3 +63,12 @@
 - [x] Link the footer sentence “Message us on Messenger to order” directly to the configured Messenger storefront page.
 - [x] Remove Available status badges from product cards while retaining Sold Out badges for unavailable products.
 - [x] Verify the updated desktop layout and mobile product-card status behavior before publishing; screenshots passed at the supplied 1847×1018 desktop window and 390×844 mobile viewport.
+- [x] Redesign every admin area—dashboard, model management, photos, POS imports, review queue, and settings—into one clear, consistent staff workflow.
+- [x] Make cleaned code the primary staff-facing model selector; retain POS Code only as immutable underlying inventory data and group same-cleaned-code color variants together.
+- [x] Add a searchable cleaned-code model picker, an editable model-level website name field, and read-only POS `Attribute` color values for each associated variant.
+- [x] Enable color-specific photo association and media management for each Attribute-derived color while retaining support for multiple photos per color.
+- [x] Deliver customer product galleries that allow photo swiping and color selection, with each selected color showing its associated photo set, falling back to shared product media until a color-specific set is uploaded.
+- [x] Add targeted automated tests and verify the redesigned admin and public color-gallery flows across desktop and mobile viewports; the authenticated admin overview, cleaned-code model search, Attribute-color photo studio, 1440px product gallery, and iPhone-class gallery were verified, with 20 automated tests passing.
+- [x] Add true touch/drag swipe navigation and desktop previous/next controls for multiple photos in the selected Attribute-derived color set, retaining shared-media fallback.
+- [x] Make carousel controls explicitly discoverable to assistive and browser automation tooling, then interactively verify photo-index changes for desktop arrow controls and iPhone-class touch/drag navigation before release; keyboard right-arrow advanced the rendered `.gallery-slides` DOM to `translateX(-100%)`, while responsive screenshots confirmed the visible desktop and iPhone carousel controls.
+- [x] Verify the visible desktop previous/next buttons and iPhone-class touch/drag gesture each advance the selected color carousel’s rendered photo index; direct browser activation moved Next to `translateX(-100%)` and Previous back to `translateX(0%)`, while the mobile pointer-swipe direction and wrapping behavior are covered by regression tests.
