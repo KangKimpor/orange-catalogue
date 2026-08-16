@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { nextGalleryPhotoIndex, photoSwipeDirection } from "@/lib/galleryNavigation";
+import { exactMediaForColor, galleryMediaForColor } from "@/lib/galleryMedia";
 
 const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
 const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -16,13 +17,7 @@ export default function ProductDetail() {
   const swipeStartX = useRef<number | null>(null);
   useEffect(() => { setColorIndex(0); setPhotoIndex(0); setSize(null); }, [product?.id]);
   const color = product?.colors[colorIndex];
-  const mediaForColor = (selectedColor: typeof color) => {
-    if (!product || !selectedColor) return [];
-    const variantIds = new Set(selectedColor.variants.map(variant => variant.id));
-    const matching = product.media.filter(media => variantIds.has(media.variantId ?? -1) || media.colorTag?.toLowerCase() === selectedColor.englishName.toLowerCase());
-    return matching.length ? matching : product.media.filter(media => media.variantId === null);
-  };
-  const colorMedia = mediaForColor(color);
+  const colorMedia = galleryMediaForColor(product?.media ?? [], color);
   const activeMedia = colorMedia[photoIndex] ?? colorMedia[0];
   const selectedVariant = useMemo(() => color?.variants.find(variant => (size ? variant.size === size : true)) ?? color?.variants[0], [color, size]);
   const sizes = color?.variants.map(variant => variant.size).filter((item): item is string => Boolean(item)) ?? [];
@@ -50,8 +45,8 @@ export default function ProductDetail() {
               {colorMedia.length ? colorMedia.map(media => <div className="gallery-slide" key={media.id}><img src={media.url} alt={media.altText || `${product.displayName || product.cleanedCode} — ${color?.englishName ?? "color"}`} /></div>) : <div className="gallery-slide gallery-placeholder"><span>{color?.englishName || "Orange"}</span></div>}
             </div>
           </div>
-          {colorMedia.length > 1 && <><button type="button" className="gallery-arrow gallery-arrow-prev" onClick={() => movePhoto(-1)} aria-label="Previous photo"><ChevronLeft aria-hidden="true" /><span className="gallery-arrow-label">Previous</span></button><button type="button" className="gallery-arrow gallery-arrow-next" onClick={() => movePhoto(1)} aria-label="Next photo"><span className="gallery-arrow-label">Next</span><ChevronRight aria-hidden="true" /></button><div className="gallery-photo-pips" aria-label={`${color?.englishName ?? "Product"} photos`}>{colorMedia.map((media, index) => <button type="button" key={media.id} onClick={() => setPhotoIndex(index)} className={index === photoIndex ? "is-active" : ""} aria-label={`View photo ${index + 1}`} />)}</div></>}
-          <div className="gallery-color-track" aria-label="Color photo gallery">{product.colors.map((item, index) => { const preview = mediaForColor(item)[0]; return <button type="button" key={`${item.id}-${item.englishName}`} onClick={() => { setColorIndex(index); setPhotoIndex(0); setSize(null); }} className={index === colorIndex ? "is-active" : ""}><div style={!preview ? { backgroundColor: item.hex } : undefined}>{preview ? <img src={preview.url} alt="" /> : <i style={{ backgroundColor: item.hex }} />}</div><span>{item.englishName}</span></button>; })}</div>
+          {colorMedia.length > 1 && <><button type="button" className="gallery-arrow gallery-arrow-prev" onClick={() => movePhoto(-1)} aria-label="Previous photo"><ChevronLeft aria-hidden="true" /></button><button type="button" className="gallery-arrow gallery-arrow-next" onClick={() => movePhoto(1)} aria-label="Next photo"><ChevronRight aria-hidden="true" /></button><div className="gallery-photo-pips" aria-label={`${color?.englishName ?? "Product"} photos`}>{colorMedia.map((media, index) => <button type="button" key={media.id} onClick={() => setPhotoIndex(index)} className={index === photoIndex ? "is-active" : ""} aria-label={`View photo ${index + 1}`} />)}</div></>}
+          <div className="gallery-color-track" aria-label="Color photo gallery">{product.colors.map((item, index) => { const preview = exactMediaForColor(product.media, item)[0]; return <button type="button" key={`${item.id}-${item.englishName}`} onClick={() => { setColorIndex(index); setPhotoIndex(0); setSize(null); }} className={index === colorIndex ? "is-active" : ""}><div style={!preview ? { backgroundColor: item.hex } : undefined}>{preview ? <img src={preview.url} alt="" /> : <i style={{ backgroundColor: item.hex }} />}</div><span>{item.englishName}</span></button>; })}</div>
         </div>
         <div className="detail-content">
           <p className="eyebrow">{product.category.label}</p>
