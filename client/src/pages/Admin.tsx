@@ -82,6 +82,7 @@ export default function Admin() {
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [itemName, setItemName] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [isJustIn, setIsJustIn] = useState(false);
   const [reviewStatus, setReviewStatus] = useState<"clean" | "needs_review" | "archived">("clean");
   const [isPublished, setIsPublished] = useState(true);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -114,6 +115,7 @@ export default function Admin() {
     if (!selectedProduct) return;
     setItemName(selectedProduct.displayName ?? "");
     setCategoryId(categories.find(category => category.slug === selectedProduct.category.slug)?.id ?? null);
+    setIsJustIn(selectedProduct.isJustIn);
     setReviewStatus(selectedProduct.reviewStatus);
     setIsPublished(selectedProduct.isPublished);
     setSelectedColorIndex(0);
@@ -130,7 +132,7 @@ export default function Admin() {
   }
   async function saveItem() {
     if (!selectedProduct) return;
-    await updateProduct.mutateAsync({ id: selectedProduct.id, displayName: itemName.trim() || null, categoryId, isPublished, reviewStatus });
+    await updateProduct.mutateAsync({ id: selectedProduct.id, displayName: itemName.trim() || null, categoryId, isJustIn, isPublished, reviewStatus });
   }
   async function chooseImport(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
@@ -220,7 +222,8 @@ export default function Admin() {
                   <div className="model-editor-heading"><div><p className="eyebrow">SELECTED ITEM</p><h3>{selectedProduct.cleanedCode}</h3><p>{selectedProduct.colors.length} POS Attribute color{selectedProduct.colors.length === 1 ? "" : "s"} · {selectedProduct.media.length} photo{selectedProduct.media.length === 1 ? "" : "s"}</p></div><button type="button" className={isPublished ? "visibility-toggle is-live" : "visibility-toggle"} onClick={() => setIsPublished(value => !value)}>{isPublished ? "Visible to customers" : "Hidden from customers"}</button></div>
                   <div className="model-form-grid">
                     <label>Website item name<input value={itemName} onChange={event => setItemName(event.target.value)} placeholder="Example: Graphic Tee" /></label>
-                    <label>Storefront category<select value={categoryId ?? ""} onChange={event => setCategoryId(Number(event.target.value) || null)}><option value="">Not in storefront</option>{categories.map(category => <option key={category.id} value={category.id}>{category.label}</option>)}</select><small>Choose Just In only when staff intentionally want this item to appear there.</small></label>
+                    <label>Storefront category<select value={categoryId ?? ""} onChange={event => setCategoryId(Number(event.target.value) || null)}><option value="">Not in storefront</option>{categories.filter(category => category.slug !== "just-in").map(category => <option key={category.id} value={category.id}>{category.label}</option>)}</select><small>This is the item’s regular storefront category.</small></label>
+                    <label className="just-in-toggle"><span>Feature in Just In</span><input type="checkbox" checked={isJustIn} onChange={event => setIsJustIn(event.target.checked)} /><small>Also display this item in Just In without removing it from its regular category.</small></label>
                     <label>Review status<select value={reviewStatus} onChange={event => setReviewStatus(event.target.value as typeof reviewStatus)}><option value="clean">Ready</option><option value="needs_review">Needs review</option><option value="archived">Archived</option></select></label>
                   </div>
                   <div className="attribute-panel"><div><p className="eyebrow">POS ATTRIBUTE COLORS</p><p>Read-only colors imported from the POS file. Select one to inspect its immutable POS codes, size variants, and stock.</p></div><div className="attribute-list">{selectedProduct.colors.map((color, index) => <button type="button" onClick={() => setSelectedColorIndex(index)} className={index === selectedColorIndex ? "is-selected" : ""} key={`${color.id}-${color.englishName}`}><i style={{ backgroundColor: color.hex }} /><span>{color.englishName}</span><small>{color.variants.length} POS variant{color.variants.length === 1 ? "" : "s"}</small></button>)}</div>{selectedColor && <div className="variant-table"><div className="variant-table-header"><span>POS Code</span><span>Color from Attribute</span><span>Size</span><span>Stock</span></div>{selectedColor.variants.map(variant => <div key={variant.id}><code>{variant.posCode}</code><span>{selectedColor.englishName}</span><span>{variant.size || "One size"}</span><span className={variant.available ? "in-stock" : "out-stock"}>{variant.stockQuantity} in stock</span></div>)}</div>}</div>

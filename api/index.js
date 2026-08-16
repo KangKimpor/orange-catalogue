@@ -70,6 +70,7 @@ var products = mysqlTable("products", {
   displayName: varchar("displayName", { length: 255 }),
   categoryId: int("categoryId").references(() => categories.id),
   categorySource: mysqlEnum("categorySource", ["rule", "manual", "unassigned"]).default("unassigned").notNull(),
+  isJustIn: boolean("isJustIn").default(false).notNull(),
   isPublished: boolean("isPublished").default(true).notNull(),
   isRemovedFromLatestImport: boolean("isRemovedFromLatestImport").default(false).notNull(),
   reviewStatus: mysqlEnum("reviewStatus", ["clean", "needs_review", "archived"]).default("clean").notNull(),
@@ -848,6 +849,7 @@ async function fetchCatalogueRows(includeHidden = false) {
       displayName: row.display_name,
       categoryId: row.category_id,
       categorySource: row.category_source,
+      isJustIn: row.is_just_in,
       isPublished: row.is_published,
       isRemovedFromLatestImport: row.is_removed_from_latest_import,
       reviewStatus: row.review_status
@@ -1074,7 +1076,7 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
       });
       const variants2 = variantsByProduct.get(product.id) ?? [];
       const category = product.categoryId ? categoriesById.get(product.categoryId) : void 0;
-      return { id: product.id, slug: product.slug, displayName: product.displayName, cleanedCode: product.cleanedCode, category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" }, isPublished: product.isPublished, isRemovedFromLatestImport: product.isRemovedFromLatestImport, reviewStatus: product.reviewStatus, available: variants2.some((v) => publicAvailability(v.stockQuantity)), priceMin: variants2.length ? Math.min(...variants2.map((v) => Number(v.price))) : 0, priceMax: variants2.length ? Math.max(...variants2.map((v) => Number(v.price))) : 0, colors: colors2, media: (mediaByProduct.get(product.id) ?? []).map((media) => ({ id: media.id, url: media.optimizedUrl, altText: media.altText, isPrimary: media.isPrimary, variantId: media.variantId, colorTag: media.colorTag })) };
+      return { id: product.id, slug: product.slug, displayName: product.displayName, cleanedCode: product.cleanedCode, category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" }, isJustIn: product.isJustIn, isPublished: product.isPublished, isRemovedFromLatestImport: product.isRemovedFromLatestImport, reviewStatus: product.reviewStatus, available: variants2.some((v) => publicAvailability(v.stockQuantity)), priceMin: variants2.length ? Math.min(...variants2.map((v) => Number(v.price))) : 0, priceMax: variants2.length ? Math.max(...variants2.map((v) => Number(v.price))) : 0, colors: colors2, media: (mediaByProduct.get(product.id) ?? []).map((media) => ({ id: media.id, url: media.optimizedUrl, altText: media.altText, isPrimary: media.isPrimary, variantId: media.variantId, colorTag: media.colorTag })) };
     })
   };
 }
@@ -1197,9 +1199,9 @@ var storeRouter = router({
       await requireAdmin(ctx);
       return cataloguePayload(true, true);
     }),
-    updateProduct: publicProcedure.input(z2.object({ id: z2.number().int(), displayName: z2.string().max(255).nullable(), categoryId: z2.number().int().nullable(), isPublished: z2.boolean().optional(), reviewStatus: z2.enum(["clean", "needs_review", "archived"]).optional() })).mutation(async ({ ctx, input }) => {
+    updateProduct: publicProcedure.input(z2.object({ id: z2.number().int(), displayName: z2.string().max(255).nullable(), categoryId: z2.number().int().nullable(), isJustIn: z2.boolean().optional(), isPublished: z2.boolean().optional(), reviewStatus: z2.enum(["clean", "needs_review", "archived"]).optional() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
-      await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...input.isPublished === void 0 ? {} : { is_published: input.isPublished }, ...input.reviewStatus === void 0 ? {} : { review_status: input.reviewStatus } }) });
+      await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...input.isJustIn === void 0 ? {} : { is_just_in: input.isJustIn }, ...input.isPublished === void 0 ? {} : { is_published: input.isPublished }, ...input.reviewStatus === void 0 ? {} : { review_status: input.reviewStatus } }) });
       return { success: true };
     }),
     previewImport: publicProcedure.input(importInput).mutation(async ({ ctx, input }) => {

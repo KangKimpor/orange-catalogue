@@ -12,7 +12,7 @@ export async function fetchCatalogueRows(includeHidden = false) {
     categoryRows: categoryRows.map(row => ({ id: row.id, slug: row.slug, label: row.label, sortOrder: row.sort_order, isVisible: row.is_visible })),
     productRows: productRows.map(row => ({
       id: row.id, slug: row.slug, cleanedCode: row.cleaned_code, displayName: row.display_name, categoryId: row.category_id,
-      categorySource: row.category_source, isPublished: row.is_published, isRemovedFromLatestImport: row.is_removed_from_latest_import,
+      categorySource: row.category_source, isJustIn: row.is_just_in, isPublished: row.is_published, isRemovedFromLatestImport: row.is_removed_from_latest_import,
       reviewStatus: row.review_status,
     })),
     variantRows: variantRows.map(row => ({

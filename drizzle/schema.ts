@@ -40,6 +40,7 @@ export const products = mysqlTable("products", {
   displayName: varchar("displayName", { length: 255 }),
   categoryId: int("categoryId").references(() => categories.id),
   categorySource: mysqlEnum("categorySource", ["rule", "manual", "unassigned"]).default("unassigned").notNull(),
+  isJustIn: boolean("isJustIn").default(false).notNull(),
   isPublished: boolean("isPublished").default(true).notNull(),
   isRemovedFromLatestImport: boolean("isRemovedFromLatestImport").default(false).notNull(),
   reviewStatus: mysqlEnum("reviewStatus", ["clean", "needs_review", "archived"]).default("clean").notNull(),

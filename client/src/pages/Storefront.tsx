@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { belongsInStorefrontCategory } from "@/lib/storefrontCategories";
 
 const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
 
@@ -15,7 +16,7 @@ export default function Storefront() {
     return requested || "just-in";
   });
   const products = useMemo(
-    () => (data?.products ?? []).filter(product => product.category.slug === activeCategory),
+    () => (data?.products ?? []).filter(product => belongsInStorefrontCategory(product, activeCategory)),
     [activeCategory, data],
   );
 

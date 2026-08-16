@@ -59,6 +59,7 @@ export type ProductRow = {
   display_name: string | null;
   category_id: number | null;
   category_source: "rule" | "manual" | "unassigned";
+  is_just_in: boolean;
   is_published: boolean;
   is_removed_from_latest_import: boolean;
   review_status: "clean" | "needs_review" | "archived";

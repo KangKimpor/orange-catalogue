@@ -643,3 +643,60 @@ html {
     opacity: .94;
   }
 }
+
+
+/* Independent Just In feature membership */
+.model-form-grid .just-in-toggle {
+  align-content: start;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 12px;
+  row-gap: 7px;
+  border: 1px solid #d8c9b8;
+  background: #fffaf2;
+  padding: 12px;
+}
+
+.model-form-grid .just-in-toggle > span {
+  align-self: center;
+}
+
+.model-form-grid .just-in-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 34px;
+  height: 20px;
+  min-width: 34px;
+  margin: 0;
+  border: 1px solid #ad947b;
+  border-radius: 999px;
+  background: #e7ddd0;
+  cursor: pointer;
+  position: relative;
+  transition: background .18s ease, border-color .18s ease;
+}
+
+.model-form-grid .just-in-toggle input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fffdf9;
+  box-shadow: 0 1px 3px rgba(52, 37, 25, .2);
+  transition: transform .18s ease;
+}
+
+.model-form-grid .just-in-toggle input[type="checkbox"]:checked {
+  border-color: #835b3c;
+  background: #9c704a;
+}
+
+.model-form-grid .just-in-toggle input[type="checkbox"]:checked::after {
+  transform: translateX(14px);
+}
+
+.model-form-grid .just-in-toggle small {
+  grid-column: 1 / -1;
+  margin: 0;
+}
