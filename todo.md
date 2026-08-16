@@ -38,4 +38,5 @@
 - [ ] Refactor the server and admin authentication flows to use Supabase while retaining Cloudinary uploads and the public storefront contract.
 - [ ] Retain the normal single-password `/admin` login using the initial password `REDACTED_SETUP_PASSWORD`, with its password hash and session validation backed by Supabase rather than a Supabase email account.
 - [ ] Prepare the application for Vercel hosting and verify a public production deployment.
+- [ ] Fix the Vercel serverless API module-resolution failure and verify the live Supabase catalogue endpoint.
 - [ ] Create a private GitHub repository containing the complete website source and migration documentation.
