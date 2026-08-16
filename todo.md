@@ -128,3 +128,4 @@
 - [x] Apply the supplied admin item-editor form alignment refinements while preserving the established white, black, and lightest-pink design system.
 
 - [x] Remove the large pink front-page placeholder/loading background and keep the product area white with only subtle neutral loading feedback.
+- [x] Add a hard-white front-page surface guard that removes inherited fills and pink loading pseudo-elements from product placeholders.

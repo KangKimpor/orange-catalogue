@@ -1533,3 +1533,23 @@ html {
     box-shadow: inset 0 -2px 0 #f7c4d3;
   }
 }
+
+
+/* Final front-page surface guard: placeholders and loading states stay white. */
+.product-grid,
+.product-card,
+.product-image,
+.product-card-skeleton,
+.product-card-skeleton .product-image,
+.product-card-skeleton .product-meta,
+.product-card-skeleton .product-meta span,
+.empty-state {
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+
+.product-card-skeleton .product-image::after,
+.product-card-skeleton .product-meta span::after {
+  background: transparent !important;
+  animation: none !important;
+}
