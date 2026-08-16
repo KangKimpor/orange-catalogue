@@ -11,7 +11,7 @@ const stylesheet = readFileSync(resolve(root, "client/src/index.css"), "utf8");
 
 describe("cleaned-code admin and color media workflow", () => {
   it("keeps staff workflow centered on cleaned-code models and editable website names", () => {
-    expect(admin).toContain("Find a model by cleaned code or website name");
+    expect(admin).toContain("Find an item by cleaned code or website name");
     expect(admin).toContain("Website item name");
     expect(admin).toContain("POS ATTRIBUTE COLORS");
     expect(admin).toContain("POS Code is immutable");
@@ -25,8 +25,8 @@ describe("cleaned-code admin and color media workflow", () => {
 
   it("exposes color tags and filters gallery photos by either variant or imported color", () => {
     expect(router).toContain("colorTag: media.colorTag");
-    expect(detail).toContain("variantIds.has(media.variantId ?? -1)");
-    expect(detail).toContain("media.colorTag?.toLowerCase() === selectedColor.englishName.toLowerCase()");
+    expect(detail).toContain("galleryMediaForColor");
+    expect(detail).toContain("exactMediaForColor");
     expect(detail).toContain("gallery-color-track");
     expect(detail).toContain("gallery-photo-pips");
     expect(detail).toContain("onPointerDown");

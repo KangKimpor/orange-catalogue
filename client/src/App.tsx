@@ -1,29 +1,33 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
+import { lazy, Suspense } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Admin from "./pages/Admin";
-import ProductDetail from "./pages/ProductDetail";
+const Admin = lazy(() => import("./pages/Admin"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 import Storefront from "./pages/Storefront";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
-    <Switch>
-      <Route path={"/"} component={Storefront} />
-      <Route path={"/product/:slug"} component={ProductDetail} />
-      <Route path={"/admin"} component={Admin} />
-      <Route path={"/admin/items"} component={Admin} />
-      <Route path={"/admin/photos"} component={Admin} />
-      <Route path={"/admin/import"} component={Admin} />
-      <Route path={"/admin/review-queue"} component={Admin} />
-      <Route path={"/admin/security"} component={Admin} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
-      <Route component={NotFound} />
-    </Switch>
+    <Suspense fallback={<div className="route-loading" aria-live="polite">Loading Orange…</div>}>
+      <Switch>
+        <Route path={"/"} component={Storefront} />
+        <Route path={"/product/:slug"} component={ProductDetail} />
+        <Route path={"/admin"} component={Admin} />
+        <Route path={"/admin/items"} component={Admin} />
+        <Route path={"/admin/photos"} component={Admin} />
+        <Route path={"/admin/import"} component={Admin} />
+        <Route path={"/admin/review-queue"} component={Admin} />
+        <Route path={"/admin/security"} component={Admin} />
+        <Route path={"/404"} component={NotFound} />
+        {/* Final fallback route */}
+        <Route component={NotFound} />
+      </Switch>
+    </Suspense>
   );
 }
 
@@ -42,6 +46,7 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Router />
+          <Analytics mode="production" />
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

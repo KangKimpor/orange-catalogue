@@ -41,10 +41,11 @@ describe("Orange admin and catalogue boundaries", () => {
   it("does not expose exact stock quantities from the public catalogue response", async () => {
     const ctx = createContext();
     const catalogue = await storeRouter.createCaller(ctx.ctx).catalogue.list();
-    const firstVariant = catalogue.products.flatMap(product => product.colors).flatMap(color => color.variants)[0];
-    expect(firstVariant).toBeDefined();
-    expect(firstVariant).toHaveProperty("available");
-    expect(firstVariant).not.toHaveProperty("stockQuantity");
+    const firstColor = catalogue.products.flatMap(product => product.colors)[0];
+    expect(firstColor).toBeDefined();
+    expect(firstColor).toHaveProperty("available");
+    expect(firstColor).not.toHaveProperty("stockQuantity");
+    expect(firstColor).not.toHaveProperty("variants");
   });
 
   it("issues Cloudinary upload parameters only to a verified admin session", async () => {

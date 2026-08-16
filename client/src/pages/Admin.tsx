@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { type AdminWorkspace as Workspace, workspaceFromPath } from "@/lib/adminWorkspace";
 import { trpc } from "@/lib/trpc";
+import { mapWithConcurrency } from "@shared/asyncPool";
+import type { ParsedCatalogueWorkbook } from "@/lib/catalogueWorkbook";
 
 const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
 
@@ -72,6 +74,9 @@ export default function Admin() {
   const updateProduct = trpc.store.admin.updateProduct.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
   const previewImport = trpc.store.admin.previewImport.useMutation();
   const applyImport = trpc.store.admin.applyImport.useMutation({ onSuccess: () => { utils.store.admin.overview.invalidate(); utils.store.admin.importHistory.invalidate(); utils.store.admin.reviewQueue.invalidate(); } });
+  const previewCatalogueWorkbook = trpc.store.admin.previewCatalogueWorkbook.useMutation();
+  const prepareCatalogueWorkbookUploads = trpc.store.admin.prepareCatalogueWorkbookUploads.useMutation();
+  const applyCatalogueWorkbook = trpc.store.admin.applyCatalogueWorkbook.useMutation({ onSuccess: () => { utils.store.admin.overview.invalidate(); utils.store.admin.importHistory.invalidate(); } });
   const resolveImportChange = trpc.store.admin.resolveImportChange.useMutation({ onSuccess: () => utils.store.admin.reviewQueue.invalidate() });
   const changePassword = trpc.store.admin.changePassword.useMutation();
   const signUpload = trpc.store.admin.signMediaUpload.useMutation();
@@ -91,6 +96,15 @@ export default function Admin() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importBase64, setImportBase64] = useState("");
   const [preview, setPreview] = useState<any>(null);
+  const [catalogueWorkbookFile, setCatalogueWorkbookFile] = useState<File | null>(null);
+  const [catalogueWorkbook, setCatalogueWorkbook] = useState<ParsedCatalogueWorkbook | null>(null);
+  const [catalogueWorkbookPreview, setCatalogueWorkbookPreview] = useState<any>(null);
+  const [catalogueWorkbookError, setCatalogueWorkbookError] = useState("");
+  const [catalogueWorkbookProgress, setCatalogueWorkbookProgress] = useState(0);
+  const [catalogueWorkbookUploadedKeys, setCatalogueWorkbookUploadedKeys] = useState<string[]>([]);
+  const [catalogueWorkbookFailedKeys, setCatalogueWorkbookFailedKeys] = useState<string[]>([]);
+  const [replaceExistingWorkbookMedia, setReplaceExistingWorkbookMedia] = useState(false);
+  const [catalogueWorkbookResult, setCatalogueWorkbookResult] = useState<{ namesUpdated: number; photosRegistered: number; photosReused: number; photosRetired: number } | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
@@ -106,6 +120,10 @@ export default function Admin() {
   const selectedColorVariantIds = useMemo(() => new Set(selectedColor?.variants.map(variant => variant.id) ?? []), [selectedColor]);
   const selectedColorMedia = useMemo(() => selectedProduct?.media.filter(media => selectedColorVariantIds.has(media.variantId ?? -1) || media.colorTag?.toLowerCase() === selectedColor?.englishName.toLowerCase()) ?? [], [selectedColor?.englishName, selectedColorVariantIds, selectedProduct?.media]);
   const attentionCount = reviewQueue.data?.filter(item => item.reviewStatus === "pending").length ?? reviewQueue.data?.length ?? 0;
+  const catalogueWorkbookPhotoCount = catalogueWorkbook?.photos.length ?? 0;
+  const catalogueWorkbookWarningCount = catalogueWorkbook?.warnings.length ?? 0;
+  const catalogueWorkbookPhotoMegabytes = catalogueWorkbook ? (catalogueWorkbook.totalPhotoBytes / (1024 * 1024)).toFixed(1) : "0.0";
+  const catalogueWorkbookNeedsSmallerBatch = Boolean(catalogueWorkbook && (catalogueWorkbook.photos.length > 100 || catalogueWorkbook.totalPhotoBytes > 20 * 1024 * 1024));
   const photoReadyCount = products.filter(product => product.media.length > 0).length;
   const unpublishedCount = products.filter(product => !product.isPublished).length;
 
@@ -141,6 +159,78 @@ export default function Admin() {
     setImportFile(file);
     setPreview(null);
     setImportBase64(file ? await fileToBase64(file) : "");
+  }
+  async function chooseCatalogueWorkbook(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    setCatalogueWorkbookFile(file);
+    setCatalogueWorkbook(null);
+    setCatalogueWorkbookPreview(null);
+    setCatalogueWorkbookResult(null);
+    setCatalogueWorkbookProgress(0);
+    setCatalogueWorkbookUploadedKeys([]);
+    setCatalogueWorkbookFailedKeys([]);
+    setReplaceExistingWorkbookMedia(false);
+    setCatalogueWorkbookError("");
+    if (!file) return;
+    try {
+      const { parseCatalogueWorkbook } = await import("../lib/catalogueWorkbook");
+      setCatalogueWorkbook(await parseCatalogueWorkbook(file));
+    } catch (error) {
+      setCatalogueWorkbookError(error instanceof Error ? error.message : "The catalogue workbook could not be read.");
+    }
+  }
+  async function previewSelectedCatalogueWorkbook() {
+    if (!catalogueWorkbookFile || !catalogueWorkbook) return;
+    setCatalogueWorkbookError("");
+    setCatalogueWorkbookResult(null);
+    try {
+      const nextPreview = await previewCatalogueWorkbook.mutateAsync({ filename: catalogueWorkbookFile.name, digest: catalogueWorkbook.digestSource, rows: catalogueWorkbook.rows });
+      setCatalogueWorkbookPreview(nextPreview);
+    } catch (error) {
+      setCatalogueWorkbookError(error instanceof Error ? error.message : "The catalogue workbook could not be previewed.");
+    }
+  }
+  async function uploadAndApplyCatalogueWorkbook() {
+    if (!catalogueWorkbook || !catalogueWorkbookPreview?.importId) return;
+    setCatalogueWorkbookError("");
+    try {
+      const prepared = await prepareCatalogueWorkbookUploads.mutateAsync({ importId: catalogueWorkbookPreview.importId, digest: catalogueWorkbook.digestSource });
+      const photosByKey = new Map(catalogueWorkbook.photos.map(photo => [photo.key, photo]));
+      const completed = new Set(catalogueWorkbookUploadedKeys);
+      const pending = prepared.uploads.filter(upload => !completed.has(upload.photoKey));
+      setCatalogueWorkbookProgress(completed.size);
+      const attempted = await mapWithConcurrency(pending, 3, async upload => {
+        const photo = photosByKey.get(upload.photoKey);
+        if (!photo) return { photoKey: upload.photoKey, error: `The photo mapped to ${upload.photoKey} is missing from this workbook.` };
+        try {
+          const form = new FormData();
+          form.append("file", photo.file);
+          form.append("api_key", upload.apiKey);
+          form.append("timestamp", String(upload.timestamp));
+          form.append("folder", upload.folder);
+          form.append("public_id", upload.publicId);
+          form.append("tags", upload.tags);
+          form.append("signature", upload.signature);
+          const response = await fetch(upload.uploadUrl, { method: "POST", body: form });
+          if (!response.ok) throw new Error(`Cloudinary could not upload the photo from Excel row ${photo.excelRow}.`);
+          return { photoKey: upload.photoKey, error: null };
+        } catch (error) {
+          return { photoKey: upload.photoKey, error: error instanceof Error ? error.message : "Photo upload failed." };
+        }
+      });
+      const failures = attempted.filter(item => item.error);
+      const successfulKeys = attempted.filter(item => !item.error).map(item => item.photoKey);
+      const allUploadedKeys = Array.from(new Set([...catalogueWorkbookUploadedKeys, ...successfulKeys]));
+      setCatalogueWorkbookUploadedKeys(allUploadedKeys);
+      setCatalogueWorkbookProgress(allUploadedKeys.length);
+      setCatalogueWorkbookFailedKeys(failures.map(item => item.photoKey));
+      if (failures.length) throw new Error(`${failures.length} photo${failures.length === 1 ? "" : "s"} could not upload. Retry to send only the failed photos.`);
+      const result = await applyCatalogueWorkbook.mutateAsync({ importId: catalogueWorkbookPreview.importId, digest: catalogueWorkbook.digestSource, uploadedPhotoKeys: prepared.uploads.map(upload => upload.photoKey), replaceExistingMedia: replaceExistingWorkbookMedia });
+      setCatalogueWorkbookFailedKeys([]);
+      setCatalogueWorkbookResult(result);
+    } catch (error) {
+      setCatalogueWorkbookError(error instanceof Error ? error.message : "The catalogue workbook could not be applied.");
+    }
   }
   async function deleteColorMedia(mediaId: number) {
     if (!window.confirm("Delete this photo from Cloudinary and the Orange catalogue? This cannot be undone.")) return;
@@ -258,7 +348,7 @@ export default function Admin() {
           </section>
         )}
 
-        {workspace === "imports" && <section className="admin-view import-view"><div className="workspace-intro"><div><h2>POS import desk</h2><p>Preview every XLSX import before applying it. Missing records are flagged for review, never deleted automatically.</p></div><span className="helper-chip">Preview first · apply second</span></div><section className="import-workbench"><label className="import-file"><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input type="file" accept=".xlsx,.xls" onChange={chooseImport} /></label><button type="button" className="primary-action" onClick={async () => { if (!importFile || !importBase64) return; setPreview(await previewImport.mutateAsync({ filename: importFile.name, base64: importBase64 })); }} disabled={!importBase64 || previewImport.isPending}>{previewImport.isPending ? "Preparing preview…" : "Preview changes"}</button>{previewImport.error && <p className="form-error">{previewImport.error.message}</p>}{preview && <div className="preview-card"><div className="import-summary"><span><b>{preview.summary.rows}</b> rows</span><span><b>{preview.summary.newProducts}</b> new items</span><span><b>{preview.summary.newVariants}</b> new POS variants</span><span><b>{preview.summary.updatedVariants}</b> updates</span><span><b>{preview.summary.missingVariants}</b> review items</span></div><p>{preview.validation.invalidRows.length ? `${preview.validation.invalidRows.length} invalid row(s) must be corrected before this import can be applied.` : "Validation passed. No catalogue changes have been made yet."}</p><button type="button" className="secondary-action" onClick={() => importFile && applyImport.mutate({ importId: preview.importId, filename: importFile.name, base64: importBase64 })} disabled={applyImport.isPending || preview.validation.invalidRows.length > 0}>{applyImport.isPending ? "Applying import…" : "Apply verified import"}</button></div>}</section><section className="history-card"><div><p className="eyebrow">RECENT IMPORTS</p><h3>Import history</h3></div>{history.data?.length ? <div>{history.data.slice().reverse().slice(0, 8).map(item => <p key={item.id}><span>{item.originalFilename}</span><small>{new Date(item.createdAt).toLocaleDateString()}</small><b>{item.status}</b></p>)}</div> : <p className="empty-media">No import history yet.</p>}</section></section>}
+        {workspace === "imports" && <section className="admin-view import-view"><div className="workspace-intro"><div><h2>Import desk</h2><p>Use the POS import for inventory. Use the catalogue workbook to add customer-facing names and photos embedded directly in one Excel file.</p></div><span className="helper-chip">Preview first · apply second</span></div><div className="import-mode-grid"><section className="import-workbench"><div className="import-card-heading"><p className="eyebrow">INVENTORY</p><h3>POS XLSX import</h3><p>Preview inventory updates before applying them. Missing records are flagged for review and never deleted automatically.</p></div><label className="import-file"><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input type="file" accept=".xlsx,.xls" onChange={chooseImport} /></label><button type="button" className="primary-action" onClick={async () => { if (!importFile || !importBase64) return; setPreview(await previewImport.mutateAsync({ filename: importFile.name, base64: importBase64 })); }} disabled={!importBase64 || previewImport.isPending}>{previewImport.isPending ? "Preparing preview…" : "Preview inventory changes"}</button>{previewImport.error && <p className="form-error">{previewImport.error.message}</p>}{preview && <div className="preview-card"><div className="import-summary"><span><b>{preview.summary.rows}</b> rows</span><span><b>{preview.summary.newProducts}</b> new items</span><span><b>{preview.summary.newVariants}</b> new POS variants</span><span><b>{preview.summary.updatedVariants}</b> updates</span><span><b>{preview.summary.missingVariants}</b> review items</span></div><p>{preview.validation.invalidRows.length ? `${preview.validation.invalidRows.length} invalid row(s) must be corrected before this import can be applied.` : "Validation passed. No catalogue changes have been made yet."}</p><button type="button" className="secondary-action" onClick={() => importFile && applyImport.mutate({ importId: preview.importId, filename: importFile.name, base64: importBase64 })} disabled={applyImport.isPending || preview.validation.invalidRows.length > 0}>{applyImport.isPending ? "Applying import…" : "Apply verified inventory import"}</button></div>}</section><section className="import-workbench catalogue-workbook-import"><div className="import-card-heading"><p className="eyebrow">NAMES + PHOTOS</p><h3>Direct catalogue workbook</h3><p>Staff can type website names and place photos directly in this template. The website reads each embedded image and safely uploads it to its matching POS colour.</p><a href="/Orange_Catalogue_Direct_Upload_Template.xlsx" download>Download the Excel template</a></div><label className="import-file"><FileSpreadsheet aria-hidden="true" /><span>{catalogueWorkbookFile ? catalogueWorkbookFile.name : "Choose completed catalogue workbook"}</span><small>Excel .xlsx with embedded photos · 25 MB maximum</small><input type="file" accept=".xlsx" onChange={chooseCatalogueWorkbook} /></label>{catalogueWorkbook && <><div className="import-summary"><span><b>{catalogueWorkbook.rows.length}</b> item rows</span><span><b>{catalogueWorkbook.photos.length}</b> embedded photos</span><span><b>{catalogueWorkbookPhotoMegabytes}</b> MB embedded</span></div>{catalogueWorkbookNeedsSmallerBatch && <p className="form-helper">For the smoothest upload, split this workbook into category batches of around 50–100 photos or under 20 MB each.</p>}</>}<button type="button" className="primary-action" onClick={previewSelectedCatalogueWorkbook} disabled={!catalogueWorkbook || previewCatalogueWorkbook.isPending}>{previewCatalogueWorkbook.isPending ? "Checking workbook…" : "Preview names and photos"}</button>{catalogueWorkbookWarningCount > 0 && <p className="form-helper">{catalogueWorkbookWarningCount} blank row{catalogueWorkbookWarningCount === 1 ? "" : "s"} will be ignored.</p>}{catalogueWorkbookError && <p className="form-error">{catalogueWorkbookError}</p>}{catalogueWorkbookPreview && <div className="preview-card"><div className="import-summary"><span><b>{catalogueWorkbookPreview.summary.rows}</b> rows</span><span><b>{catalogueWorkbookPreview.summary.names}</b> website names</span><span><b>{catalogueWorkbookPreview.summary.photos}</b> photos</span><span><b>{catalogueWorkbookPreview.summary.newPhotos}</b> new</span><span><b>{catalogueWorkbookPreview.summary.reusedPhotos}</b> already stored</span><span><b>{catalogueWorkbookPreview.summary.errors}</b> issues</span></div>{catalogueWorkbookPreview.errors.length ? <div className="workbook-errors">{catalogueWorkbookPreview.errors.slice(0, 8).map((error: string) => <p key={error}>{error}</p>)}</div> : <><p>Validation passed. New photos will upload in small parallel batches; unchanged photos are reused without another upload.</p><label className="workbook-replace-option"><input type="checkbox" checked={replaceExistingWorkbookMedia} onChange={event => setReplaceExistingWorkbookMedia(event.target.checked)} /><span>Replace older photos for the submitted product colours after the new photos are verified.</span></label>{catalogueWorkbookFailedKeys.length > 0 && <p className="form-helper">{catalogueWorkbookFailedKeys.length} photo{catalogueWorkbookFailedKeys.length === 1 ? "" : "s"} failed previously. Retry sends only those photos.</p>}<button type="button" className="secondary-action" onClick={uploadAndApplyCatalogueWorkbook} disabled={prepareCatalogueWorkbookUploads.isPending || applyCatalogueWorkbook.isPending}>{prepareCatalogueWorkbookUploads.isPending || applyCatalogueWorkbook.isPending ? `Uploading ${catalogueWorkbookProgress} new photo${catalogueWorkbookProgress === 1 ? "" : "s"}…` : catalogueWorkbookFailedKeys.length ? "Retry failed photos" : "Upload names and embedded photos"}</button></>}</div>}{catalogueWorkbookResult && <p className="import-success">Workbook applied: {catalogueWorkbookResult.namesUpdated} website name{catalogueWorkbookResult.namesUpdated === 1 ? "" : "s"} updated, {catalogueWorkbookResult.photosRegistered} photo{catalogueWorkbookResult.photosRegistered === 1 ? "" : "s"} added, {catalogueWorkbookResult.photosReused} reused, and {catalogueWorkbookResult.photosRetired} retired.</p>}</section></div><section className="history-card"><div><p className="eyebrow">RECENT IMPORTS</p><h3>Import history</h3></div>{history.data?.length ? <div>{history.data.slice().reverse().slice(0, 8).map(item => <p key={item.id}><span>{item.originalFilename}</span><small>{new Date(item.createdAt).toLocaleDateString()}</small><b>{item.status}</b></p>)}</div> : <p className="empty-media">No import history yet.</p>}</section></section>}
 
         {workspace === "reviews" && <section className="admin-view review-view"><div className="workspace-intro"><div><h2>Review queue</h2><p>Confirm or ignore POS changes. Every imported record stays in the audit trail; nothing is automatically deleted.</p></div><span className="helper-chip">{attentionCount} item{attentionCount === 1 ? "" : "s"} to review</span></div><section className="review-card">{reviewQueue.data?.length ? reviewQueue.data.map(change => <article key={change.id}><div><p className="eyebrow">{change.changeType.replaceAll("_", " ")}</p><h3>{change.posCode || "POS record"}</h3><p>Imported change awaiting a staff decision.</p></div><div><button type="button" className="secondary-action" onClick={() => resolveImportChange.mutate({ id: change.id, reviewStatus: "accepted" })}>Acknowledge</button><button type="button" className="quiet-action" onClick={() => resolveImportChange.mutate({ id: change.id, reviewStatus: "ignored" })}>Ignore</button></div></article>) : <div className="empty-workspace">No POS changes require review right now.</div>}</section></section>}
 

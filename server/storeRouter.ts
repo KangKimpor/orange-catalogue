@@ -4,12 +4,13 @@ import { SignJWT, jwtVerify } from "jose";
 import { parse as parseCookie } from "cookie";
 import { z } from "zod";
 import { buildMessengerOrderUrl, PUBLIC_CATEGORIES } from "./catalogRules";
-import { fetchCatalogueRows } from "./catalogDb";
+import { fetchCatalogueRows, fetchStorefrontCards, fetchStorefrontProduct } from "./catalogDb";
 import { supabaseEq, supabaseRequest } from "./supabase";
 import { MAX_POS_IMPORT_BASE64_LENGTH, parsePosWorkbook } from "./posImport";
 import { adminLoginClientKey, checkAdminLoginRateLimit } from "./loginRateLimit";
 import { publicProcedure, router } from "./_core/trpc";
 import { destroyCloudinaryProductImage } from "./cloudinaryMedia";
+import { applyCatalogueWorkbookImport, prepareCatalogueWorkbookUploads, previewCatalogueWorkbookImport } from "./catalogueWorkbookImport";
 
 const ADMIN_COOKIE = "orange_admin_session";
 const ADMIN_PASSWORD_KEY = "admin_password_hash";
@@ -87,6 +88,19 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
 }
 
 const importInput = z.object({ filename: z.string().min(1).max(255), base64: z.string().min(16).max(MAX_POS_IMPORT_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/, "The POS workbook payload is not valid base64.") });
+const catalogueWorkbookRowInput = z.object({
+  excelRow: z.number().int().positive(),
+  cleanedCode: z.string().min(1).max(255),
+  websiteName: z.string().min(1).max(255).nullable(),
+  attributeColor: z.string().min(1).max(255).nullable(),
+  photoKeys: z.array(z.string().regex(/^row-\d+-photo-\d+$/)).max(10),
+  photoHashes: z.record(z.string().regex(/^row-\d+-photo-\d+$/), z.string().regex(/^[a-f0-9]{64}$/)),
+});
+const catalogueWorkbookImportInput = z.object({
+  filename: z.string().min(1).max(255),
+  digest: z.string().regex(/^[a-f0-9]{64}$/),
+  rows: z.array(catalogueWorkbookRowInput).min(1).max(1_000),
+});
 type DbProduct = { id: number; cleaned_code: string; slug: string; category_source: string };
 type DbVariant = { id: number; product_id: number; color_id: number | null; pos_code: string; size: string | null; price: string | number; stock_quantity: number };
 type DbColor = { id: number; normalized_key: string };
@@ -128,7 +142,7 @@ export async function applyImport(input: z.infer<typeof importInput> & { importI
 }
 
 export const storeRouter = router({
-  catalogue: router({ list: publicProcedure.query(() => cataloguePayload(false)), getBySlug: publicProcedure.input(z.object({ slug: z.string().min(1) })).query(async ({ input }) => { const product = (await cataloguePayload(false)).products.find(row => row.slug === input.slug); if (!product) throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." }); return product; }), categories: publicProcedure.query(() => PUBLIC_CATEGORIES), messengerUrl: publicProcedure.input(z.object({ productCode: z.string(), color: z.string(), size: z.string().nullable().optional() })).query(({ input }) => buildMessengerOrderUrl(input)) }),
+  catalogue: router({ list: publicProcedure.query(() => fetchStorefrontCards()), getBySlug: publicProcedure.input(z.object({ slug: z.string().min(1) })).query(async ({ input }) => { const product = await fetchStorefrontProduct(input.slug); if (!product) throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." }); return product; }), categories: publicProcedure.query(() => PUBLIC_CATEGORIES), messengerUrl: publicProcedure.input(z.object({ productCode: z.string(), color: z.string(), size: z.string().nullable().optional() })).query(({ input }) => buildMessengerOrderUrl(input)) }),
   admin: router({
     session: publicProcedure.query(({ ctx }) => hasAdminSession(ctx as Context)),
     login: publicProcedure.input(z.object({ password: z.string().min(1).max(1024) })).mutation(async ({ ctx, input }) => { const clientKey = adminLoginClientKey((ctx as Context).req.headers); const testPassword = testOnlyAdminPassword(); const preflight = testPassword ? { allowed: true } : await checkAdminLoginRateLimit(clientKey, "check"); if (!preflight.allowed) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." }); const stored = await readStoredPasswordHash(); const initial = process.env.ADMIN_PASSWORD; const valid = testPassword ? safeTextEqual(input.password, testPassword) : stored ? passwordMatches(input.password, stored) : Boolean(initial && safeTextEqual(input.password, initial)); const result = testPassword ? { allowed: true } : await checkAdminLoginRateLimit(clientKey, valid ? "success" : "failure"); if (!valid) { if (!result.allowed) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." }); throw new TRPCError({ code: "UNAUTHORIZED", message: "Unable to sign in with those credentials." }); } if (!result.allowed) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." }); if (!stored && !testPassword) await savePasswordHash(hashPassword(input.password)); await issueAdminSession(ctx as Context); return { success: true }; }),
@@ -137,6 +151,9 @@ export const storeRouter = router({
     overview: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); return cataloguePayload(true, true); }),
     updateProduct: publicProcedure.input(z.object({ id: z.number().int(), displayName: z.string().max(255).nullable(), categoryId: z.number().int().nullable(), isJustIn: z.boolean().optional(), isPublished: z.boolean().optional(), reviewStatus: z.enum(["clean", "needs_review", "archived"]).optional() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...(input.isJustIn === undefined ? {} : { is_just_in: input.isJustIn }), ...(input.isPublished === undefined ? {} : { is_published: input.isPublished }), ...(input.reviewStatus === undefined ? {} : { review_status: input.reviewStatus }) }) }); return { success: true }; }),
     previewImport: publicProcedure.input(importInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return createPreview(input); }), applyImport: publicProcedure.input(importInput.extend({ importId: z.number().int() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return applyImport(input); }),
+    previewCatalogueWorkbook: publicProcedure.input(catalogueWorkbookImportInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return previewCatalogueWorkbookImport(input); }),
+    prepareCatalogueWorkbookUploads: publicProcedure.input(z.object({ importId: z.number().int().positive(), digest: z.string().regex(/^[a-f0-9]{64}$/) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return prepareCatalogueWorkbookUploads(input); }),
+    applyCatalogueWorkbook: publicProcedure.input(z.object({ importId: z.number().int().positive(), digest: z.string().regex(/^[a-f0-9]{64}$/), uploadedPhotoKeys: z.array(z.string().regex(/^row-\d+-photo-\d+$/)).max(600), replaceExistingMedia: z.boolean().optional() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return applyCatalogueWorkbookImport(input); }),
     importHistory: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const rows = await supabaseRequest<Array<{ id: number; original_filename: string; status: string; created_at: string }>>("imports?select=id,original_filename,status,created_at&order=created_at.asc"); return rows.map(row => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at })); }),
     reviewQueue: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const rows = await supabaseRequest<Array<{ id: number; pos_code: string | null; change_type: string; review_status: string }>>("import_changes?select=id,pos_code,change_type,review_status&change_type=in.(stock_price_update,missing_from_import,needs_review)&limit=200"); return rows.map(row => ({ id: row.id, posCode: row.pos_code, changeType: row.change_type, reviewStatus: row.review_status })); }),
     resolveImportChange: publicProcedure.input(z.object({ id: z.number().int(), reviewStatus: z.enum(["accepted", "ignored"]) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`import_changes?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ review_status: input.reviewStatus }) }); return { success: true }; }),

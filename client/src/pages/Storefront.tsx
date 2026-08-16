@@ -2,8 +2,10 @@ import { Link } from "wouter";
 import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { belongsInStorefrontCategory } from "@/lib/storefrontCategories";
+import { responsiveCatalogueMedia } from "@/lib/catalogueMedia";
 
 const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
+const BRAND_IMAGE = responsiveCatalogueMedia(LOGO_URL, "brand");
 const FALLBACK_CATEGORIES = [
   { slug: "just-in", label: "Just In" },
   { slug: "tops", label: "Tops" },
@@ -32,7 +34,7 @@ export default function Storefront() {
     <div className="store-shell">
       <header className="store-header">
         <Link href="/" className="brand-mark" aria-label="Orange home">
-          <img src={LOGO_URL} alt="Orange" />
+          <img {...BRAND_IMAGE} alt="Orange" decoding="async" fetchPriority="high" />
         </Link>
       </header>
 
@@ -61,13 +63,14 @@ export default function Storefront() {
               <div className="product-image" />
               <div className="product-meta"><span /><span /><span /></div>
             </div>
-          )) : products.map(product => {
+          )) : products.map((product, index) => {
             const primary = product.media.find(media => media.isPrimary) ?? product.media[0];
+            const primaryImage = primary ? responsiveCatalogueMedia(primary.url, "grid") : null;
             const firstColor = product.colors[0];
             return (
               <Link href={`/product/${product.slug}`} className="product-card" key={product.id}>
                 <div className="product-image">
-                  {primary ? <img src={primary.url} alt={primary.altText || product.displayName || product.cleanedCode} /> : <span>{firstColor?.englishName || "Orange"}</span>}
+                  {primaryImage ? <img {...primaryImage} alt={primary?.altText || product.displayName || product.cleanedCode} loading={index < 2 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"} decoding="async" /> : <span>{firstColor?.englishName || "Orange"}</span>}
                   {!product.available && <span className="availability soldout">Sold Out</span>}
                 </div>
                 <div className="product-meta">

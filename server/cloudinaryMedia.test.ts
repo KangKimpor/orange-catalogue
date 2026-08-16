@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   assertOrangeProductPublicId,
   cloudinaryDestroySignature,
+  cloudinaryProductImageExists,
   destroyCloudinaryProductImage,
 } from "./cloudinaryMedia";
 
@@ -25,6 +26,16 @@ describe("Cloudinary product-media deletion", () => {
     expect(init).toMatchObject({ method: "POST" });
     expect(String(init.body)).toContain("public_id=orange%2Fproducts%2Fzl-0041%2Fblue-front");
     expect(cloudinaryDestroySignature("orange/products/zl-0041/blue-front", 123, "test-secret")).toHaveLength(40);
+  });
+
+  it("confirms an uploaded workbook photo exists in the approved Cloudinary folder", async () => {
+    const request = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    await expect(cloudinaryProductImageExists(
+      "orange/products/zl-0041/workbook-44-row-2-photo-1",
+      { cloudName: "orange-test", apiKey: "public-key", apiSecret: "test-secret" },
+      request as unknown as typeof fetch,
+    )).resolves.toBe(true);
+    expect(request.mock.calls[0][0]).toContain("/resources/image/upload/orange/products/zl-0041/workbook-44-row-2-photo-1");
   });
 
   it("allows a stale Cloudinary asset to be cleaned from the catalogue record", async () => {

@@ -18,6 +18,20 @@ export function cloudinaryDestroySignature(publicId: string, timestamp: number, 
   return crypto.createHash("sha1").update(`public_id=${publicId}&timestamp=${timestamp}${apiSecret}`).digest("hex");
 }
 
+export async function cloudinaryProductImageExists(
+  publicId: string,
+  config: CloudinaryDeletionConfig,
+  request: typeof fetch = fetch,
+): Promise<boolean> {
+  assertOrangeProductPublicId(publicId);
+  const authorization = Buffer.from(`${config.apiKey}:${config.apiSecret}`).toString("base64");
+  const encodedPublicId = publicId.split("/").map(encodeURIComponent).join("/");
+  const response = await request(`https://api.cloudinary.com/v1_1/${config.cloudName}/resources/image/upload/${encodedPublicId}`, {
+    headers: { Authorization: `Basic ${authorization}` },
+  });
+  return response.ok;
+}
+
 export async function destroyCloudinaryProductImage(
   publicId: string,
   config: CloudinaryDeletionConfig,
