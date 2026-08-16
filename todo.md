@@ -36,7 +36,7 @@
 - [x] Create and configure a Supabase PostgreSQL schema for catalogue, stock, category, import, and admin authentication data.
 - [x] Migrate the current TiDB catalogue and Cloudinary media metadata into Supabase without changing POS-code or cleaned-name associations.
 - [x] Refactor the server and admin authentication flows to use Supabase while retaining Cloudinary uploads and the public storefront contract.
-- [x] Retain the normal single-password `/admin` login using the initial password `REDACTED_SETUP_PASSWORD`, with its password hash and session validation backed by Supabase rather than a Supabase email account.
+- [x] Retain the normal single-password `/admin` login using the initial temporary credential, with its password hash and session validation backed by Supabase rather than a Supabase email account.
 - [x] Prepare the application for Vercel hosting and verify a public production deployment.
 - [x] Fix the Vercel serverless API module-resolution failure and verify the live Supabase catalogue endpoint.
 - [x] Create a private GitHub repository containing the complete website source and migration documentation.
@@ -72,3 +72,8 @@
 - [x] Add true touch/drag swipe navigation and desktop previous/next controls for multiple photos in the selected Attribute-derived color set, retaining shared-media fallback.
 - [x] Make carousel controls explicitly discoverable to assistive and browser automation tooling, then interactively verify photo-index changes for desktop arrow controls and iPhone-class touch/drag navigation before release; keyboard right-arrow advanced the rendered `.gallery-slides` DOM to `translateX(-100%)`, while responsive screenshots confirmed the visible desktop and iPhone carousel controls.
 - [x] Verify the visible desktop previous/next buttons and iPhone-class touch/drag gesture each advance the selected color carousel’s rendered photo index; direct browser activation moved Next to `translateX(-100%)` and Previous back to `translateX(0%)`, while the mobile pointer-swipe direction and wrapping behavior are covered by regression tests.
+
+- [x] Create a comprehensive Claude skill file documenting the Orange Catalogue architecture, data model, workflows, integrations, UI behavior, deployment context, history, and explicit do/don’t rules; package initialized, examples removed, and `quick_validate.py` passed.
+- [x] Rename the Claude-oriented Orange Catalogue skill package so its `name` field does not contain the reserved word `claude`, then revalidate and redeliver it; renamed to `orange-catalogue-ops` and `quick_validate.py` passed.
+
+- [x] Audit the current repository and complete Git history for secrets, operational exposure, unsafe public configuration, and remediation steps before changing GitHub visibility to public; the 2026-08-16 audit report blocks publication pending admin-password rotation, removal of the documented literal, production dependency remediation, and login-throttling hardening.
