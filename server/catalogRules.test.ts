@@ -13,7 +13,7 @@ describe("Orange catalogue rules", () => {
     expect(classifyProduct("FJ 220")).toBe("jeans");
     expect(classifyProduct("SP 009")).toBe("shorts");
     expect(classifyProduct("LP 6020")).toBe("pants");
-    expect(classifyProduct("60215")).toBe("just-in");
+    expect(classifyProduct("60215")).toBeNull();
   });
 
   it("removes only the approved Khmer sale marker from customer-facing POS names", () => {
@@ -47,7 +47,7 @@ describe("Orange catalogue rules", () => {
     const result = parsePosWorkbook(Buffer.from(buffer));
     expect(result.validation.headerRow).toBe(4);
     expect(result.items).toHaveLength(1);
-    expect(result.items[0]).toMatchObject({ posCode: "P0006297", cleanedCode: "5522", categorySlug: "just-in", stockQuantity: 10 });
+    expect(result.items[0]).toMatchObject({ posCode: "P0006297", cleanedCode: "5522", categorySlug: null, stockQuantity: 10 });
   });
 
   it("rejects a workbook payload exceeding the approved import size", () => {

@@ -15,8 +15,11 @@ function Router() {
       <Route path={"/"} component={Storefront} />
       <Route path={"/product/:slug"} component={ProductDetail} />
       <Route path={"/admin"} component={Admin} />
+      <Route path={"/admin/items"} component={Admin} />
       <Route path={"/admin/photos"} component={Admin} />
       <Route path={"/admin/import"} component={Admin} />
+      <Route path={"/admin/review-queue"} component={Admin} />
+      <Route path={"/admin/security"} component={Admin} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

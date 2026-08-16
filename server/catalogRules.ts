@@ -7,6 +7,7 @@ export const PUBLIC_CATEGORIES = [
 ] as const;
 
 export type CategorySlug = (typeof PUBLIC_CATEGORIES)[number]["slug"];
+export type AssignedCategorySlug = Exclude<CategorySlug, "just-in">;
 
 type ColorDefinition = { english: string; hex: string; key: string };
 
@@ -56,13 +57,13 @@ export function makeSlug(value: string): string {
   return normalized || "untitled-product";
 }
 
-export function classifyProduct(cleanedCode: string): CategorySlug {
+export function classifyProduct(cleanedCode: string): AssignedCategorySlug | null {
   const upper = cleanedCode.trim().toUpperCase();
   if (/^(ZS|ZL)\b/.test(upper)) return "tops";
   if (/^(SK|SJ|WJ|FJ)\b/.test(upper)) return "jeans";
   if (/^SP\b/.test(upper)) return "shorts";
   if (/^LP\b/.test(upper)) return "pants";
-  return "just-in";
+  return null;
 }
 
 export function normalizeAttribute(value: unknown): string {

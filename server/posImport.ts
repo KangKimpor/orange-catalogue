@@ -5,14 +5,14 @@ import {
   classifyProduct,
   makeSlug,
   parseAttributes,
-  type CategorySlug,
+  type AssignedCategorySlug,
 } from "./catalogRules";
 
 export type ImportedVariant = {
   posCode: string;
   cleanedCode: string;
   slug: string;
-  categorySlug: CategorySlug;
+  categorySlug: AssignedCategorySlug | null;
   colorKhmer: string | null;
   colorEnglish: string;
   colorHex: string;

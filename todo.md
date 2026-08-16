@@ -93,3 +93,11 @@
 - [x] Lower the admin password minimum length to four characters at the owner’s explicit request, update the Security form constraint, regenerate the serverless bundle, and add regression coverage while retaining rate limiting.
 - [x] Verify the Security workflow accepts the owner-approved four-character password and rejects the former password after the deployed bundle is regenerated.
 - [x] Add an authenticated admin sign-out control and use clean browser sessions to verify the newly rotated password succeeds while the former password is rejected.
+
+- [x] Simplify the admin overview by removing the introductory hero, workflow, and quick-actions panels while retaining concise item metrics.
+- [x] Replace staff-facing “model” terminology with “item” in the admin workspace and update the photo metric to “Items with photos.”
+- [x] Remove the sidebar operational tagline and top-bar “ORANGE STORE OPS” label, and enlarge the admin wordmark and category/navigation text.
+- [x] Fix unified-admin tab navigation so Models, Photos, POS imports, Review queue, and Security remain selected after navigation or reload.
+- [x] Update the website-item example from “Silly Tee” to “Graphic Tee”; no live item record with the former name existed in the catalogue.
+- [x] Change Just In from an automatic fallback category to an initially empty, staff-curated category, with explicit item selection in admin; cleared the 304 previous assignments.
+- [x] Add regression coverage and validate the simplified admin workspace, tab routes, item naming, and curated Just In behavior; targeted tests, TypeScript validation, production build, and diff check passed, while the full local suite requires unavailable Supabase environment variables.

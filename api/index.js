@@ -767,7 +767,7 @@ function classifyProduct(cleanedCode) {
   if (/^(SK|SJ|WJ|FJ)\b/.test(upper)) return "jeans";
   if (/^SP\b/.test(upper)) return "shorts";
   if (/^LP\b/.test(upper)) return "pants";
-  return "just-in";
+  return null;
 }
 function normalizeAttribute(value) {
   return String(value ?? "").normalize("NFC").replace(/[\u200B\u200C\u200D\uFEFF]/g, "").replace(/\s+/g, " ").trim();
@@ -1065,7 +1065,7 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
   for (const row of variantRows) variantsByProduct.set(row.productId, [...variantsByProduct.get(row.productId) ?? [], row]);
   return {
     categories: categoryRows.filter((row) => row.isVisible),
-    products: productRows.map((product) => {
+    products: productRows.filter((product) => includeHidden || Boolean(product.categoryId && categoriesById.has(product.categoryId))).map((product) => {
       const grouped = /* @__PURE__ */ new Map();
       for (const variant of variantsByProduct.get(product.id) ?? []) grouped.set(variant.colorId, [...grouped.get(variant.colorId) ?? [], variant]);
       const colors2 = Array.from(grouped.entries()).map(([colorId, variants3]) => {
@@ -1074,7 +1074,7 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
       });
       const variants2 = variantsByProduct.get(product.id) ?? [];
       const category = product.categoryId ? categoriesById.get(product.categoryId) : void 0;
-      return { id: product.id, slug: product.slug, displayName: product.displayName, cleanedCode: product.cleanedCode, category: category ? { slug: category.slug, label: category.label } : { slug: "just-in", label: "Just In" }, isPublished: product.isPublished, isRemovedFromLatestImport: product.isRemovedFromLatestImport, reviewStatus: product.reviewStatus, available: variants2.some((v) => publicAvailability(v.stockQuantity)), priceMin: variants2.length ? Math.min(...variants2.map((v) => Number(v.price))) : 0, priceMax: variants2.length ? Math.max(...variants2.map((v) => Number(v.price))) : 0, colors: colors2, media: (mediaByProduct.get(product.id) ?? []).map((media) => ({ id: media.id, url: media.optimizedUrl, altText: media.altText, isPrimary: media.isPrimary, variantId: media.variantId, colorTag: media.colorTag })) };
+      return { id: product.id, slug: product.slug, displayName: product.displayName, cleanedCode: product.cleanedCode, category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" }, isPublished: product.isPublished, isRemovedFromLatestImport: product.isRemovedFromLatestImport, reviewStatus: product.reviewStatus, available: variants2.some((v) => publicAvailability(v.stockQuantity)), priceMin: variants2.length ? Math.min(...variants2.map((v) => Number(v.price))) : 0, priceMax: variants2.length ? Math.max(...variants2.map((v) => Number(v.price))) : 0, colors: colors2, media: (mediaByProduct.get(product.id) ?? []).map((media) => ({ id: media.id, url: media.optimizedUrl, altText: media.altText, isPrimary: media.isPrimary, variantId: media.variantId, colorTag: media.colorTag })) };
     })
   };
 }
@@ -1123,16 +1123,16 @@ async function applyImport(input) {
   let newVariants = 0;
   let updatedVariants = 0;
   for (const item of parsed.items) {
-    const category = categories2.get(item.categorySlug) ?? categories2.get("just-in");
+    const category = item.categorySlug ? categories2.get(item.categorySlug) : void 0;
     let product = products2.get(item.cleanedCode);
     if (!product) {
       let slug = item.slug;
       if (usedSlugs.has(slug)) slug = `${slug}-${crypto3.createHash("sha1").update(item.cleanedCode).digest("hex").slice(0, 6)}`;
-      [product] = await supabaseRequest("products", { method: "POST", body: JSON.stringify({ slug, cleaned_code: item.cleanedCode, category_id: category?.id ?? null, category_source: item.categorySlug === "just-in" ? "unassigned" : "rule", review_status: item.categorySlug === "just-in" ? "needs_review" : "clean" }) });
+      [product] = await supabaseRequest("products", { method: "POST", body: JSON.stringify({ slug, cleaned_code: item.cleanedCode, category_id: category?.id ?? null, category_source: item.categorySlug ? "rule" : "unassigned", review_status: item.categorySlug ? "clean" : "needs_review" }) });
       products2.set(item.cleanedCode, product);
       usedSlugs.add(slug);
       newProducts += 1;
-    } else if (product.category_source !== "manual") await supabaseRequest(`products?${supabaseEq("id", product.id)}`, { method: "PATCH", body: JSON.stringify({ category_id: category?.id ?? null, category_source: item.categorySlug === "just-in" ? "unassigned" : "rule", review_status: item.categorySlug === "just-in" ? "needs_review" : "clean", is_removed_from_latest_import: false }) });
+    } else if (product.category_source !== "manual") await supabaseRequest(`products?${supabaseEq("id", product.id)}`, { method: "PATCH", body: JSON.stringify({ category_id: category?.id ?? null, category_source: item.categorySlug ? "rule" : "unassigned", review_status: item.categorySlug ? "clean" : "needs_review", is_removed_from_latest_import: false }) });
     let color = colors2.get(item.colorKey);
     if (!color) {
       [color] = await supabaseRequest("colors", { method: "POST", body: JSON.stringify({ khmer_name: item.colorKhmer, english_name: item.colorEnglish, hex: item.colorHex, normalized_key: item.colorKey }) });
