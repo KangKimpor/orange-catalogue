@@ -52,3 +52,7 @@
 > History note: these follow-up items record the live Vercel validation issue discovered during final verification.
 
 > Operational note: `ADMIN_PASSWORD` must be configured in Vercel for first-time password initialization; after initialization, the derived password hash is stored in Supabase `store_settings`.
+
+- [x] Replace the current Orange logo with the user-supplied brand asset across public storefront and product-detail navigation.
+- [x] Refine public storefront responsive layout, touch targets, typography, product grid, and media presentation for iPhone 13–17 viewports and common 1366px, 1440px, and 1536px laptop widths.
+- [x] Validate public storefront and direct product pages at iPhone 13/15/17 Pro and MacBook, VivoBook, Dell, and ASUS laptop viewport dimensions; screenshots passed at iPhone 13 (390×844), iPhone 15 (393×852), iPhone 17 Pro (402×874), a larger iPhone (430×932), 1366×768, 1440×900, and 1536×864.
