@@ -707,8 +707,8 @@ html {
   --orange-ink: #000000;
   --orange-muted: #000000;
   --orange-line: #f7dbe5;
-  --orange-blush: #fff0f5;
-  --orange-soft-blush: #fff9fb;
+  --orange-blush: #ffffff;
+  --orange-soft-blush: #ffffff;
   --orange-pink: #f7c4d3;
   --orange-pink-deep: #f1afc4;
   background: #ffffff;
@@ -793,7 +793,7 @@ html {
   min-height: 184px;
   padding: clamp(34px, 4.2vw, 68px) clamp(24px, 5vw, 84px) clamp(28px, 3vw, 44px);
   column-gap: clamp(28px, 7vw, 140px);
-  background: linear-gradient(90deg, #ffffff 0%, #ffffff 61%, var(--orange-soft-blush) 100%);
+  background: #ffffff;
 }
 
 .catalogue-intro h1 {
@@ -831,7 +831,7 @@ html {
 }
 
 .product-image {
-  background: #fffafd;
+  background: #ffffff !important;
   color: var(--orange-ink);
 }
 
@@ -1112,7 +1112,8 @@ html {
 .product-card-skeleton .product-meta span {
   position: relative;
   overflow: hidden;
-  background: #f9e9ee;
+  background: #ffffff !important;
+  border: 1px solid #f2f2f2;
 }
 
 .product-card-skeleton .product-image::after,
@@ -1120,7 +1121,7 @@ html {
   position: absolute;
   inset: 0;
   content: "";
-  background: linear-gradient(100deg, transparent 25%, rgba(255,255,255,.68) 45%, transparent 65%);
+  background: linear-gradient(100deg, transparent 25%, rgba(247, 196, 211, .28) 45%, transparent 65%);
   transform: translateX(-100%);
   animation: orange-skeleton-sheen 1.35s ease-in-out infinite;
 }
