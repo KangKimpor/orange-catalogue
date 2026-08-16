@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { storeRouter } from "./storeRouter";
+import { ADMIN_PASSWORD_MIN_LENGTH, adminPasswordChangeInput, storeRouter } from "./storeRouter";
 
 type CookieRecord = { name: string; value: string; options: Record<string, unknown> };
-const configuredAdminPassword = process.env.ADMIN_PASSWORD;
+const configuredAdminPassword = process.env.ORANGE_TEST_ADMIN_PASSWORD;
 
 function createContext(cookie = "") {
   const setCookies: CookieRecord[] = [];
@@ -20,6 +20,12 @@ function createContext(cookie = "") {
 }
 
 describe("Orange admin and catalogue boundaries", () => {
+  it("accepts the owner-authorized four-character password minimum without mutating the active password", () => {
+    expect(ADMIN_PASSWORD_MIN_LENGTH).toBe(4);
+    expect(adminPasswordChangeInput.safeParse({ currentPassword: "current", newPassword: "test" }).success).toBe(true);
+    expect(adminPasswordChangeInput.safeParse({ currentPassword: "current", newPassword: "123" }).success).toBe(false);
+  });
+
   it("creates an HTTP-only admin session from the configured initial password", async () => {
     const first = createContext();
     const caller = storeRouter.createCaller(first.ctx);

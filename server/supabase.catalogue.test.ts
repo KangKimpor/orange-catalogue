@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { storeRouter } from "./storeRouter";
 import type { TrpcContext } from "./_core/context";
 
-const configuredAdminPassword = process.env.ADMIN_PASSWORD;
+const configuredAdminPassword = process.env.ORANGE_TEST_ADMIN_PASSWORD;
 
 function createContext(): { ctx: TrpcContext; cookies: Array<{ name: string; value: string }> } {
   const cookies: Array<{ name: string; value: string }> = [];

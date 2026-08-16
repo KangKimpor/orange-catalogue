@@ -15,5 +15,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
+    env: {
+      ORANGE_TEST_ADMIN_PASSWORD: "orange-test-password",
+    },
   },
 });

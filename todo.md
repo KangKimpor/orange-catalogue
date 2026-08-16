@@ -87,3 +87,9 @@
 - [ ] With explicit owner confirmation after resolving the active-password exception, rewrite the private Git history to remove the former temporary credential and force-push the cleaned branch.
 - [ ] With explicit owner confirmation after the history cleanup and an active-password decision, change `KangKimpor/orange-catalogue` visibility from private to public.
 - [x] Run the full automated validation suite, re-audit production dependencies, re-scan the current tree, and document remaining history-cleanup and GitHub-public actions for explicit owner confirmation.
+- [x] Change the active admin password through the application Security workflow to the owner-provided value and verify in clean browser sessions that the new credential succeeds while the former credential fails.
+- [x] Remove previously identified local browser/upload artifacts and re-scan the retained project, generated deployment artifact, local log, and upload-artifact scope without printing the new credential; no matches were found.
+- [ ] After password verification, re-evaluate and complete the owner-confirmed private Git-history cleanup and GitHub-public visibility actions.
+- [x] Lower the admin password minimum length to four characters at the owner’s explicit request, update the Security form constraint, regenerate the serverless bundle, and add regression coverage while retaining rate limiting.
+- [x] Verify the Security workflow accepts the owner-approved four-character password and rejects the former password after the deployed bundle is regenerated.
+- [x] Add an authenticated admin sign-out control and use clean browser sessions to verify the newly rotated password succeeds while the former password is rejected.

@@ -29,7 +29,7 @@ Configure these variables for both **Preview** and **Production** in the Vercel 
 | `CLOUDINARY_API_KEY` | Server only | Cloudinary API key used to generate signed upload parameters. |
 | `CLOUDINARY_API_SECRET` | Server only | Cloudinary signing secret; never send it to the browser. |
 
-Supply an initial owner password through `ADMIN_PASSWORD` only for first access. Never document or commit its value. Change it immediately in the admin Security workspace. After the password hash exists in Supabase, changing `ADMIN_PASSWORD` does not replace the stored hash. Admin sign-in attempts are server-throttled: five failed attempts from one protected client identifier in 15 minutes trigger a 15-minute block; a successful sign-in clears the prior failure record.
+Supply an initial owner password through `ADMIN_PASSWORD` only for first access. Never document or commit its value. Change it immediately in the admin Security workspace. After the password hash exists in Supabase, changing `ADMIN_PASSWORD` does not replace the stored hash. The current owner-approved Security-form minimum is four characters; a longer unique password is safer. Admin sign-in attempts are server-throttled: five failed attempts from one protected client identifier in 15 minutes trigger a 15-minute block; a successful sign-in clears the prior failure record.
 
 ## Cloudinary setup and product photography
 
