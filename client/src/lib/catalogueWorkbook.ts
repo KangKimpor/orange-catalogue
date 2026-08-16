@@ -17,6 +17,7 @@ export type WorkbookPhoto = {
   key: string;
   file: File;
   excelRow: number;
+  contentHash: string;
 };
 
 export type CatalogueWorkbookRow = {
@@ -25,12 +26,14 @@ export type CatalogueWorkbookRow = {
   websiteName: string | null;
   attributeColor: string | null;
   photoKeys: string[];
+  photoHashes: Record<string, string>;
 };
 
 export type ParsedCatalogueWorkbook = {
   digestSource: string;
   rows: CatalogueWorkbookRow[];
   photos: WorkbookPhoto[];
+  totalPhotoBytes: number;
   warnings: string[];
 };
 
@@ -151,16 +154,20 @@ async function parseEmbeddedPhotos(file: File, worksheetPath: string, photoColum
       if (blob.size > MAX_CATALOGUE_WORKBOOK_IMAGE_BYTES) throw new Error(`The photo in Excel row ${anchor.row + 1} exceeds the 8 MB limit.`);
       const imageIndex = photos.filter(photo => photo.excelRow === anchor.row + 1).length + 1;
       const key = `row-${anchor.row + 1}-photo-${imageIndex}`;
-      photos.push({ key, excelRow: anchor.row + 1, file: new File([blob], `${key}.${kind.extension}`, { type: kind.mimeType }) });
+      const contentHash = await sha256Bytes(await blob.arrayBuffer());
+      photos.push({ key, excelRow: anchor.row + 1, contentHash, file: new File([blob], `${key}.${kind.extension}`, { type: kind.mimeType }) });
     }
   }
   return photos;
 }
 
-async function sha256(text: string): Promise<string> {
-  const bytes = new TextEncoder().encode(text);
+async function sha256Bytes(bytes: BufferSource): Promise<string> {
   const hash = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(hash)).map(value => value.toString(16).padStart(2, "0")).join("");
+}
+
+async function sha256(text: string): Promise<string> {
+  return sha256Bytes(new TextEncoder().encode(text));
 }
 
 export async function parseCatalogueWorkbook(file: File): Promise<ParsedCatalogueWorkbook> {
@@ -200,11 +207,12 @@ export async function parseCatalogueWorkbook(file: File): Promise<ParsedCatalogu
     const websiteName = valueAsString(row[websiteNameColumn]) || null;
     const attributeColor = valueAsString(row[attributeColorColumn]) || null;
     const photoKeys = photosByRow.get(excelRow) ?? [];
+    const photoHashes = Object.fromEntries(photoKeys.map(photoKey => [photoKey, photos.find(photo => photo.key === photoKey)!.contentHash]));
     if (!cleanedCode && !websiteName && !attributeColor && !photoKeys.length) continue;
     if (!cleanedCode) throw new Error(`Excel row ${excelRow} needs a Cleaned Code.`);
     if (photoKeys.length && !attributeColor) throw new Error(`Excel row ${excelRow} has a photo but no POS Attribute Colour.`);
     if (!photoKeys.length && !websiteName) warnings.push(`Excel row ${excelRow} has no website name or photo and will be ignored.`);
-    parsedRows.push({ excelRow, cleanedCode, websiteName, attributeColor, photoKeys });
+    parsedRows.push({ excelRow, cleanedCode, websiteName, attributeColor, photoKeys, photoHashes });
   }
   for (const photo of photos) {
     if (!parsedRows.some(row => row.excelRow === photo.excelRow)) throw new Error(`A photo in Excel row ${photo.excelRow} is not linked to a catalogue row.`);
@@ -212,5 +220,5 @@ export async function parseCatalogueWorkbook(file: File): Promise<ParsedCatalogu
   const usableRows = parsedRows.filter(row => row.websiteName || row.photoKeys.length);
   if (!usableRows.length) throw new Error("The workbook has no website names or embedded photos to import.");
   const digestSource = await sha256(JSON.stringify(usableRows));
-  return { digestSource, rows: usableRows, photos, warnings };
+  return { digestSource, rows: usableRows, photos, totalPhotoBytes: photos.reduce((total, photo) => total + photo.file.size, 0), warnings };
 }

@@ -1710,3 +1710,33 @@ html {
     font-size: 25px;
   }
 }
+
+
+.route-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  color: var(--orange-ink, #171412);
+  font: 500 11px/1.2 "DM Mono", monospace;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+
+.workbook-replace-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 14px 0;
+  color: #554b40;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workbook-replace-option input {
+  width: 15px;
+  height: 15px;
+  margin: 2px 0 0;
+  accent-color: #8a623e;
+}

@@ -135,3 +135,10 @@
 - [x] Parse photos anchored to the designated photo column in the owner template, support multiple photos per colour through repeated rows, and reject misplaced, unsupported, or unlinked images with clear row-level errors.
 - [x] Upload embedded workbook photos directly from the authenticated browser to Cloudinary using server-validated product/colour signatures, then register validated media metadata in Supabase.
 - [x] Add a workbook import workspace, Excel template, regression tests, desktop/mobile verification, and release validation for the direct workbook workflow.
+
+- [x] Add responsive Cloudinary delivery profiles with fixed grid, gallery, and thumbnail variants plus browser image-loading hints.
+- [x] Split admin and workbook-parser code from public storefront routes, and eliminate inactive analytics placeholders from production markup.
+- [x] Replace full-catalogue public reads with compact catalogue-card and direct product-detail queries, protected by short safe public caching.
+- [x] Add the Supabase performance-advisor foreign-key indexes and retain currently unused indexes for later traffic-based review.
+- [x] Improve workbook imports with preflight batch guidance, bounded concurrent uploads, retry support, stable duplicate detection, and safe photo replacement behavior.
+- [x] Validate performance, media quality, import behavior, responsive layouts, and production build output.

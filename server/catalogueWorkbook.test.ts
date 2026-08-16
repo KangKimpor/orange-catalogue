@@ -39,8 +39,9 @@ async function workbookWithEmbeddedPhoto(photoColumn = 3) {
 describe("direct catalogue workbook parser", () => {
   it("reads the owner template’s name row and photo anchored in the designated column", async () => {
     const parsed = await parseCatalogueWorkbook(await workbookWithEmbeddedPhoto());
-    expect(parsed.rows).toEqual([{ excelRow: 2, cleanedCode: "ZL 0041", websiteName: "Graphic Tee", attributeColor: "Black", photoKeys: ["row-2-photo-1"] }]);
+    expect(parsed.rows).toMatchObject([{ excelRow: 2, cleanedCode: "ZL 0041", websiteName: "Graphic Tee", attributeColor: "Black", photoKeys: ["row-2-photo-1"], photoHashes: { "row-2-photo-1": expect.stringMatching(/^[a-f0-9]{64}$/) } }]);
     expect(parsed.photos).toHaveLength(1);
+    expect(parsed.photos[0]).toMatchObject({ contentHash: expect.stringMatching(/^[a-f0-9]{64}$/) });
     expect(parsed.photos[0].file.type).toBe("image/png");
   });
 

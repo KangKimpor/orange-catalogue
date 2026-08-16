@@ -886,6 +886,111 @@ async function fetchCatalogueRows(includeHidden = false) {
     }))
   };
 }
+function categoryMap(rows) {
+  return new Map(rows.map((row) => [row.id, { slug: row.slug, label: row.label, visible: row.is_visible }]));
+}
+function colorMap(rows) {
+  return new Map(rows.map((row) => [row.id, { id: row.id, khmerName: row.khmer_name, englishName: row.english_name, hex: row.hex }]));
+}
+function groupByProduct(rows) {
+  const grouped = /* @__PURE__ */ new Map();
+  for (const row of rows) grouped.set(row.product_id, [...grouped.get(row.product_id) ?? [], row]);
+  return grouped;
+}
+function cardColors(variants2, colorsById) {
+  const grouped = /* @__PURE__ */ new Map();
+  for (const variant of variants2) grouped.set(variant.color_id, [...grouped.get(variant.color_id) ?? [], variant]);
+  return Array.from(grouped.entries()).map(([colorId, groupedVariants]) => {
+    const color = colorId ? colorsById.get(colorId) : void 0;
+    return {
+      id: colorId,
+      englishName: color?.englishName ?? "One Color",
+      hex: color?.hex ?? "#9A9A94",
+      available: groupedVariants.some((variant) => variant.stock_quantity > 0)
+    };
+  });
+}
+function cardProduct(product, variants2, primaryMedia, categoriesById, colorsById) {
+  const category = product.category_id ? categoriesById.get(product.category_id) : void 0;
+  const prices = variants2.map((variant) => Number(variant.price));
+  return {
+    id: product.id,
+    slug: product.slug,
+    displayName: product.display_name,
+    cleanedCode: product.cleaned_code,
+    category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" },
+    isJustIn: product.is_just_in,
+    isPublished: product.is_published,
+    isRemovedFromLatestImport: product.is_removed_from_latest_import,
+    reviewStatus: product.review_status,
+    available: variants2.some((variant) => variant.stock_quantity > 0),
+    priceMin: prices.length ? Math.min(...prices) : 0,
+    priceMax: prices.length ? Math.max(...prices) : 0,
+    colors: cardColors(variants2, colorsById),
+    media: primaryMedia ? [{ id: primaryMedia.id, url: primaryMedia.optimized_url, altText: primaryMedia.alt_text, isPrimary: primaryMedia.is_primary }] : []
+  };
+}
+async function fetchStorefrontCards() {
+  const [categoryRows, productRows, variantRows, mediaRows, colorRows] = await Promise.all([
+    supabaseRequest("categories?select=id,slug,label,sort_order,is_visible&order=sort_order.asc"),
+    supabaseRequest("products?select=id,slug,cleaned_code,display_name,category_id,category_source,is_just_in,is_published,is_removed_from_latest_import,review_status&is_published=eq.true"),
+    supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,is_visible,last_seen_import_id&is_visible=eq.true"),
+    supabaseRequest("product_media?select=id,product_id,variant_id,cloudinary_public_id,optimized_url,alt_text,color_tag,sort_order,is_primary&is_primary=eq.true&order=sort_order.asc"),
+    supabaseRequest("colors?select=id,khmer_name,english_name,hex,normalized_key,sort_order&order=sort_order.asc")
+  ]);
+  const categoriesById = categoryMap(categoryRows);
+  const colorsById = colorMap(colorRows);
+  const variantsByProduct = groupByProduct(variantRows);
+  const primaryMediaByProduct = new Map(mediaRows.map((media) => [media.product_id, media]));
+  return {
+    categories: categoryRows.filter((category) => category.is_visible).map((category) => ({ slug: category.slug, label: category.label })),
+    products: productRows.filter((product) => Boolean(product.category_id && categoriesById.has(product.category_id))).map((product) => cardProduct(product, variantsByProduct.get(product.id) ?? [], primaryMediaByProduct.get(product.id), categoriesById, colorsById))
+  };
+}
+async function fetchStorefrontProduct(slug) {
+  const productRows = await supabaseRequest(`products?select=id,slug,cleaned_code,display_name,category_id,category_source,is_just_in,is_published,is_removed_from_latest_import,review_status&slug=eq.${encodeURIComponent(slug)}&is_published=eq.true&limit=1`);
+  const product = productRows[0];
+  if (!product) return null;
+  const [categoryRows, variantRows, mediaRows] = await Promise.all([
+    product.category_id ? supabaseRequest(`categories?select=id,slug,label,sort_order,is_visible&id=eq.${product.category_id}&limit=1`) : Promise.resolve([]),
+    supabaseRequest(`variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,is_visible,last_seen_import_id&product_id=eq.${product.id}&is_visible=eq.true`),
+    supabaseRequest(`product_media?select=id,product_id,variant_id,cloudinary_public_id,optimized_url,alt_text,color_tag,sort_order,is_primary&product_id=eq.${product.id}&order=sort_order.asc`)
+  ]);
+  const colorIds = Array.from(new Set(variantRows.map((variant) => variant.color_id).filter((id) => id !== null)));
+  const colorRows = colorIds.length ? await supabaseRequest(`colors?select=id,khmer_name,english_name,hex,normalized_key,sort_order&id=in.(${colorIds.join(",")})&order=sort_order.asc`) : [];
+  const categoriesById = categoryMap(categoryRows);
+  const colorsById = colorMap(colorRows);
+  const category = product.category_id && categoriesById.get(product.category_id) ? { slug: categoriesById.get(product.category_id).slug, label: categoriesById.get(product.category_id).label } : { slug: "unassigned", label: "Not in storefront" };
+  const grouped = /* @__PURE__ */ new Map();
+  for (const variant of variantRows) grouped.set(variant.color_id, [...grouped.get(variant.color_id) ?? [], variant]);
+  const colors2 = Array.from(grouped.entries()).map(([colorId, variants2]) => {
+    const color = colorId ? colorsById.get(colorId) : void 0;
+    return {
+      id: colorId,
+      khmerName: color?.khmerName ?? null,
+      englishName: color?.englishName ?? "One Color",
+      hex: color?.hex ?? "#9A9A94",
+      available: variants2.some((variant) => variant.stock_quantity > 0),
+      variants: variants2.map((variant) => ({ id: variant.id, posCode: variant.pos_code, size: variant.size, price: Number(variant.price), available: variant.stock_quantity > 0 }))
+    };
+  });
+  return {
+    id: product.id,
+    slug: product.slug,
+    displayName: product.display_name,
+    cleanedCode: product.cleaned_code,
+    category,
+    isJustIn: product.is_just_in,
+    isPublished: product.is_published,
+    isRemovedFromLatestImport: product.is_removed_from_latest_import,
+    reviewStatus: product.review_status,
+    available: variantRows.some((variant) => variant.stock_quantity > 0),
+    priceMin: variantRows.length ? Math.min(...variantRows.map((variant) => Number(variant.price))) : 0,
+    priceMax: variantRows.length ? Math.max(...variantRows.map((variant) => Number(variant.price))) : 0,
+    colors: colors2,
+    media: mediaRows.map((media) => ({ id: media.id, url: media.optimized_url, altText: media.alt_text, isPrimary: media.is_primary, variantId: media.variant_id, colorTag: media.color_tag }))
+  };
+}
 
 // server/posImport.ts
 import crypto from "node:crypto";
@@ -1044,14 +1149,28 @@ async function destroyCloudinaryProductImage(publicId, config, request = fetch) 
 // server/catalogueWorkbookImport.ts
 import crypto4 from "node:crypto";
 import { TRPCError as TRPCError4 } from "@trpc/server";
+
+// shared/asyncPool.ts
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(Math.max(1, limit), items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index2 = nextIndex;
+      nextIndex += 1;
+      results[index2] = await mapper(items[index2], index2);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+// server/catalogueWorkbookImport.ts
 function normalize(value) {
   return value.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase();
 }
 function safeFolder(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "item";
-}
-function safePhotoKey(value) {
-  return value.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 100);
 }
 function signedCloudinaryParams(params, apiSecret) {
   const payload = Object.entries(params).sort(([left], [right]) => left.localeCompare(right)).map(([key, value]) => `${key}=${value}`).join("&");
@@ -1063,9 +1182,14 @@ function workbookPreviewFrom(value) {
   if (candidate.kind !== "catalogue_workbook" || !Array.isArray(candidate.uploads) || !Array.isArray(candidate.names)) return null;
   return candidate;
 }
-function expectedPublicId(importId, target) {
+function expectedPublicId(target) {
   const folder = `orange/products/${safeFolder(target.cleanedCode)}`;
-  return { folder, publicId: `workbook-${importId}-${safePhotoKey(target.photoKey)}` };
+  const color = safeFolder(target.colorTag);
+  return { folder, publicId: `color-${color}-${target.contentHash.slice(0, 24)}` };
+}
+function publicIdFor(target) {
+  const { folder, publicId } = expectedPublicId(target);
+  return `${folder}/${publicId}`;
 }
 async function catalogueLookup() {
   const [products2, variants2, colors2, categories2] = await Promise.all([
@@ -1087,6 +1211,7 @@ async function previewCatalogueWorkbookImport(input) {
   const uploads = [];
   const namesByProduct = /* @__PURE__ */ new Map();
   const photoKeys = /* @__PURE__ */ new Set();
+  const photoIdentities = /* @__PURE__ */ new Set();
   for (const row of input.rows) {
     const product = productsByCode.get(normalize(row.cleanedCode));
     if (!product) {
@@ -1123,23 +1248,31 @@ async function previewCatalogueWorkbookImport(input) {
         errors.push(`Excel row ${row.excelRow}: the same embedded photo was listed more than once.`);
         continue;
       }
+      const contentHash = row.photoHashes[photoKey];
+      if (!/^[a-f0-9]{64}$/.test(contentHash ?? "")) {
+        errors.push(`Excel row ${row.excelRow}: the embedded photo could not be verified. Reinsert the original photo and try again.`);
+        continue;
+      }
+      const identity = `${colorVariant.id}:${contentHash}`;
+      if (photoIdentities.has(identity)) {
+        errors.push(`Excel row ${row.excelRow}: this exact photo is already assigned to the same product colour in the workbook.`);
+        continue;
+      }
       photoKeys.add(photoKey);
-      uploads.push({ photoKey, excelRow: row.excelRow, productId: product.id, cleanedCode: product.cleaned_code, displayName: product.display_name, categorySlug, variantId: colorVariant.id, colorTag: color.english_name });
+      photoIdentities.add(identity);
+      uploads.push({ photoKey, excelRow: row.excelRow, productId: product.id, cleanedCode: product.cleaned_code, displayName: product.display_name, categorySlug, variantId: colorVariant.id, colorTag: color.english_name, contentHash, alreadyRegistered: false });
     }
   }
-  const summary = { rows: input.rows.length, names: namesByProduct.size, photos: uploads.length, errors: errors.length };
-  if (errors.length) return { importId: null, summary, errors, digest: input.digest };
+  if (errors.length) return { importId: null, summary: { rows: input.rows.length, names: namesByProduct.size, photos: uploads.length, newPhotos: 0, reusedPhotos: 0, errors: errors.length }, errors, digest: input.digest };
+  const existingMedia = await supabaseRequest("product_media?select=id,product_id,variant_id,cloudinary_public_id");
+  const existingPublicIds = new Set(existingMedia.map((media) => media.cloudinary_public_id));
+  for (const target of uploads) target.alreadyRegistered = existingPublicIds.has(publicIdFor(target));
+  const reusedPhotos = uploads.filter((upload) => upload.alreadyRegistered).length;
+  const summary = { rows: input.rows.length, names: namesByProduct.size, photos: uploads.length, newPhotos: uploads.length - reusedPhotos, reusedPhotos, errors: 0 };
   const storedPreview = { kind: "catalogue_workbook", uploads, names: Array.from(namesByProduct.values()) };
   const [created] = await supabaseRequest("imports", {
     method: "POST",
-    body: JSON.stringify({
-      original_filename: input.filename,
-      digest: input.digest,
-      status: "preview",
-      parsed_rows: input.rows.length,
-      summary_json: summary,
-      validation_json: storedPreview
-    })
+    body: JSON.stringify({ original_filename: input.filename, digest: input.digest, status: "preview", parsed_rows: input.rows.length, summary_json: summary, validation_json: storedPreview })
   });
   return { importId: created.id, summary, errors, digest: input.digest };
 }
@@ -1153,71 +1286,85 @@ async function loadPreview(importId, digest) {
 }
 async function prepareCatalogueWorkbookUploads(input) {
   const { preview } = await loadPreview(input.importId, input.digest);
-  if (!preview.uploads.length) return { uploads: [] };
+  const pending = preview.uploads.filter((upload) => !upload.alreadyRegistered);
+  if (!pending.length) return { uploads: [], reusedPhotoKeys: preview.uploads.map((upload) => upload.photoKey) };
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
   if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
   const timestamp2 = Math.floor(Date.now() / 1e3);
-  const uploads = preview.uploads.map((target) => {
-    const { folder, publicId } = expectedPublicId(input.importId, target);
+  const uploads = pending.map((target) => {
+    const { folder, publicId } = expectedPublicId(target);
     const tags = `orange,product:${safeFolder(target.cleanedCode)},category:${target.categorySlug},color:${target.colorTag}`;
     const signature = signedCloudinaryParams({ folder, public_id: publicId, tags, timestamp: timestamp2 }, apiSecret);
     return { photoKey: target.photoKey, uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp: timestamp2, folder, publicId, tags, signature };
   });
-  return { uploads };
+  return { uploads, reusedPhotoKeys: preview.uploads.filter((upload) => upload.alreadyRegistered).map((upload) => upload.photoKey) };
+}
+async function retireReplacedMedia(currentMedia, preview, cloudConfig, replaceExistingMedia) {
+  if (!replaceExistingMedia || !preview.uploads.length) return 0;
+  const importedVariants = new Set(preview.uploads.map((upload) => upload.variantId));
+  const importedIds = new Set(preview.uploads.map((upload) => publicIdFor(upload)));
+  const stale = currentMedia.filter((media) => media.variant_id !== null && importedVariants.has(media.variant_id) && !importedIds.has(media.cloudinary_public_id));
+  if (!stale.length) return 0;
+  await mapWithConcurrency(stale, 4, (media) => supabaseRequest(`product_media?${supabaseEq("id", media.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }));
+  const retainedIds = /* @__PURE__ */ new Set([...currentMedia.filter((media) => !stale.some((item) => item.id === media.id)).map((media) => media.cloudinary_public_id), ...preview.uploads.map((upload) => publicIdFor(upload))]);
+  const retiredIds = Array.from(new Set(stale.map((media) => media.cloudinary_public_id).filter((publicId) => !retainedIds.has(publicId))));
+  await mapWithConcurrency(retiredIds, 3, async (publicId) => {
+    try {
+      await destroyCloudinaryProductImage(publicId, cloudConfig);
+    } catch (error) {
+      console.warn(`Could not remove retired Cloudinary photo ${publicId}`, error);
+    }
+  });
+  return stale.length;
 }
 async function applyCatalogueWorkbookImport(input) {
   const { preview } = await loadPreview(input.importId, input.digest);
-  const expectedKeys = new Set(preview.uploads.map((upload) => upload.photoKey));
+  const pendingUploads = preview.uploads.filter((upload) => !upload.alreadyRegistered);
+  const expectedKeys = new Set(pendingUploads.map((upload) => upload.photoKey));
   const suppliedKeys = new Set(input.uploadedPhotoKeys);
   if (suppliedKeys.size !== input.uploadedPhotoKeys.length || suppliedKeys.size !== expectedKeys.size || Array.from(expectedKeys).some((key) => !suppliedKeys.has(key))) {
-    throw new TRPCError4({ code: "BAD_REQUEST", message: "Every embedded photo must finish uploading before the workbook can be applied." });
+    throw new TRPCError4({ code: "BAD_REQUEST", message: "Every new embedded photo must finish uploading before the workbook can be applied." });
   }
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const apiKey = process.env.CLOUDINARY_API_KEY;
   const apiSecret = process.env.CLOUDINARY_API_SECRET;
-  if (preview.uploads.length && (!cloudName || !apiKey || !apiSecret)) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
-  for (const upload of preview.uploads) {
-    const { folder, publicId } = expectedPublicId(input.importId, upload);
-    const cloudinaryPublicId = `${folder}/${publicId}`;
-    const exists = await cloudinaryProductImageExists(cloudinaryPublicId, { cloudName, apiKey, apiSecret });
-    if (!exists) throw new TRPCError4({ code: "BAD_REQUEST", message: `The photo from Excel row ${upload.excelRow} did not finish uploading. Upload all photos again before applying the workbook.` });
+  if ((pendingUploads.length || input.replaceExistingMedia) && (!cloudName || !apiKey || !apiSecret)) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+  if (pendingUploads.length) {
+    await mapWithConcurrency(pendingUploads, 4, async (upload) => {
+      const exists = await cloudinaryProductImageExists(publicIdFor(upload), { cloudName, apiKey, apiSecret });
+      if (!exists) throw new TRPCError4({ code: "BAD_REQUEST", message: `The photo from Excel row ${upload.excelRow} did not finish uploading. Upload only the failed photos and apply again.` });
+    });
   }
-  const currentMedia = await supabaseRequest("product_media?select=product_id");
+  const currentMedia = await supabaseRequest("product_media?select=id,product_id,variant_id,cloudinary_public_id,is_primary");
   const productHasMedia = new Set(currentMedia.map((media) => media.product_id));
-  let namesUpdated = 0;
-  for (const name of preview.names) {
-    await supabaseRequest(`products?${supabaseEq("id", name.productId)}`, { method: "PATCH", body: JSON.stringify({ display_name: name.websiteName }) });
-    namesUpdated += 1;
-  }
+  await mapWithConcurrency(preview.names, 5, async (name) => supabaseRequest(`products?${supabaseEq("id", name.productId)}`, { method: "PATCH", body: JSON.stringify({ display_name: name.websiteName }) }));
   let photosRegistered = 0;
   for (const upload of preview.uploads) {
-    const { folder, publicId } = expectedPublicId(input.importId, upload);
-    const cloudinaryPublicId = `${folder}/${publicId}`;
+    if (upload.alreadyRegistered) continue;
+    const cloudinaryPublicId = publicIdFor(upload);
     const isPrimary = !productHasMedia.has(upload.productId);
     if (isPrimary) await supabaseRequest(`product_media?${supabaseEq("product_id", upload.productId)}`, { method: "PATCH", body: JSON.stringify({ is_primary: false }) });
     await supabaseRequest("product_media?on_conflict=cloudinary_public_id", {
       method: "POST",
       headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
-      body: JSON.stringify({
-        product_id: upload.productId,
-        variant_id: upload.variantId,
-        cloudinary_public_id: cloudinaryPublicId,
-        optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${cloudinaryPublicId}`,
-        alt_text: `${upload.displayName ?? upload.cleanedCode} \u2014 ${upload.colorTag}`,
-        color_tag: upload.colorTag,
-        is_primary: isPrimary
-      })
+      body: JSON.stringify({ product_id: upload.productId, variant_id: upload.variantId, cloudinary_public_id: cloudinaryPublicId, optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${cloudinaryPublicId}`, alt_text: `${upload.displayName ?? upload.cleanedCode} \u2014 ${upload.colorTag}`, color_tag: upload.colorTag, is_primary: isPrimary })
     });
     productHasMedia.add(upload.productId);
     photosRegistered += 1;
   }
-  await supabaseRequest(`imports?${supabaseEq("id", input.importId)}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: "applied", applied_at: (/* @__PURE__ */ new Date()).toISOString(), summary_json: { rows: preview.names.length + preview.uploads.length, namesUpdated, photosRegistered, source: "catalogue_workbook" } })
-  });
-  return { namesUpdated, photosRegistered };
+  const photosRetired = await retireReplacedMedia(currentMedia, preview, { cloudName, apiKey, apiSecret }, Boolean(input.replaceExistingMedia));
+  if (input.replaceExistingMedia && preview.uploads.length) {
+    const refreshedMedia = await supabaseRequest("product_media?select=id,product_id,variant_id,cloudinary_public_id,is_primary");
+    const touchedProducts = new Set(preview.uploads.map((upload) => upload.productId));
+    for (const productId of Array.from(touchedProducts)) {
+      const productMedia2 = refreshedMedia.filter((media) => media.product_id === productId);
+      if (productMedia2.length && !productMedia2.some((media) => media.is_primary)) await supabaseRequest(`product_media?${supabaseEq("id", productMedia2[0].id)}`, { method: "PATCH", body: JSON.stringify({ is_primary: true }) });
+    }
+  }
+  await supabaseRequest(`imports?${supabaseEq("id", input.importId)}`, { method: "PATCH", body: JSON.stringify({ status: "applied", applied_at: (/* @__PURE__ */ new Date()).toISOString(), summary_json: { rows: preview.names.length + preview.uploads.length, namesUpdated: preview.names.length, photosRegistered, photosReused: preview.uploads.filter((upload) => upload.alreadyRegistered).length, photosRetired, source: "catalogue_workbook" } }) });
+  return { namesUpdated: preview.names.length, photosRegistered, photosReused: preview.uploads.filter((upload) => upload.alreadyRegistered).length, photosRetired };
 }
 
 // server/storeRouter.ts
@@ -1305,7 +1452,8 @@ var catalogueWorkbookRowInput = z2.object({
   cleanedCode: z2.string().min(1).max(255),
   websiteName: z2.string().min(1).max(255).nullable(),
   attributeColor: z2.string().min(1).max(255).nullable(),
-  photoKeys: z2.array(z2.string().regex(/^row-\d+-photo-\d+$/)).max(10)
+  photoKeys: z2.array(z2.string().regex(/^row-\d+-photo-\d+$/)).max(10),
+  photoHashes: z2.record(z2.string().regex(/^row-\d+-photo-\d+$/), z2.string().regex(/^[a-f0-9]{64}$/))
 });
 var catalogueWorkbookImportInput = z2.object({
   filename: z2.string().min(1).max(255),
@@ -1388,8 +1536,8 @@ async function applyImport(input) {
   return { newProducts, newVariants, updatedVariants, missingVariants: missing.length };
 }
 var storeRouter = router({
-  catalogue: router({ list: publicProcedure.query(() => cataloguePayload(false)), getBySlug: publicProcedure.input(z2.object({ slug: z2.string().min(1) })).query(async ({ input }) => {
-    const product = (await cataloguePayload(false)).products.find((row) => row.slug === input.slug);
+  catalogue: router({ list: publicProcedure.query(() => fetchStorefrontCards()), getBySlug: publicProcedure.input(z2.object({ slug: z2.string().min(1) })).query(async ({ input }) => {
+    const product = await fetchStorefrontProduct(input.slug);
     if (!product) throw new TRPCError5({ code: "NOT_FOUND", message: "Product not found." });
     return product;
   }), categories: publicProcedure.query(() => PUBLIC_CATEGORIES), messengerUrl: publicProcedure.input(z2.object({ productCode: z2.string(), color: z2.string(), size: z2.string().nullable().optional() })).query(({ input }) => buildMessengerOrderUrl(input)) }),
@@ -1451,7 +1599,7 @@ var storeRouter = router({
       await requireAdmin(ctx);
       return prepareCatalogueWorkbookUploads(input);
     }),
-    applyCatalogueWorkbook: publicProcedure.input(z2.object({ importId: z2.number().int().positive(), digest: z2.string().regex(/^[a-f0-9]{64}$/), uploadedPhotoKeys: z2.array(z2.string().regex(/^row-\d+-photo-\d+$/)).max(600) })).mutation(async ({ ctx, input }) => {
+    applyCatalogueWorkbook: publicProcedure.input(z2.object({ importId: z2.number().int().positive(), digest: z2.string().regex(/^[a-f0-9]{64}$/), uploadedPhotoKeys: z2.array(z2.string().regex(/^row-\d+-photo-\d+$/)).max(600), replaceExistingMedia: z2.boolean().optional() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       return applyCatalogueWorkbookImport(input);
     }),
@@ -1556,6 +1704,13 @@ function createApiApp() {
   app.use(express.urlencoded({ limit: "8mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  app.use("/api/trpc", (req, res, next) => {
+    const procedure = req.path.replace(/^\//, "");
+    if (req.method === "GET" && (procedure === "store.catalogue.list" || procedure === "store.catalogue.getBySlug")) {
+      res.setHeader("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+    }
+    next();
+  });
   app.use("/api/trpc", createExpressMiddleware({ router: appRouter, createContext }));
   return app;
 }
