@@ -130,6 +130,12 @@ All inactive S3, charting, and AI-template dependency paths were removed. Active
 
 The active password remains unchanged at the owner’s explicit direction. That is the only material public-release blocker that cannot be completed automatically, alongside the still-required historical cleanup and the owner-confirmed GitHub visibility action.
 
+## Publication completion update — 16 August 2026
+
+The owner subsequently changed the active shared admin password through the Security workflow. The minimum-length rule was lowered to four characters at the owner’s explicit request, while the previously added sign-in rate limit remains active. The new credential was verified in a clean session, and the former credential was rejected. A retained-file scan covering the project, generated deployment artifact, local logs, and local browser-upload captures found no occurrence of the new credential.
+
+The private Git history was then rewritten with `git filter-repo`; all 26 reachable commits were scanned clean for the former setup credential before the rewritten `main` branch was force-pushed to GitHub. GitHub now confirms that `KangKimpor/orange-catalogue` is **public**. The production dependency audit remains clean with no critical, high, moderate, or low findings, and the final validation suite reports 30 passing tests.
+
 ## References
 
 [1]: https://supabase.com/docs/guides/database/postgres/row-level-security "Supabase: Row Level Security"

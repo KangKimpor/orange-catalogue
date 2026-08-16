@@ -17,4 +17,4 @@ The existing Vercel project `orange-catalogue` in team `Kimpor` was inspected di
 3. Click **Publish** in the Management UI. Do not enable Vercel Authentication or password protection for the public storefront.
 4. Open the published storefront in an incognito window and verify the five category labels, the ZL 0041 Tops card, `/product/zl-0041`, and the Messenger order CTA.
 5. Keep `/admin` protected by the application admin password and change the initial password before operational use.
-6. Before changing GitHub visibility to public, confirm the former setup credential has been removed from repository history through an owner-approved history rewrite and confirm the active admin password has been changed from its original temporary value.
+6. The repository-history cleanup and GitHub-public visibility transition were completed on 16 August 2026 after the owner rotated the active password. Future credential changes must follow the Security workflow, retain the server-side rate limit, and never be committed to source or documentation.
