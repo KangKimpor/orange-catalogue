@@ -126,3 +126,5 @@
 - [x] Verify the redesigned storefront at laptop and iPhone-class dimensions, preserving accessibility, category routes, gallery behavior, and Messenger ordering.
 
 - [x] Apply the supplied admin item-editor form alignment refinements while preserving the established white, black, and lightest-pink design system.
+
+- [x] Remove the large pink front-page placeholder/loading background and keep the product area white with only subtle neutral loading feedback.

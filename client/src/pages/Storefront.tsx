@@ -66,7 +66,7 @@ export default function Storefront() {
             const firstColor = product.colors[0];
             return (
               <Link href={`/product/${product.slug}`} className="product-card" key={product.id}>
-                <div className="product-image" style={!primary ? { backgroundColor: firstColor?.hex ?? "#d9d0c1" } : undefined}>
+                <div className="product-image">
                   {primary ? <img src={primary.url} alt={primary.altText || product.displayName || product.cleanedCode} /> : <span>{firstColor?.englishName || "Orange"}</span>}
                   {!product.available && <span className="availability soldout">Sold Out</span>}
                 </div>
