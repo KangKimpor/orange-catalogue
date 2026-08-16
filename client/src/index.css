@@ -704,13 +704,13 @@ html {
 
 /* Public storefront redesign: white editorial base with restrained blush accents */
 .store-shell {
-  --orange-ink: #2c2529;
-  --orange-muted: #776a70;
-  --orange-line: #f0d8df;
-  --orange-blush: #fdf0f4;
-  --orange-soft-blush: #fff7f9;
-  --orange-pink: #b95d7a;
-  --orange-pink-deep: #93435f;
+  --orange-ink: #000000;
+  --orange-muted: #000000;
+  --orange-line: #f7dbe5;
+  --orange-blush: #fff0f5;
+  --orange-soft-blush: #fff9fb;
+  --orange-pink: #f7c4d3;
+  --orange-pink-deep: #f1afc4;
   background: #ffffff;
   color: var(--orange-ink);
 }
@@ -741,7 +741,7 @@ html {
 }
 
 .back-link {
-  color: var(--orange-pink-deep);
+  color: var(--orange-ink);
   font: 500 10px/1 "DM Mono", monospace;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -767,7 +767,7 @@ html {
 
 .category-nav button {
   min-height: 44px;
-  color: #5f5157;
+  color: var(--orange-ink);
   font-size: clamp(11px, .82vw, 13px);
   font-weight: 500;
   letter-spacing: .13em;
@@ -776,7 +776,7 @@ html {
 
 .category-nav button:hover,
 .category-nav button:focus-visible {
-  color: var(--orange-pink-deep);
+  color: var(--orange-ink);
 }
 
 .category-nav button:active {
@@ -784,8 +784,8 @@ html {
 }
 
 .category-nav button.is-active {
-  color: var(--orange-pink-deep);
-  border-color: var(--orange-pink);
+  color: var(--orange-ink);
+  border-color: var(--orange-pink-deep);
 }
 
 .catalogue-intro {
@@ -832,7 +832,7 @@ html {
 
 .product-image {
   background: #fffafd;
-  color: rgba(80, 62, 70, .48);
+  color: var(--orange-ink);
 }
 
 .product-image img {
@@ -845,7 +845,7 @@ html {
 
 .availability {
   background: rgba(255,255,255,.92);
-  color: var(--orange-pink-deep);
+  color: var(--orange-ink);
   border: 1px solid var(--orange-line);
   backdrop-filter: blur(8px);
 }
@@ -868,7 +868,7 @@ html {
 
 .price,
 .detail-price {
-  color: var(--orange-pink-deep);
+  color: var(--orange-ink);
 }
 
 .swatches span {
@@ -886,16 +886,16 @@ html {
   padding: 30px clamp(24px, 5vw, 84px);
   background: #ffffff;
   border-top: 1px solid var(--orange-line);
-  color: #75656d;
+  color: var(--orange-ink);
 }
 
 .store-footer span {
-  color: var(--orange-pink-deep);
+  color: var(--orange-ink);
 }
 
 .store-footer a:hover,
 .store-footer a:focus-visible {
-  color: var(--orange-pink-deep);
+  color: var(--orange-ink);
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -911,7 +911,7 @@ html {
 
 .gallery-main {
   background: var(--orange-soft-blush);
-  color: rgba(80, 62, 70, .45);
+  color: var(--orange-ink);
 }
 
 .gallery-main:focus-visible {
@@ -920,9 +920,9 @@ html {
 
 .gallery-arrow {
   border-color: rgba(255,255,255,.9);
-  background: rgba(185, 93, 122, .62);
-  color: #ffffff;
-  box-shadow: 0 8px 24px rgba(115, 44, 67, .18);
+  background: rgba(247, 196, 211, .86);
+  color: var(--orange-ink);
+  box-shadow: 0 8px 24px rgba(247, 196, 211, .36);
   backdrop-filter: blur(12px);
 }
 
@@ -932,7 +932,7 @@ html {
 }
 
 .gallery-photo-pips button {
-  background: #d9b8c4;
+  background: var(--orange-pink);
 }
 
 .gallery-photo-pips button.is-active {
@@ -957,7 +957,7 @@ html {
 }
 
 .gallery-color-track button.is-active span {
-  color: var(--orange-pink-deep);
+  color: var(--orange-ink);
 }
 
 .detail-content {
@@ -970,11 +970,11 @@ html {
 }
 
 .eyebrow {
-  color: var(--orange-pink-deep);
+  color: var(--orange-ink);
 }
 
 .choice-block > span {
-  color: #5f5157;
+  color: var(--orange-ink);
 }
 
 .choice,
@@ -1001,26 +1001,27 @@ html {
 .size-choice.is-selected {
   border-color: var(--orange-pink-deep);
   background: var(--orange-pink-deep);
-  color: #ffffff;
+  color: var(--orange-ink);
 }
 
 .detail-status.soldout {
-  color: var(--orange-pink-deep);
+  color: var(--orange-ink);
 }
 
 .message-button {
   background: var(--orange-pink-deep);
-  color: #ffffff;
-  box-shadow: 0 10px 24px rgba(147, 67, 95, .16);
+  color: var(--orange-ink);
+  box-shadow: 0 10px 24px rgba(247, 196, 211, .42);
 }
 
 .message-button:hover,
 .message-button:focus-visible {
-  background: var(--orange-pink);
+  background: #f9d4df;
 }
 
 .message-button.is-disabled {
-  background: #cbbfc4;
+  background: #f4d5df;
+  color: #5b5b5b;
   box-shadow: none;
 }
 
