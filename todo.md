@@ -31,3 +31,11 @@
 - [x] Update public taxonomy to exactly five categories: Just In, Tops, Jeans, Shorts, and Pants; classify ZS/ZL as Tops, SK/SJ/WJ/FJ as Jeans, SP as Shorts, and LP as Pants.
 - [x] Associate the supplied product photo with cleaned product name `ZL 0041` at the product level, while retaining POS Code only as the immutable inventory and ordering key.
 - [x] Add deterministic category URL state so the public card for a selected product can be verified directly without relying on a long-page browser click.
+- [ ] Verify and document whether the Orange backend uses the built-in project database or Supabase, and explain migration options if Supabase is required.
+- [x] Verified that the backend uses the Manus-managed TiDB/MySQL database rather than Supabase; documented the active database, table counts, and migration options in the task response.
+- [ ] Create and configure a Supabase PostgreSQL schema for catalogue, stock, category, import, and admin authentication data.
+- [ ] Migrate the current TiDB catalogue and Cloudinary media metadata into Supabase without changing POS-code or cleaned-name associations.
+- [ ] Refactor the server and admin authentication flows to use Supabase while retaining Cloudinary uploads and the public storefront contract.
+- [ ] Retain the normal single-password `/admin` login using the initial password `REDACTED_SETUP_PASSWORD`, with its password hash and session validation backed by Supabase rather than a Supabase email account.
+- [ ] Prepare the application for Vercel hosting and verify a public production deployment.
+- [ ] Create a private GitHub repository containing the complete website source and migration documentation.
