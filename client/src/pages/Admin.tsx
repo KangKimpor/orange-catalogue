@@ -15,6 +15,8 @@ import {
 import { type AdminWorkspace as Workspace, workspaceFromPath } from "@/lib/adminWorkspace";
 import { trpc } from "@/lib/trpc";
 
+const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
+
 const workspaceMeta: Array<{ id: Workspace; label: string; path: string; icon: typeof LayoutDashboard; hint: string }> = [
   { id: "overview", label: "Overview", path: "/admin", icon: LayoutDashboard, hint: "Today’s catalogue health" },
   { id: "items", label: "Items", path: "/admin/items", icon: PackageSearch, hint: "Names, categories, and publication" },
@@ -181,7 +183,7 @@ export default function Admin() {
   return (
     <div className="admin-app">
       <aside className="admin-rail">
-        <Link href="/" className="admin-wordmark">Orange <span>Admin</span></Link>
+        <Link href="/" className="admin-wordmark" aria-label="Orange storefront home"><img src={LOGO_URL} alt="Orange" /><span>Admin</span></Link>
         <nav aria-label="Admin workspaces">
           {workspaceMeta.map(item => {
             const Icon = item.icon;

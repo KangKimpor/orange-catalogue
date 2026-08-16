@@ -106,3 +106,7 @@
 - [x] Make the public Orange logo and the five category-navigation labels visibly larger while retaining fit, scroll behavior, and mobile touch targets.
 - [x] Reduce the public category heading and ordering-instruction section into a compact, balanced transition above the product grid.
 - [x] Validate revised responsive layouts with live 1440px and 390px storefront/product screenshots, TypeScript, build, and targeted regression checks; the full local suite remains blocked by intentionally unavailable Supabase and session-key environment variables, while 10 targeted tests passed.
+
+- [ ] Replace the admin rail’s Orange text wordmark with the approved Orange logo, sized for clear desktop and mobile presentation.
+- [ ] Add deliberate clearance between the admin logo and sidebar navigation so the Overview tab no longer clashes with branding.
+- [ ] Verify the revised admin rail layout compiles, remains responsive, and is released to production.
