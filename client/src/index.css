@@ -280,6 +280,8 @@
 .admin-rail nav button { min-height: 46px; font-size: 13px; }
 .overview-view .metric-grid { margin-top: 0; }
 .model-form-grid label small { display: block; margin-top: 7px; color: #776d61; font-size: 11px; line-height: 1.4; }
+.model-form-grid { align-items: start; }
+.model-form-grid label { grid-template-rows: auto auto; align-content: start; }
 
 @media (max-width: 820px) {
   .admin-wordmark { font-size: 31px; }

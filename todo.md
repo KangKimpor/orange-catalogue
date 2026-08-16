@@ -124,3 +124,5 @@
 - [x] Redesign the public Orange storefront around a crisp white base with restrained blush-pink accents and an enlarged approved logo.
 - [x] Refine navigation, category introduction, product cards, gallery, product details, and Messenger action into one original editorial visual system.
 - [x] Verify the redesigned storefront at laptop and iPhone-class dimensions, preserving accessibility, category routes, gallery behavior, and Messenger ordering.
+
+- [x] Apply the supplied admin item-editor form alignment refinements while preserving the established white, black, and lightest-pink design system.
