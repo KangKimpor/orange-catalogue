@@ -56,5 +56,5 @@
 - [x] Replace the current Orange logo with the user-supplied brand asset across public storefront and product-detail navigation.
 - [x] Refine public storefront responsive layout, touch targets, typography, product grid, and media presentation for iPhone 13–17 viewports and common 1366px, 1440px, and 1536px laptop widths.
 - [x] Validate public storefront and direct product pages at iPhone 13/15/17 Pro and MacBook, VivoBook, Dell, and ASUS laptop viewport dimensions; screenshots passed at iPhone 13 (390×844), iPhone 15 (393×852), iPhone 17 Pro (402×874), a larger iPhone (430×932), 1366×768, 1440×900, and 1536×864.
-- [ ] Replace the temporary managed asset URL with the Cloudinary-hosted user-supplied logo URL so the mark renders in external Vercel production.
-- [ ] Re-verify the Cloudinary-hosted logo and responsive public storefront on the live production domain, then create a final checkpoint.
+- [x] Replace the temporary managed asset URL with the Cloudinary-hosted user-supplied logo URL so the mark renders in external Vercel production.
+- [x] Re-verify the Cloudinary-hosted logo and responsive public storefront on the live production domain; production deployment `dpl_HyctLs5E9ziAuPHuNcwMsfEU6TFv` is READY, and the final browser screenshot at `orange-catalogue.vercel.app/?category=tops` visibly renders the supplied Orange script mark in the header.
