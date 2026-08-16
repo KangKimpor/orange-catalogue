@@ -8,7 +8,7 @@ The authenticated compact admin workspaces were reviewed at desktop width and us
 
 ## Verified Vercel settings
 
-The existing Vercel project `orange-catalogue` in team `Kimpor` was inspected directly. The verified deployment-protection state is: **Vercel Authentication disabled**, **password protection disabled**, and **Trusted IP protection disabled**. The project ID is `prj_xfhj13Lvn5vd1d23ZK64gsZzefua`. No customer-facing team-member login wall remains configured.
+The existing Vercel project `orange-catalogue` in team `Kimpor` was inspected directly. The verified deployment-protection state is: **Vercel Authentication disabled**, **password protection disabled**, and **Trusted IP protection disabled**. No customer-facing team-member login wall remains configured.
 
 ## Publication procedure
 
@@ -16,4 +16,5 @@ The existing Vercel project `orange-catalogue` in team `Kimpor` was inspected di
 2. Review the preview, confirm the site visibility is public, and confirm the intended domain.
 3. Click **Publish** in the Management UI. Do not enable Vercel Authentication or password protection for the public storefront.
 4. Open the published storefront in an incognito window and verify the five category labels, the ZL 0041 Tops card, `/product/zl-0041`, and the Messenger order CTA.
-5. Keep `/admin` protected by the application admin password and change the initial password `REDACTED_SETUP_PASSWORD` before operational use.
+5. Keep `/admin` protected by the application admin password and change the initial password before operational use.
+6. Before changing GitHub visibility to public, confirm the former setup credential has been removed from repository history through an owner-approved history rewrite and confirm the active admin password has been changed from its original temporary value.

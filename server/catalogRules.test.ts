@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 import { describe, expect, it } from "vitest";
 import { buildMessengerOrderUrl, classifyProduct, cleanProductCode, parseAttributes } from "./catalogRules";
-import { parsePosWorkbook } from "./posImport";
+import { MAX_POS_IMPORT_BYTES, MAX_POS_IMPORT_ROWS, MAX_POS_IMPORT_SHEETS, parsePosWorkbook } from "./posImport";
 
 describe("Orange catalogue rules", () => {
   it("applies the owner-approved five-category code rules", () => {
@@ -48,5 +48,26 @@ describe("Orange catalogue rules", () => {
     expect(result.validation.headerRow).toBe(4);
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({ posCode: "P0006297", cleanedCode: "5522", categorySlug: "just-in", stockQuantity: 10 });
+  });
+
+  it("rejects a workbook payload exceeding the approved import size", () => {
+    expect(() => parsePosWorkbook(Buffer.alloc(MAX_POS_IMPORT_BYTES + 1))).toThrow("5 MB upload limit");
+  });
+
+  it("rejects workbooks with more than the approved worksheet count", () => {
+    const workbook = XLSX.utils.book_new();
+    for (let index = 0; index <= MAX_POS_IMPORT_SHEETS; index += 1) {
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([["Code", "Name", "Price", "Stock Qty."]]), `Sheet${index}`);
+    }
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    expect(() => parsePosWorkbook(Buffer.from(buffer))).toThrow("worksheets");
+  });
+
+  it("rejects workbooks with more than the approved row count", () => {
+    const rows = [["Code", "Name", "Price", "Stock Qty."], ...Array.from({ length: MAX_POS_IMPORT_ROWS }, (_, index) => [`P${index}`, `ZS ${index}`, "10", "1"])];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), "Products");
+    const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+    expect(() => parsePosWorkbook(Buffer.from(buffer))).toThrow("rows");
   });
 });

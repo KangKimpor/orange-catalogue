@@ -77,3 +77,13 @@
 - [x] Rename the Claude-oriented Orange Catalogue skill package so its `name` field does not contain the reserved word `claude`, then revalidate and redeliver it; renamed to `orange-catalogue-ops` and `quick_validate.py` passed.
 
 - [x] Audit the current repository and complete Git history for secrets, operational exposure, unsafe public configuration, and remediation steps before changing GitHub visibility to public; the 2026-08-16 audit report blocks publication pending admin-password rotation, removal of the documented literal, production dependency remediation, and login-throttling hardening.
+- [x] Remove the former temporary admin credential and unnecessary Vercel project identifier from current documentation, tests, and retained checklist wording without changing the active admin password.
+- [x] Remove unused direct production dependencies and upgrade compatible active dependency paths to reduce critical and high `pnpm audit --prod` findings; the final production audit reports zero findings.
+- [x] Add Supabase-backed admin-login rate limiting and generic authentication failure handling without changing the active admin password.
+- [x] Cap and validate POS XLSX import payloads before workbook parsing, then add complete adversarial regression coverage.
+- [x] Add router-level tests proving preview and apply imports reject malformed or overlong base64 payloads before workbook parsing.
+- [x] Add bounded-workbook tests for excessive row-count rejection, then rerun focused and full security validation.
+- [x] Run the full post-hardening validation suite: complete tests, production build, diff check, production dependency audit, and current-tree disclosure re-scan.
+- [ ] With explicit owner confirmation after resolving the active-password exception, rewrite the private Git history to remove the former temporary credential and force-push the cleaned branch.
+- [ ] With explicit owner confirmation after the history cleanup and an active-password decision, change `KangKimpor/orange-catalogue` visibility from private to public.
+- [x] Run the full automated validation suite, re-audit production dependencies, re-scan the current tree, and document remaining history-cleanup and GitHub-public actions for explicit owner confirmation.

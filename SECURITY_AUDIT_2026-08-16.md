@@ -120,8 +120,19 @@ The repository is **not ready to be public today** because the known weak admin 
 
 After the Priority 0 and Priority 1 remediation release and a clean re-audit, making the GitHub repository public can be a reasonable choice. The visibility change itself should remain an explicit owner-confirmed action.
 
+## Remediation update — 16 August 2026
+
+The current working tree has now been remediated without changing the owner’s active admin password. Documentation, tests, and retained checklist wording no longer reproduce the former setup credential, and the unnecessary Vercel project identifier has been removed. The repository’s reachable **history** still contains the former credential, so the repository must remain private until the owner explicitly approves a history rewrite and the public-visibility change.
+
+The server now applies a durable Supabase-backed login limit per HMAC-protected client identifier: five failed attempts within 15 minutes trigger a 15-minute block. It returns generic failed-sign-in messaging, does not store raw client addresses, and clears the limit on a successful sign-in. The POS import boundary now limits JSON request bodies to 8 MB, accepts a maximum 5 MB decoded workbook, verifies base64 input before parsing, and rejects workbooks with more than three worksheets or 5,000 rows.
+
+All inactive S3, charting, and AI-template dependency paths were removed. Active tRPC, Axios, Express, Nanoid, and Drizzle versions were upgraded; Express wildcard routes were updated for the new routing syntax. The obsolete npm `xlsx` package was replaced with SheetJS’s current official CDN distribution (`xlsx` 0.20.3), whose distribution guidance states that Node releases from 0.18.6 onward are served from the official CDN.[4] The final production dependency audit reported **0 critical, 0 high, 0 moderate, and 0 low** findings. The full test suite passed with 29 tests, TypeScript and production build passed, and the current-tree disclosure rescan found no former credential or Vercel project identifier.
+
+The active password remains unchanged at the owner’s explicit direction. That is the only material public-release blocker that cannot be completed automatically, alongside the still-required historical cleanup and the owner-confirmed GitHub visibility action.
+
 ## References
 
 [1]: https://supabase.com/docs/guides/database/postgres/row-level-security "Supabase: Row Level Security"
 [2]: https://docs.npmjs.com/cli/v10/commands/npm-audit "npm audit documentation"
 [3]: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility "GitHub: Setting repository visibility"
+[4]: https://cdn.sheetjs.com/xlsx/ "SheetJS XLSX migration guidance"

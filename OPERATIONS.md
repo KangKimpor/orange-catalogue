@@ -29,7 +29,7 @@ Configure these variables for both **Preview** and **Production** in the Vercel 
 | `CLOUDINARY_API_KEY` | Server only | Cloudinary API key used to generate signed upload parameters. |
 | `CLOUDINARY_API_SECRET` | Server only | Cloudinary signing secret; never send it to the browser. |
 
-The initial owner password is `REDACTED_SETUP_PASSWORD` only for first access. Change it immediately in the admin Security workspace. After the password hash exists in Supabase, changing `ADMIN_PASSWORD` does not replace the stored hash.
+Supply an initial owner password through `ADMIN_PASSWORD` only for first access. Never document or commit its value. Change it immediately in the admin Security workspace. After the password hash exists in Supabase, changing `ADMIN_PASSWORD` does not replace the stored hash. Admin sign-in attempts are server-throttled: five failed attempts from one protected client identifier in 15 minutes trigger a 15-minute block; a successful sign-in clears the prior failure record.
 
 ## Cloudinary setup and product photography
 
@@ -53,7 +53,7 @@ The Products workspace supports display names, category overrides, published sta
 
 ## POS XLSX import procedure
 
-Use **POS XLSX import** to upload a POS export. The parser detects its embedded header row and validates `Code`, `Name`, `Price`, and `Stock Qty.`. Preview mode writes an import-history record and review rows but does not alter catalogue variants. The immutable `Code` updates a variant’s price and stock, while the cleaned name determines product-level grouping and media association.
+Use **POS XLSX import** to upload a POS export. The parser accepts valid base64 only, permits at most a 5 MB decoded workbook, three worksheets, and 5,000 rows, then detects its embedded header row and validates `Code`, `Name`, `Price`, and `Stock Qty.`. Preview mode writes an import-history record and review rows but does not alter catalogue variants. The immutable `Code` updates a variant’s price and stock, while the cleaned name determines product-level grouping and media association.
 
 Review new products, new variants, stock or price changes, and missing variants. Apply only after the preview digest and validation summary match the intended file. Items absent from an import are retained and surfaced for review so an owner can archive or hide them deliberately.
 

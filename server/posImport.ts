@@ -34,6 +34,10 @@ export type ParsedImport = {
 };
 
 const REQUIRED_COLUMNS = ["Code", "Name", "Price", "Stock Qty."] as const;
+export const MAX_POS_IMPORT_BYTES = 5 * 1024 * 1024;
+export const MAX_POS_IMPORT_BASE64_LENGTH = Math.ceil((MAX_POS_IMPORT_BYTES * 4) / 3) + 4;
+export const MAX_POS_IMPORT_SHEETS = 3;
+export const MAX_POS_IMPORT_ROWS = 5_000;
 
 function valueAsString(value: unknown): string {
   if (value === undefined || value === null) return "";
@@ -46,11 +50,16 @@ function asNumber(value: unknown): number | null {
 }
 
 export function parsePosWorkbook(buffer: Buffer): ParsedImport {
+  if (!buffer.length) throw new Error("The POS workbook is empty.");
+  if (buffer.length > MAX_POS_IMPORT_BYTES) throw new Error("The POS workbook exceeds the 5 MB upload limit.");
   const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
+  if (!workbook.SheetNames.length) throw new Error("The workbook does not contain a worksheet.");
+  if (workbook.SheetNames.length > MAX_POS_IMPORT_SHEETS) throw new Error(`The POS workbook cannot contain more than ${MAX_POS_IMPORT_SHEETS} worksheets.`);
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   if (!sheet) throw new Error("The workbook does not contain a worksheet.");
 
   const rawRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+  if (rawRows.length > MAX_POS_IMPORT_ROWS) throw new Error(`The POS workbook cannot contain more than ${MAX_POS_IMPORT_ROWS} rows.`);
   const headerIndex = rawRows.findIndex(row => {
     const cells = Array.isArray(row) ? row.map(valueAsString) : [];
     return REQUIRED_COLUMNS.every(column => cells.includes(column));

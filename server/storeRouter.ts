@@ -6,7 +6,8 @@ import { z } from "zod";
 import { buildMessengerOrderUrl, PUBLIC_CATEGORIES } from "./catalogRules";
 import { fetchCatalogueRows } from "./catalogDb";
 import { supabaseEq, supabaseRequest } from "./supabase";
-import { parsePosWorkbook } from "./posImport";
+import { MAX_POS_IMPORT_BASE64_LENGTH, parsePosWorkbook } from "./posImport";
+import { adminLoginClientKey, checkAdminLoginRateLimit } from "./loginRateLimit";
 import { publicProcedure, router } from "./_core/trpc";
 
 const ADMIN_COOKIE = "orange_admin_session";
@@ -76,7 +77,7 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
   };
 }
 
-const importInput = z.object({ filename: z.string().min(1).max(255), base64: z.string().min(16) });
+const importInput = z.object({ filename: z.string().min(1).max(255), base64: z.string().min(16).max(MAX_POS_IMPORT_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/, "The POS workbook payload is not valid base64.") });
 type DbProduct = { id: number; cleaned_code: string; slug: string; category_source: string };
 type DbVariant = { id: number; product_id: number; color_id: number | null; pos_code: string; size: string | null; price: string | number; stock_quantity: number };
 type DbColor = { id: number; normalized_key: string };
@@ -120,7 +121,7 @@ export const storeRouter = router({
   catalogue: router({ list: publicProcedure.query(() => cataloguePayload(false)), getBySlug: publicProcedure.input(z.object({ slug: z.string().min(1) })).query(async ({ input }) => { const product = (await cataloguePayload(false)).products.find(row => row.slug === input.slug); if (!product) throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." }); return product; }), categories: publicProcedure.query(() => PUBLIC_CATEGORIES), messengerUrl: publicProcedure.input(z.object({ productCode: z.string(), color: z.string(), size: z.string().nullable().optional() })).query(({ input }) => buildMessengerOrderUrl(input)) }),
   admin: router({
     session: publicProcedure.query(({ ctx }) => hasAdminSession(ctx as Context)),
-    login: publicProcedure.input(z.object({ password: z.string().min(1) })).mutation(async ({ ctx, input }) => { const stored = await readStoredPasswordHash(); const initial = process.env.ADMIN_PASSWORD; const valid = stored ? passwordMatches(input.password, stored) : Boolean(initial && safeTextEqual(input.password, initial)); if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Incorrect admin password." }); if (!stored) await savePasswordHash(hashPassword(input.password)); await issueAdminSession(ctx as Context); return { success: true }; }),
+    login: publicProcedure.input(z.object({ password: z.string().min(1).max(1024) })).mutation(async ({ ctx, input }) => { const clientKey = adminLoginClientKey((ctx as Context).req.headers); const preflight = await checkAdminLoginRateLimit(clientKey, "check"); if (!preflight.allowed) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." }); const stored = await readStoredPasswordHash(); const initial = process.env.ADMIN_PASSWORD; const valid = stored ? passwordMatches(input.password, stored) : Boolean(initial && safeTextEqual(input.password, initial)); const result = await checkAdminLoginRateLimit(clientKey, valid ? "success" : "failure"); if (!valid) { if (!result.allowed) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." }); throw new TRPCError({ code: "UNAUTHORIZED", message: "Unable to sign in with those credentials." }); } if (!result.allowed) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." }); if (!stored) await savePasswordHash(hashPassword(input.password)); await issueAdminSession(ctx as Context); return { success: true }; }),
     logout: publicProcedure.mutation(({ ctx }) => { ctx.res.clearCookie(ADMIN_COOKIE, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" }); return { success: true }; }),
     changePassword: publicProcedure.input(z.object({ currentPassword: z.string().min(1), newPassword: z.string().min(8) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const stored = await readStoredPasswordHash(); const valid = stored ? passwordMatches(input.currentPassword, stored) : input.currentPassword === process.env.ADMIN_PASSWORD; if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password is incorrect." }); await savePasswordHash(hashPassword(input.newPassword)); await issueAdminSession(ctx as Context); return { success: true }; }),
     overview: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); return cataloguePayload(true, true); }),

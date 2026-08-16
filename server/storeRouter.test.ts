@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { storeRouter } from "./storeRouter";
 
 type CookieRecord = { name: string; value: string; options: Record<string, unknown> };
+const configuredAdminPassword = process.env.ADMIN_PASSWORD;
 
 function createContext(cookie = "") {
   const setCookies: CookieRecord[] = [];
@@ -22,7 +23,8 @@ describe("Orange admin and catalogue boundaries", () => {
   it("creates an HTTP-only admin session from the configured initial password", async () => {
     const first = createContext();
     const caller = storeRouter.createCaller(first.ctx);
-    await expect(caller.admin.login({ password: "REDACTED_SETUP_PASSWORD" })).resolves.toEqual({ success: true });
+    expect(configuredAdminPassword).toBeTruthy();
+    await expect(caller.admin.login({ password: configuredAdminPassword! })).resolves.toEqual({ success: true });
     expect(first.setCookies[0]?.name).toBe("orange_admin_session");
     expect(first.setCookies[0]?.options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/" });
 
@@ -41,7 +43,8 @@ describe("Orange admin and catalogue boundaries", () => {
 
   it("issues Cloudinary upload parameters only to a verified admin session", async () => {
     const loginContext = createContext();
-    await storeRouter.createCaller(loginContext.ctx).admin.login({ password: "REDACTED_SETUP_PASSWORD" });
+    expect(configuredAdminPassword).toBeTruthy();
+    await storeRouter.createCaller(loginContext.ctx).admin.login({ password: configuredAdminPassword! });
     const cookie = `${loginContext.setCookies[0]?.name}=${loginContext.setCookies[0]?.value}`;
     const adminContext = createContext(cookie);
     const signed = await storeRouter.createCaller(adminContext.ctx).admin.signMediaUpload({

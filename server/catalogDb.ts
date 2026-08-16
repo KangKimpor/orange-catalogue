@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm";
 import { supabaseRequest, type CategoryRow, type ColorRow, type ProductMediaRow, type ProductRow, type VariantRow } from "./supabase";
 
 export async function fetchCatalogueRows(includeHidden = false) {
