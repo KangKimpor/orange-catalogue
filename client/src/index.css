@@ -1602,3 +1602,111 @@ html {
   width: 13px;
   height: 13px;
 }
+
+/* Direct catalogue workbook import */
+.import-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  align-items: start;
+}
+
+.import-mode-grid .import-workbench {
+  grid-template-columns: 1fr;
+  align-items: stretch;
+  min-height: 100%;
+}
+
+.import-card-heading {
+  padding-bottom: 2px;
+}
+
+.import-card-heading h3 {
+  margin: 0;
+  font: 500 28px/1 "Playfair Display", serif;
+  letter-spacing: -.03em;
+}
+
+.import-card-heading p:not(.eyebrow) {
+  min-height: 56px;
+  margin: 10px 0 0;
+  color: #71685d;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.import-card-heading a {
+  display: inline-block;
+  margin-top: 14px;
+  color: #9b704d;
+  font: 500 10px "DM Mono", monospace;
+  letter-spacing: .05em;
+  text-decoration: underline;
+  text-transform: uppercase;
+  text-underline-offset: 3px;
+}
+
+.catalogue-workbook-import {
+  border-top: 3px solid #d8692f;
+  background: #fffaf6;
+}
+
+.catalogue-workbook-import .import-file {
+  background: #f8eee5;
+}
+
+.form-helper {
+  margin: 0;
+  color: #756a5e;
+  font-size: 12px;
+}
+
+.workbook-errors {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 14px;
+  border-left: 3px solid #a85045;
+  background: #fbebe7;
+}
+
+.workbook-errors p {
+  margin: 0;
+  color: #83453d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.import-success {
+  margin: 0;
+  padding: 13px 15px;
+  border-left: 3px solid #678553;
+  background: #edf5e7;
+  color: #48653b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1050px) {
+  .import-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .import-card-heading p:not(.eyebrow) {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 540px) {
+  .import-mode-grid {
+    gap: 16px;
+  }
+
+  .import-mode-grid .import-workbench {
+    padding: 18px;
+  }
+
+  .import-card-heading h3 {
+    font-size: 25px;
+  }
+}

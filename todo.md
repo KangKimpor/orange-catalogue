@@ -130,3 +130,8 @@
 - [x] Remove the large pink front-page placeholder/loading background and keep the product area white with only subtle neutral loading feedback.
 - [x] Add a hard-white front-page surface guard that removes inherited fills and pink loading pseudo-elements from product placeholders.
 - [x] Add an authenticated admin action to delete a Cloudinary product photo and its associated media record with a clear confirmation step.
+
+- [x] Add a preview-first combined catalogue-workbook import that reads model-level website names and photos embedded in an XLSX workbook, while preserving immutable POS Code and Attribute-derived colour associations.
+- [x] Parse photos anchored to the designated photo column in the owner template, support multiple photos per colour through repeated rows, and reject misplaced, unsupported, or unlinked images with clear row-level errors.
+- [x] Upload embedded workbook photos directly from the authenticated browser to Cloudinary using server-validated product/colour signatures, then register validated media metadata in Supabase.
+- [x] Add a workbook import workspace, Excel template, regression tests, desktop/mobile verification, and release validation for the direct workbook workflow.
