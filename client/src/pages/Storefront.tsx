@@ -4,6 +4,13 @@ import { trpc } from "@/lib/trpc";
 import { belongsInStorefrontCategory } from "@/lib/storefrontCategories";
 
 const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
+const FALLBACK_CATEGORIES = [
+  { slug: "just-in", label: "Just In" },
+  { slug: "tops", label: "Tops" },
+  { slug: "jeans", label: "Jeans" },
+  { slug: "shorts", label: "Shorts" },
+  { slug: "pants", label: "Pants" },
+] as const;
 
 function money(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -15,12 +22,11 @@ export default function Storefront() {
     const requested = new URLSearchParams(window.location.search).get("category");
     return requested || "just-in";
   });
+  const categories = data?.categories?.length ? data.categories : FALLBACK_CATEGORIES;
   const products = useMemo(
     () => (data?.products ?? []).filter(product => belongsInStorefrontCategory(product, activeCategory)),
     [activeCategory, data],
   );
-
-  if (isLoading) return <div className="min-h-screen bg-[#f6f1e8]" />;
 
   return (
     <div className="store-shell">
@@ -31,7 +37,7 @@ export default function Storefront() {
       </header>
 
       <nav className="category-nav" aria-label="Product categories">
-        {(data?.categories ?? []).map(category => (
+        {categories.map(category => (
           <button key={category.slug} className={activeCategory === category.slug ? "is-active" : ""} onClick={() => {
                 setActiveCategory(category.slug);
                 const url = new URL(window.location.href);
@@ -45,12 +51,17 @@ export default function Storefront() {
 
       <main>
         <section className="catalogue-intro">
-          <h1>{data?.categories.find(c => c.slug === activeCategory)?.label}</h1>
+          <h1>{categories.find(category => category.slug === activeCategory)?.label}</h1>
           <p>Choose a piece, select your color and size, then message us to order.</p>
         </section>
 
         <section className="product-grid" aria-live="polite">
-          {products.map(product => {
+          {isLoading ? Array.from({ length: 4 }, (_, index) => (
+            <div className="product-card product-card-skeleton" aria-hidden="true" key={`loading-${index}`}>
+              <div className="product-image" />
+              <div className="product-meta"><span /><span /><span /></div>
+            </div>
+          )) : products.map(product => {
             const primary = product.media.find(media => media.isPrimary) ?? product.media[0];
             const firstColor = product.colors[0];
             return (
@@ -71,7 +82,7 @@ export default function Storefront() {
             );
           })}
         </section>
-        {!products.length && <p className="empty-state">No pieces are available in this category yet.</p>}
+        {!isLoading && !products.length && <p className="empty-state">No pieces are available in this category yet.</p>}
       </main>
       <footer className="store-footer"><span>Orange</span><a href="https://m.me/OfficiallyDavit" target="_blank" rel="noreferrer">Message us on Messenger to order</a><Link href="/admin">Admin</Link></footer>
     </div>

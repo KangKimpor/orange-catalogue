@@ -120,3 +120,7 @@
 - [x] Update catalogue composition, storefront filtering, and the admin item editor to manage separate Just In membership without overwriting primary category assignment.
 - [x] Restore SP 009 and ZL 0041 to their original primary categories, then seed exactly eight example items in Just In for owner review: SP 009, ZL 0041, Sp 710, Lp 08, Lp 613, Wj 0038, Wj 0037, and Zs 00176.
 - [x] Add coverage and verify that the eight Just In examples remain present in their normal categories before releasing the feature; the live Just In, Tops, and Shorts pages confirmed the behavior and production reports no recent runtime errors.
+
+- [x] Redesign the public Orange storefront around a crisp white base with restrained blush-pink accents and an enlarged approved logo.
+- [x] Refine navigation, category introduction, product cards, gallery, product details, and Messenger action into one original editorial visual system.
+- [x] Verify the redesigned storefront at laptop and iPhone-class dimensions, preserving accessibility, category routes, gallery behavior, and Messenger ordering.
