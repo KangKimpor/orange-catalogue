@@ -44,10 +44,10 @@
 - [x] Add and commit explicit migration and operations documentation covering Supabase, required Vercel environment variables, Cloudinary, and deployment steps.
 
 - [x] Fix live Vercel admin-session propagation so authenticated Cloudinary sign and registration requests retain the `orange_admin_session` cookie (diagnosis: the 500 was missing Vercel Cloudinary variables; browser credentials were already configured with `credentials: include`)
-- [ ] Re-run the live admin photo upload and media-registration workflow after the Vercel environment-variable redeploy, then verify the media record and storefront rendering
+- [x] Re-run the live admin photo upload and media-registration workflow after the Vercel environment-variable redeploy, then verify the media record and storefront rendering; production API returned registered ZL 0041 Cloudinary records, the Tops grid visibly rendered the product image, and `/product/zl-0041` visibly rendered the same image with the Messenger CTA
 - [x] Add and commit explicit migration and operations documentation covering Supabase, required Vercel environment variables, Cloudinary, and deployment steps
-- [ ] Promote the verified main deployment to production on Vercel
-- [ ] Finalize release checkpoint and delivery report
+- [x] Promote the verified main deployment to production on Vercel; deployment `dpl_Ght1zotN4BUWvWvWwSVSDMR7BoXP` is READY with the production aliases including `orange-catalogue.vercel.app`
+- [x] Finalize release checkpoint and delivery report
 
 > History note: these follow-up items record the live Vercel validation issue discovered during final verification.
 
