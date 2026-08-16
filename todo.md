@@ -31,12 +31,24 @@
 - [x] Update public taxonomy to exactly five categories: Just In, Tops, Jeans, Shorts, and Pants; classify ZS/ZL as Tops, SK/SJ/WJ/FJ as Jeans, SP as Shorts, and LP as Pants.
 - [x] Associate the supplied product photo with cleaned product name `ZL 0041` at the product level, while retaining POS Code only as the immutable inventory and ordering key.
 - [x] Add deterministic category URL state so the public card for a selected product can be verified directly without relying on a long-page browser click.
-- [ ] Verify and document whether the Orange backend uses the built-in project database or Supabase, and explain migration options if Supabase is required.
+- [x] Verify and document whether the Orange backend uses the built-in project database or Supabase, and explain migration options if Supabase is required.
 - [x] Verified that the backend uses the Manus-managed TiDB/MySQL database rather than Supabase; documented the active database, table counts, and migration options in the task response.
-- [ ] Create and configure a Supabase PostgreSQL schema for catalogue, stock, category, import, and admin authentication data.
-- [ ] Migrate the current TiDB catalogue and Cloudinary media metadata into Supabase without changing POS-code or cleaned-name associations.
-- [ ] Refactor the server and admin authentication flows to use Supabase while retaining Cloudinary uploads and the public storefront contract.
-- [ ] Retain the normal single-password `/admin` login using the initial password `REDACTED_SETUP_PASSWORD`, with its password hash and session validation backed by Supabase rather than a Supabase email account.
-- [ ] Prepare the application for Vercel hosting and verify a public production deployment.
-- [ ] Fix the Vercel serverless API module-resolution failure and verify the live Supabase catalogue endpoint.
-- [ ] Create a private GitHub repository containing the complete website source and migration documentation.
+- [x] Create and configure a Supabase PostgreSQL schema for catalogue, stock, category, import, and admin authentication data.
+- [x] Migrate the current TiDB catalogue and Cloudinary media metadata into Supabase without changing POS-code or cleaned-name associations.
+- [x] Refactor the server and admin authentication flows to use Supabase while retaining Cloudinary uploads and the public storefront contract.
+- [x] Retain the normal single-password `/admin` login using the initial password `REDACTED_SETUP_PASSWORD`, with its password hash and session validation backed by Supabase rather than a Supabase email account.
+- [x] Prepare the application for Vercel hosting and verify a public production deployment.
+- [x] Fix the Vercel serverless API module-resolution failure and verify the live Supabase catalogue endpoint.
+- [x] Create a private GitHub repository containing the complete website source and migration documentation.
+- [x] Re-run the admin photo upload and media-registration workflow against the Supabase-backed app, then verify the media record and storefront rendering.
+- [x] Add and commit explicit migration and operations documentation covering Supabase, required Vercel environment variables, Cloudinary, and deployment steps.
+
+- [x] Fix live Vercel admin-session propagation so authenticated Cloudinary sign and registration requests retain the `orange_admin_session` cookie (diagnosis: the 500 was missing Vercel Cloudinary variables; browser credentials were already configured with `credentials: include`)
+- [ ] Re-run the live admin photo upload and media-registration workflow after the Vercel environment-variable redeploy, then verify the media record and storefront rendering
+- [x] Add and commit explicit migration and operations documentation covering Supabase, required Vercel environment variables, Cloudinary, and deployment steps
+- [ ] Promote the verified main deployment to production on Vercel
+- [ ] Finalize release checkpoint and delivery report
+
+> History note: these follow-up items record the live Vercel validation issue discovered during final verification.
+
+> Operational note: `ADMIN_PASSWORD` must be configured in Vercel for first-time password initialization; after initialization, the derived password hash is stored in Supabase `store_settings`.
