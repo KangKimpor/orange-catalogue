@@ -165,8 +165,3 @@
 - [x] Redesign the Review queue around import sections, with a clear selectable import summary and all associated changes exposed after selection.
 - [x] Group each selected import’s price and stock changes by cleaned-code item, while retaining each affected variant’s before-and-after values and review actions.
 - [x] Add regression coverage, verify responsive behavior, and release the import-first Review queue; focused grouping tests, TypeScript validation, and production build passed, while unrelated full-suite checks remain blocked by unavailable local Supabase and session credentials.
-
-- [x] Redesign the full admin shell as a desktop-first weekly POS operations workspace with a clear import → review → catalogue workflow.
-- [x] Improve each workspace’s hierarchy, context, and quick actions while retaining the combined Catalogue editor, preview-first POS import, import-first Review queue, and Security access.
-- [x] Add responsive mobile adaptations for compact navigation, stacked work panels, and touch-safe weekly workflow controls.
-- [x] Add regression coverage, validate desktop and mobile layouts, and release the redesigned workspace; focused tests, TypeScript validation, and production build passed, while unrelated full-suite checks remain blocked by unavailable local Supabase and session credentials.
