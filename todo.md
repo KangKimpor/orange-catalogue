@@ -152,3 +152,7 @@
 - [x] Restrict the Review queue to newly detected cleaned-code items only, without displaying raw POS Codes or routine stock, price, variant, or missing-record changes.
 - [x] Clear the existing test POS-import catalogue, variant, import-history, review, colour, and media-metadata records while preserving categories, admin settings, and login protection for a fresh import.
 - [x] Add regression coverage, verify the reset result, and release the simplified fresh-start workflow; focused tests, TypeScript validation, and production build passed.
+
+- [x] Incorporate the submitted redesign’s useful photo-upload improvements: drag-and-drop selection, local preview, removal of a selected file, real transfer progress, and clearer success/error feedback.
+- [x] Retain the simplified combined Catalogue workspace, clean-code-only review queue, and preview-first import safeguards; do not restore separated tabs, raw POS/stock tables, manual review-status controls, or visibility toggles.
+- [x] Add regression coverage and release the selectively incorporated admin redesign; targeted tests, TypeScript validation, and production build passed, while unrelated full-suite checks remain blocked by unavailable local Supabase and session credentials.

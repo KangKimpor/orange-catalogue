@@ -64,6 +64,20 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".photo-upload-feedback.is-error");
   });
 
+  it("adds drag-and-drop selection, local preview, removable selection, and measurable upload progress", () => {
+    expect(admin).toContain("selectPhotoFile");
+    expect(admin).toContain("Drag a photo here, or click to browse");
+    expect(admin).toContain('className="upload-preview"');
+    expect(admin).toContain("uploadFileToCloudinary");
+    expect(admin).toContain("new XMLHttpRequest()");
+    expect(admin).toContain("setUploadProgress");
+    expect(admin).toContain("Uploading… ${uploadProgress}%");
+    expect(admin).toContain("Remove selected");
+    expect(stylesheet).toContain(".upload-dropzone.is-dragover");
+    expect(stylesheet).toContain(".upload-progress-bar");
+    expect(stylesheet).toContain(".upload-preview");
+  });
+
   it("links an uploaded photo to the selected Attribute-derived color variant", () => {
     expect(admin).toContain("variantId: associationVariant.id");
     expect(admin).toContain("colorTag: selectedColor.englishName");

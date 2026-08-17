@@ -1,4 +1,4 @@
-import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, type DragEvent, type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   CheckCircle2,
@@ -95,6 +95,9 @@ export default function Admin() {
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [isJustIn, setIsJustIn] = useState(false);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState("");
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [photoUploadFeedback, setPhotoUploadFeedback] = useState<PhotoUploadFeedback>(initialPhotoUploadFeedback);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importBase64, setImportBase64] = useState("");
@@ -128,8 +131,12 @@ export default function Admin() {
     setIsJustIn(selectedProduct.isJustIn);
     setSelectedColorIndex(0);
     setMediaFile(null);
+    setMediaPreviewUrl("");
+    setIsDragOver(false);
+    setUploadProgress(0);
     setPhotoUploadFeedback(initialPhotoUploadFeedback);
   }, [selectedProduct?.id]);
+  useEffect(() => () => { if (mediaPreviewUrl) URL.revokeObjectURL(mediaPreviewUrl); }, [mediaPreviewUrl]);
 
   function openWorkspace(next: Workspace) {
     const target = workspaceMeta.find(item => item.id === next)?.path ?? "/admin";
@@ -140,11 +147,17 @@ export default function Admin() {
     setSelectedProductId(id);
     setSelectedColorIndex(0);
     setMediaFile(null);
+    setMediaPreviewUrl("");
+    setIsDragOver(false);
+    setUploadProgress(0);
     setPhotoUploadFeedback(initialPhotoUploadFeedback);
   }
   function chooseColor(index: number) {
     setSelectedColorIndex(index);
     setMediaFile(null);
+    setMediaPreviewUrl("");
+    setIsDragOver(false);
+    setUploadProgress(0);
     setPhotoUploadFeedback(initialPhotoUploadFeedback);
   }
   async function saveItem() {
@@ -157,23 +170,44 @@ export default function Admin() {
     setPreview(null);
     setImportBase64(file ? await fileToBase64(file) : "");
   }
-  function choosePhoto(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
+  function selectPhotoFile(file: File | null) {
+    setIsDragOver(false);
+    setUploadProgress(0);
     if (!file) {
       setMediaFile(null);
+      setMediaPreviewUrl("");
       setPhotoUploadFeedback(initialPhotoUploadFeedback);
       return;
     }
     const supportedByType = ["image/jpeg", "image/png", "image/webp"].includes(file.type);
     const supportedByName = /\.(jpe?g|png|webp)$/i.test(file.name);
     if (!supportedByType && !supportedByName) {
-      event.target.value = "";
       setMediaFile(null);
+      setMediaPreviewUrl("");
       setPhotoUploadFeedback({ status: "error", message: "Choose a JPG, PNG, or WebP image. This file was not added." });
       return;
     }
     setMediaFile(file);
+    setMediaPreviewUrl(current => { if (current) URL.revokeObjectURL(current); return URL.createObjectURL(file); });
     setPhotoUploadFeedback({ status: "ready", message: `${file.name} is ready. It will be linked only to ${selectedColor?.englishName ?? "the selected POS Attribute color"}.` });
+  }
+  function choosePhoto(event: ChangeEvent<HTMLInputElement>) {
+    selectPhotoFile(event.target.files?.[0] ?? null);
+    event.target.value = "";
+  }
+  function uploadFileToCloudinary(url: string, form: FormData) {
+    return new Promise<{ public_id?: string; secure_url?: string }>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open("POST", url);
+      request.upload.onprogress = event => { if (event.lengthComputable) setUploadProgress(Math.round((event.loaded / event.total) * 100)); };
+      request.onload = () => {
+        const payload = (() => { try { return JSON.parse(request.responseText) as { public_id?: string; secure_url?: string; error?: { message?: string } }; } catch { return null; } })();
+        if (request.status >= 200 && request.status < 300 && payload) resolve(payload);
+        else reject(new Error(payload?.error?.message || `Cloudinary could not upload this photo (status ${request.status}).`));
+      };
+      request.onerror = () => reject(new Error("Cloudinary could not be reached. Check your connection and try again."));
+      request.send(form);
+    });
   }
   async function deleteColorMedia(mediaId: number) {
     if (!window.confirm("Delete this photo from Cloudinary and the Orange catalogue? This cannot be undone.")) return;
@@ -203,17 +237,15 @@ export default function Admin() {
       form.append("folder", signed.folder);
       form.append("tags", signed.tags);
       form.append("signature", signed.signature);
+      setUploadProgress(0);
       setPhotoUploadFeedback({ status: "uploading", message: `Uploading ${uploadingFile.name} to Cloudinary… Keep this page open until it finishes.` });
-      const response = await fetch(signed.uploadUrl, { method: "POST", body: form });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null) as { error?: { message?: string } } | null;
-        throw new Error(payload?.error?.message || `Cloudinary could not upload this photo (status ${response.status}).`);
-      }
-      const uploaded = await response.json() as { public_id?: string; secure_url?: string };
+      const uploaded = await uploadFileToCloudinary(signed.uploadUrl, form);
       if (!uploaded.public_id || !uploaded.secure_url) throw new Error("Cloudinary did not return a usable image address. Please try again.");
       setPhotoUploadFeedback({ status: "saving", message: `Saving the ${selectedColor.englishName} photo to this item’s catalogue record…` });
       await registerMedia.mutateAsync({ productId: selectedProduct.id, variantId: associationVariant.id, publicId: uploaded.public_id, secureUrl: uploaded.secure_url, colorTag: selectedColor.englishName, altText: `${displayName} — ${selectedColor.englishName}`, isPrimary: selectedProduct.media.length === 0 });
       setMediaFile(null);
+      setMediaPreviewUrl("");
+      setUploadProgress(100);
       setPhotoUploadFeedback({ status: "success", message: `${uploadingFile.name} is now linked to ${displayName} in ${selectedColor.englishName}. It appears in the photo list below.` });
     } catch (error) {
       setPhotoUploadFeedback({ status: "error", message: error instanceof Error ? error.message : "The photo could not be uploaded. Please try again." });
@@ -290,9 +322,10 @@ export default function Admin() {
                   <div className="attribute-panel catalogue-colors"><div><p className="eyebrow">CHOOSE A COLOR</p><p>These colors come directly from your POS file. Choose one before adding its photos.</p></div><div className="attribute-list">{selectedProduct.colors.map((color, index) => <button type="button" onClick={() => chooseColor(index)} className={index === selectedColorIndex ? "is-selected" : ""} key={`${color.id}-${color.englishName}`}><i style={{ backgroundColor: color.hex }} /><span>{color.englishName}</span></button>)}</div></div>
                   {selectedColor && <section className="catalogue-photo-studio" aria-labelledby="selected-color-photos">
                     <div className="catalogue-photo-heading"><div><p className="eyebrow">COLOR PHOTO STUDIO</p><h4 id="selected-color-photos">Photos for {selectedColor.englishName}</h4><p>Each photo is associated with this POS Attribute color only. Photos for other colors stay separate.</p></div><span>{selectedColorMedia.length} photo{selectedColorMedia.length === 1 ? "" : "s"}</span></div>
-                    <div className="photo-association"><div><p className="eyebrow">ADDING PHOTOS TO</p><h4>{selectedColor.englishName}</h4><p>Photos you upload here will appear only when customers choose this color.</p></div><label className="upload-dropzone"><CloudUpload aria-hidden="true" /><span>{mediaFile ? mediaFile.name : "Choose an image file"}</span><small>JPG, PNG, or WebP · one photo at a time</small><input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={choosePhoto} disabled={photoUploadIsBusy} /></label></div>
+                    <div className="photo-association"><div><p className="eyebrow">ADDING PHOTOS TO</p><h4>{selectedColor.englishName}</h4><p>Photos you upload here will appear only when customers choose this color.</p></div><label className={["upload-dropzone", isDragOver ? "is-dragover" : "", photoUploadIsBusy ? "is-busy" : ""].filter(Boolean).join(" ")} onDragOver={event => { event.preventDefault(); if (!photoUploadIsBusy) setIsDragOver(true); }} onDragLeave={() => setIsDragOver(false)} onDrop={(event: DragEvent<HTMLLabelElement>) => { event.preventDefault(); if (!photoUploadIsBusy) selectPhotoFile(event.dataTransfer.files?.[0] ?? null); }} >{mediaPreviewUrl ? <img className="upload-preview" src={mediaPreviewUrl} alt="Selected upload preview" /> : <CloudUpload aria-hidden="true" />}<span>{mediaFile ? mediaFile.name : "Drag a photo here, or click to browse"}</span><small>JPG, PNG, or WebP · one photo at a time</small><input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={choosePhoto} disabled={photoUploadIsBusy} /></label></div>
                     <div className={`photo-upload-feedback is-${photoUploadFeedback.status}`} role="status" aria-live="polite">{photoUploadFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : photoUploadFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : photoUploadIsBusy ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <CloudUpload aria-hidden="true" />}<p>{photoUploadFeedback.message}</p></div>
-                    <div className="form-actions"><button type="button" className="primary-action" onClick={uploadColorMedia} disabled={!mediaFile || photoUploadIsBusy}>{photoUploadIsBusy ? "Uploading color photo…" : `Upload for ${selectedColor.englishName}`}</button></div>
+                    {photoUploadIsBusy && <div className="upload-progress" role="status" aria-live="polite"><div className="upload-progress-track"><div className="upload-progress-bar" style={{ width: `${photoUploadFeedback.status === "saving" ? 100 : uploadProgress}%` }} /></div><span>{photoUploadFeedback.status === "saving" ? "Saving to catalogue…" : `Uploading… ${uploadProgress}%`}</span></div>}
+                    <div className="form-actions">{mediaFile && !photoUploadIsBusy && <button type="button" className="quiet-action" onClick={() => selectPhotoFile(null)}>Remove selected</button>}<button type="button" className="primary-action" onClick={uploadColorMedia} disabled={!mediaFile || photoUploadIsBusy}>{photoUploadFeedback.status === "preparing" ? "Preparing…" : photoUploadFeedback.status === "uploading" ? `Uploading… ${uploadProgress}%` : photoUploadFeedback.status === "saving" ? "Saving…" : `Upload for ${selectedColor.englishName}`}</button></div>
                     <div className="photo-library"><div><p className="eyebrow">CURRENT COLOR PHOTOS</p><h4>{selectedColor.englishName}</h4></div>{selectedColorMedia.length ? <div className="photo-thumb-grid">{selectedColorMedia.map(media => <article className="media-thumb" key={media.id}><img src={media.url} alt={media.altText || `${selectedColor.englishName} item`} /><button type="button" className="delete-photo-action" onClick={() => deleteColorMedia(media.id)} disabled={deleteMedia.isPending} aria-label={`Delete ${selectedColor.englishName} photo`}>{deleteMedia.isPending ? "Deleting…" : <><Trash2 aria-hidden="true" />Delete photo</>}</button></article>)}</div> : <p className="empty-media">No photo is linked to this color yet. Choose a file above, then upload it for {selectedColor.englishName}.</p>}</div>
                   </section>}
                 </> : <div className="empty-workspace">Search for a cleaned-code item to start editing.</div>}
