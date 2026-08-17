@@ -46,6 +46,7 @@ describe("cleaned-code admin and color media workflow", () => {
 
   it("records all POS changes in selectable import history and shows every preview row before confirmation", () => {
     expect(router).toContain('"rpc/apply_pos_import"');
+    expect(router).toContain("reviewableImportChanges");
     expect(router).toContain("p_import_id: input.importId");
     expect(router).toContain("p_items: parsed.items");
     expect(router).toContain("importDetails:");
@@ -58,6 +59,9 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("import-change-group-list");
     expect(admin).toContain("Remove newest import");
     expect(admin).toContain("The import server returned an interrupted response before confirming completion.");
+    expect(admin).toContain("Price ${change.previousPrice ?? \"—\"} → ${change.price ?? \"—\"}");
+    expect(admin).toContain("Quantity ${change.previousStock ?? \"—\"} → ${change.stock ?? \"—\"}");
+    expect(admin).not.toContain("POS rows not seen");
     expect(router).toContain("removeImport:");
     expect(admin).not.toContain("Review queue");
     expect(stylesheet).toContain(".import-history-layout");
