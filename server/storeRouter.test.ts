@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ADMIN_PASSWORD_MIN_LENGTH, adminPasswordChangeInput, storeRouter } from "./storeRouter";
+import { ADMIN_PASSWORD_MIN_LENGTH, adminPasswordChangeInput, storeRouter, updateProductInput } from "./storeRouter";
 
 type CookieRecord = { name: string; value: string; options: Record<string, unknown> };
 const configuredAdminPassword = process.env.ORANGE_TEST_ADMIN_PASSWORD;
@@ -24,6 +24,12 @@ describe("Orange admin and catalogue boundaries", () => {
     expect(ADMIN_PASSWORD_MIN_LENGTH).toBe(4);
     expect(adminPasswordChangeInput.safeParse({ currentPassword: "current", newPassword: "test" }).success).toBe(true);
     expect(adminPasswordChangeInput.safeParse({ currentPassword: "current", newPassword: "123" }).success).toBe(false);
+  });
+
+  it("validates optional storefront visibility and catalogue status updates", () => {
+    const visible = updateProductInput.safeParse({ id: 12, displayName: "Graphic Tee", categoryId: 2, isJustIn: true, isPublished: false, reviewStatus: "needs_review" });
+    expect(visible.success).toBe(true);
+    expect(updateProductInput.safeParse({ id: 12, displayName: null, categoryId: null, reviewStatus: "retired" }).success).toBe(false);
   });
 
   it("creates an HTTP-only admin session from the configured initial password", async () => {

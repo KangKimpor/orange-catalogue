@@ -19,6 +19,14 @@ export const adminPasswordChangeInput = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(ADMIN_PASSWORD_MIN_LENGTH),
 });
+export const updateProductInput = z.object({
+  id: z.number().int(),
+  displayName: z.string().max(255).nullable(),
+  categoryId: z.number().int().nullable(),
+  isJustIn: z.boolean().optional(),
+  isPublished: z.boolean().optional(),
+  reviewStatus: z.enum(["clean", "needs_review", "archived"]).optional(),
+});
 type Context = { req: { headers: { cookie?: string } }; res: { cookie: Function; clearCookie: Function } };
 
 function tokenKey() {
@@ -160,7 +168,7 @@ export const storeRouter = router({
     logout: publicProcedure.mutation(({ ctx }) => { ctx.res.clearCookie(ADMIN_COOKIE, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" }); return { success: true }; }),
     changePassword: publicProcedure.input(adminPasswordChangeInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const stored = await readStoredPasswordHash(); const valid = stored ? passwordMatches(input.currentPassword, stored) : input.currentPassword === process.env.ADMIN_PASSWORD; if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password is incorrect." }); await savePasswordHash(hashPassword(input.newPassword)); await issueAdminSession(ctx as Context); return { success: true }; }),
     overview: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); return cataloguePayload(true, true); }),
-    updateProduct: publicProcedure.input(z.object({ id: z.number().int(), displayName: z.string().max(255).nullable(), categoryId: z.number().int().nullable(), isJustIn: z.boolean().optional() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...(input.isJustIn === undefined ? {} : { is_just_in: input.isJustIn }) }) }); return { success: true }; }),
+    updateProduct: publicProcedure.input(updateProductInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...(input.isJustIn === undefined ? {} : { is_just_in: input.isJustIn }), ...(input.isPublished === undefined ? {} : { is_published: input.isPublished }), ...(input.reviewStatus === undefined ? {} : { review_status: input.reviewStatus }) }) }); return { success: true }; }),
     previewImport: publicProcedure.input(importInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return createPreview(input); }), applyImport: publicProcedure.input(importInput.extend({ importId: z.number().int() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return applyImport(input); }),
     importHistory: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const rows = await supabaseRequest<Array<{ id: number; original_filename: string; status: string; created_at: string }>>("imports?select=id,original_filename,status,created_at&order=created_at.asc"); return rows.map(row => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at })); }),
     reviewQueue: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const [imports, changes] = await Promise.all([supabaseRequest<DbImport[]>("imports?select=id,original_filename,status,created_at&status=eq.applied&order=created_at.desc&limit=100"), supabaseRequest<DbReviewChange[]>("import_changes?select=id,import_id,after_json,review_status&change_type=eq.stock_price_update&order=created_at.desc&limit=1000")]); return groupReviewChangesByImport(imports, changes); }),
