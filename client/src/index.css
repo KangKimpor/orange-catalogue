@@ -1878,3 +1878,18 @@ html {
   letter-spacing: .04em;
   text-transform: uppercase;
 }
+
+/* Catalogue photo coverage */
+.attribute-list .color-photo-status {
+  color: var(--admin-muted, #6f6267);
+}
+
+.attribute-list .color-photo-status.is-ready {
+  color: #4c7544;
+  font-weight: 700;
+}
+
+.attribute-list button.is-selected .color-photo-status {
+  color: currentColor;
+  opacity: .84;
+}

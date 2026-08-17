@@ -156,3 +156,8 @@
 - [x] Incorporate the submitted redesign’s useful photo-upload improvements: drag-and-drop selection, local preview, removal of a selected file, real transfer progress, and clearer success/error feedback.
 - [x] Retain the simplified combined Catalogue workspace, clean-code-only review queue, and preview-first import safeguards; do not restore separated tabs, raw POS/stock tables, manual review-status controls, or visibility toggles.
 - [x] Add regression coverage and release the selectively incorporated admin redesign; targeted tests, TypeScript validation, and production build passed, while unrelated full-suite checks remain blocked by unavailable local Supabase and session credentials.
+
+- [x] Replace the current test catalogue with `6103.ProductList.20260817.xlsx` as the clean POS baseline after parser validation.
+- [x] Restrict future Review queue entries to imported POS variants whose price or stock quantity changed, excluding newly added and unchanged variants.
+- [x] Show clear model and Attribute-color photo coverage in the combined Catalogue editor.
+- [x] Verify baseline counts, import/review behavior, regression coverage, and production release; parser validation, focused tests, TypeScript validation, and production build passed, while unrelated full-suite checks remain blocked by unavailable local Supabase and session credentials.

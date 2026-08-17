@@ -44,14 +44,25 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(router).toContain("previewImport");
   });
 
-  it("adds review records only for completely new cleaned-code items and never displays POS codes", () => {
-    expect(router).toContain('changes.filter(change => change?.type === "new_product")');
-    expect(router).toContain('after_json: { code: change!.code }');
-    expect(router).toContain('change_type=eq.new_product&review_status=eq.pending');
-    expect(router).not.toContain("change_type=in.(stock_price_update,missing_from_import,needs_review)");
-    expect(admin).toContain("New item review");
+  it("adds review records only for price or stock changes and shows their values without exposing POS codes", () => {
+    expect(router).toContain('change_type: "stock_price_update"');
+    expect(router).toContain("if (priceChanged || stockChanged) reviewRows.push");
+    expect(router).toContain('change_type=eq.stock_price_update&review_status=eq.pending');
+    expect(router).not.toContain('change_type: "new_product"');
+    expect(admin).toContain("Inventory update review");
+    expect(admin).toContain("Price or stock changes to review");
     expect(admin).toContain("change.cleanedCode");
+    expect(admin).toContain("change.previousStock");
     expect(admin).not.toContain("change.posCode");
+  });
+
+  it("shows model and Attribute-color photo coverage in the Catalogue editor", () => {
+    expect(admin).toContain("photoReadyColorCount");
+    expect(admin).toContain("with photo");
+    expect(admin).toContain("A status beside each color shows whether its photo has already been added.");
+    expect(admin).toContain("No photo yet");
+    expect(admin).toContain("color-photo-status is-ready");
+    expect(stylesheet).toContain(".color-photo-status.is-ready");
   });
 
   it("guides a photo upload through validation, Cloudinary transfer, saving, and confirmation", () => {

@@ -1239,8 +1239,6 @@ async function createPreview(input) {
   const missing = existingVariants.filter((row) => !incoming.has(row.pos_code)).map((row) => ({ type: "missing", posCode: row.pos_code }));
   const summary = { rows: parsed.items.length, newProducts: changes.filter((change) => change?.type === "new_product").length, newVariants: changes.filter((change) => change?.type === "new_variant").length, updatedVariants: changes.filter((change) => change?.type === "updated").length, missingVariants: missing.length, invalidRows: parsed.validation.invalidRows.length };
   const [importRow] = await supabaseRequest("imports", { method: "POST", body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, summary_json: summary, validation_json: parsed.validation }) });
-  const reviewRows = changes.filter((change) => change?.type === "new_product").map((change) => ({ import_id: importRow.id, pos_code: null, change_type: "new_product", after_json: { code: change.code } }));
-  if (reviewRows.length) await supabaseRequest("import_changes", { method: "POST", body: JSON.stringify(reviewRows) });
   return { importId: importRow.id, summary, validation: parsed.validation, changes: [...changes.slice(0, 40), ...missing.slice(0, 40)] };
 }
 async function applyImport(input) {
@@ -1260,6 +1258,7 @@ async function applyImport(input) {
   let newProducts = 0;
   let newVariants = 0;
   let updatedVariants = 0;
+  const reviewRows = [];
   for (const item of parsed.items) {
     const category = item.categorySlug ? categories2.get(item.categorySlug) : void 0;
     let product = products2.get(item.cleanedCode);
@@ -1279,7 +1278,10 @@ async function applyImport(input) {
     const current = variants2.get(item.posCode);
     const values = { product_id: product.id, color_id: color.id, size: item.size, price: item.price.toFixed(2), stock_quantity: item.stockQuantity, last_seen_import_id: input.importId, is_visible: true };
     if (current) {
-      if (Number(current.price) !== item.price || current.stock_quantity !== item.stockQuantity || current.color_id !== color.id || current.size !== item.size) updatedVariants += 1;
+      const priceChanged = Number(current.price) !== item.price;
+      const stockChanged = current.stock_quantity !== item.stockQuantity;
+      if (priceChanged || stockChanged || current.color_id !== color.id || current.size !== item.size) updatedVariants += 1;
+      if (priceChanged || stockChanged) reviewRows.push({ import_id: input.importId, product_id: product.id, variant_id: current.id, pos_code: current.pos_code, change_type: "stock_price_update", after_json: { code: item.cleanedCode, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity } });
       await supabaseRequest(`variants?${supabaseEq("id", current.id)}`, { method: "PATCH", body: JSON.stringify(values) });
     } else {
       await supabaseRequest("variants", { method: "POST", body: JSON.stringify({ ...values, pos_code: item.posCode }) });
@@ -1289,6 +1291,7 @@ async function applyImport(input) {
   const missing = variantRows.filter((row) => !incoming.has(row.pos_code));
   const productIds = Array.from(new Set(missing.map((row) => row.product_id)));
   if (productIds.length) await supabaseRequest(`products?id=in.(${productIds.join(",")})`, { method: "PATCH", body: JSON.stringify({ is_removed_from_latest_import: true, review_status: "needs_review" }) });
+  if (reviewRows.length) await supabaseRequest("import_changes", { method: "POST", body: JSON.stringify(reviewRows) });
   await supabaseRequest(`imports?${supabaseEq("id", input.importId)}`, { method: "PATCH", body: JSON.stringify({ status: "applied", applied_at: (/* @__PURE__ */ new Date()).toISOString(), summary_json: { newProducts, newVariants, updatedVariants, missingVariants: missing.length } }) });
   return { newProducts, newVariants, updatedVariants, missingVariants: missing.length };
 }
@@ -1355,13 +1358,13 @@ var storeRouter = router({
     }),
     reviewQueue: publicProcedure.query(async ({ ctx }) => {
       await requireAdmin(ctx);
-      const rows = await supabaseRequest("import_changes?select=id,after_json,review_status&change_type=eq.new_product&review_status=eq.pending&order=created_at.desc&limit=200");
-      const queuedCodes = /* @__PURE__ */ new Set();
+      const rows = await supabaseRequest("import_changes?select=id,after_json,review_status&change_type=eq.stock_price_update&review_status=eq.pending&order=created_at.desc&limit=200");
       return rows.flatMap((row) => {
-        const cleanedCode = row.after_json?.code?.trim();
-        if (!cleanedCode || queuedCodes.has(cleanedCode)) return [];
-        queuedCodes.add(cleanedCode);
-        return [{ id: row.id, cleanedCode, reviewStatus: row.review_status }];
+        const change = row.after_json;
+        if (!change) return [];
+        const cleanedCode = change.code?.trim();
+        if (!cleanedCode || !change.priceChanged && !change.stockChanged) return [];
+        return [{ id: row.id, cleanedCode, priceChanged: Boolean(change.priceChanged), stockChanged: Boolean(change.stockChanged), previousPrice: change.previousPrice ?? null, price: change.price ?? null, previousStock: change.previousStock ?? null, stock: change.stock ?? null, reviewStatus: row.review_status }];
       });
     }),
     resolveImportChange: publicProcedure.input(z2.object({ id: z2.number().int(), reviewStatus: z2.enum(["accepted", "ignored"]) })).mutation(async ({ ctx, input }) => {
