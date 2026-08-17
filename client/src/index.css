@@ -2115,3 +2115,91 @@ html {
 .import-detail-heading > span { border: 1px solid #f0cbd8; padding: 7px 9px; }
 @media (max-width: 820px) { .import-history-layout { grid-template-columns: 1fr; }.import-history-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: none; }.import-change-list { max-height: none; } }
 @media (max-width: 540px) { .import-history-list { grid-template-columns: 1fr; }.import-history-detail { padding: 16px; }.import-detail-heading { flex-direction: column; }.import-detail-heading h3 { font-size: 22px; } }
+
+/* Admin import and photo feedback motion */
+.photo-upload-feedback,
+.import-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin-top: 14px;
+  padding: 13px 14px;
+  border: 1px solid #f3d6e1;
+  background: #fffdfd;
+  color: #372b31;
+  animation: admin-feedback-enter .28s ease-out both;
+}
+.photo-upload-feedback .feedback-icon,
+.import-feedback .feedback-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff0f5;
+}
+.photo-upload-feedback .feedback-icon svg,
+.import-feedback .feedback-icon svg {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+.photo-upload-feedback small,
+.import-feedback small {
+  display: block;
+  margin-bottom: 3px;
+  color: #876674;
+  font: 600 9px "DM Mono", monospace;
+  letter-spacing: .08em;
+}
+.photo-upload-feedback.is-busy,
+.import-feedback.is-reading,
+.import-feedback.is-previewing,
+.import-feedback.is-applying {
+  border-color: #efb7c9;
+  background: linear-gradient(105deg, #fff7fa 0%, #fff 45%, #fff7fa 100%);
+  background-size: 220% 100%;
+  animation: admin-feedback-enter .28s ease-out both, admin-feedback-shimmer 1.8s linear infinite;
+}
+.import-feedback.is-preview_ready,
+.import-feedback.is-success,
+.photo-upload-feedback.is-success {
+  border-color: #aed7b4;
+  background: #f3fbf1;
+  animation: admin-feedback-enter .28s ease-out both, admin-feedback-success .5s ease-out;
+}
+.import-feedback.is-error,
+.photo-upload-feedback.is-error {
+  border-color: #edb4b1;
+  background: #fff4f3;
+  animation: admin-feedback-enter .28s ease-out both, admin-feedback-error .34s ease-out;
+}
+.import-feedback.is-preview_ready .feedback-icon,
+.import-feedback.is-success .feedback-icon,
+.photo-upload-feedback.is-success .feedback-icon { background: #dff1df; color: #27633b; }
+.import-feedback.is-error .feedback-icon,
+.photo-upload-feedback.is-error .feedback-icon { background: #ffe2e0; color: #9a302c; }
+.import-file { transition: border-color .2s ease, background .2s ease, transform .2s ease; }
+.import-file.is-reading,
+.import-file.is-previewing,
+.import-file.is-applying { border-color: #ecb3c5; background: #fff7fa; }
+.import-file.is-ready,
+.import-file.is-preview_ready { border-color: #b7dcb7; background: #f7fcf5; }
+.upload-progress-track { position: relative; }
+.upload-progress-bar { position: relative; overflow: hidden; }
+.upload-progress-bar::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent);
+  content: "";
+  animation: admin-progress-sheen 1s linear infinite;
+}
+@keyframes admin-feedback-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes admin-feedback-shimmer { to { background-position: -220% 0; } }
+@keyframes admin-feedback-success { 50% { transform: scale(1.012); } }
+@keyframes admin-feedback-error { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@keyframes admin-progress-sheen { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .photo-upload-feedback, .import-feedback, .import-feedback.is-reading, .import-feedback.is-previewing, .import-feedback.is-applying, .import-feedback.is-preview_ready, .import-feedback.is-success, .import-feedback.is-error, .photo-upload-feedback.is-success, .photo-upload-feedback.is-error, .upload-progress-bar::after { animation: none; }
+}

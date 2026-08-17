@@ -28,10 +28,17 @@ const workspaceMeta: Array<{ id: Workspace; label: string; path: string; icon: t
 
 type PhotoUploadStatus = "idle" | "ready" | "preparing" | "uploading" | "saving" | "success" | "error";
 type PhotoUploadFeedback = { status: PhotoUploadStatus; message: string };
+type ImportFeedbackStatus = "idle" | "reading" | "ready" | "previewing" | "preview_ready" | "applying" | "success" | "error";
+type ImportFeedback = { status: ImportFeedbackStatus; message: string };
 
 const initialPhotoUploadFeedback: PhotoUploadFeedback = {
   status: "idle",
   message: "Choose one JPG, PNG, or WebP photo. It will be linked only to the selected POS Attribute color.",
+};
+
+const initialImportFeedback: ImportFeedback = {
+  status: "idle",
+  message: "Choose the newest POS XLSX file. You will see every catalogue change before anything is applied.",
 };
 
 type ImportChangeView = { type: "new_product" | "new_variant" | "updated" | "missing"; code: string; posCode: string | null; priceChanged: boolean; stockChanged: boolean; previousPrice: number | null; price: number | null; previousStock: number | null; stock: number | null; missingPosCodes: string[] };
@@ -120,6 +127,7 @@ export default function Admin() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importBase64, setImportBase64] = useState("");
   const [preview, setPreview] = useState<any>(null);
+  const [importFeedback, setImportFeedback] = useState<ImportFeedback>(initialImportFeedback);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
@@ -205,7 +213,43 @@ export default function Admin() {
     const file = event.target.files?.[0] ?? null;
     setImportFile(file);
     setPreview(null);
-    setImportBase64(file ? await fileToBase64(file) : "");
+    if (!file) {
+      setImportBase64("");
+      setImportFeedback(initialImportFeedback);
+      return;
+    }
+    try {
+      setImportFeedback({ status: "reading", message: `Reading ${file.name} securely in your browser…` });
+      setImportBase64(await fileToBase64(file));
+      setImportFeedback({ status: "ready", message: `${file.name} is ready. Preview every change before confirming the import.` });
+    } catch (error) {
+      setImportBase64("");
+      setImportFeedback({ status: "error", message: error instanceof Error ? error.message : "The POS file could not be read. Choose it again and try once more." });
+    }
+  }
+  async function previewPosImport() {
+    if (!importFile || !importBase64) return;
+    try {
+      setImportFeedback({ status: "previewing", message: "Comparing this POS file with the current catalogue. No changes are being applied yet…" });
+      const result = await previewImport.mutateAsync({ filename: importFile.name, base64: importBase64 });
+      setPreview(result);
+      const changeCount = result.changes.length;
+      setImportFeedback({ status: result.alreadyApplied ? "ready" : "preview_ready", message: result.alreadyApplied ? "This exact POS file was already applied. Choose a newer export to continue." : `Complete preview ready: ${changeCount} catalogue change${changeCount === 1 ? "" : "s"} are shown below.` });
+    } catch (error) {
+      setImportFeedback({ status: "error", message: error instanceof Error ? error.message : "The POS preview could not be prepared. Please try again." });
+    }
+  }
+  async function applyPosImport() {
+    if (!importFile || !preview) return;
+    try {
+      setImportFeedback({ status: "applying", message: "Applying verified changes, updating quantities and prices, and saving this import to history…" });
+      const result = await applyImport.mutateAsync({ importId: preview.importId, filename: importFile.name, base64: importBase64 });
+      setSelectedImportId(preview.importId);
+      setPreview(null);
+      setImportFeedback({ status: "success", message: `Import complete: ${result.newProducts} new item${result.newProducts === 1 ? "" : "s"}, ${result.newVariants} new color or size${result.newVariants === 1 ? "" : "s"}, and ${result.updatedVariants} updated POS row${result.updatedVariants === 1 ? "" : "s"}.` });
+    } catch (error) {
+      setImportFeedback({ status: "error", message: error instanceof Error ? error.message : "The POS import could not be applied. Your existing catalogue is unchanged." });
+    }
   }
   function selectPhotoFile(file: File | null) {
     setIsDragOver(false);
@@ -362,7 +406,7 @@ export default function Admin() {
                   {selectedColor && <section className="catalogue-photo-studio" aria-labelledby="selected-color-photos">
                     <div className="catalogue-photo-heading"><div><p className="eyebrow">COLOR PHOTO STUDIO</p><h4 id="selected-color-photos">Photos for {selectedColor.englishName}</h4><p>Each photo is associated with this POS Attribute color only. Photos for other colors stay separate.</p></div><span>{selectedColorMedia.length} photo{selectedColorMedia.length === 1 ? "" : "s"}</span></div>
                     <div className="photo-association"><div><p className="eyebrow">ADDING PHOTOS TO</p><h4>{selectedColor.englishName}</h4><p>Photos you upload here will appear only when customers choose this color.</p></div><label className={["upload-dropzone", isDragOver ? "is-dragover" : "", photoUploadIsBusy ? "is-busy" : ""].filter(Boolean).join(" ")} onDragOver={event => { event.preventDefault(); if (!photoUploadIsBusy) setIsDragOver(true); }} onDragLeave={() => setIsDragOver(false)} onDrop={(event: DragEvent<HTMLLabelElement>) => { event.preventDefault(); if (!photoUploadIsBusy) selectPhotoFile(event.dataTransfer.files?.[0] ?? null); }} >{mediaPreviewUrl ? <img className="upload-preview" src={mediaPreviewUrl} alt="Selected upload preview" /> : <CloudUpload aria-hidden="true" />}<span>{mediaFile ? mediaFile.name : "Drag a photo here, or click to browse"}</span><small>JPG, PNG, or WebP · one photo at a time</small><input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={choosePhoto} disabled={photoUploadIsBusy} /></label></div>
-                    <div className={`photo-upload-feedback is-${photoUploadFeedback.status}`} role="status" aria-live="polite">{photoUploadFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : photoUploadFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : photoUploadIsBusy ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <CloudUpload aria-hidden="true" />}<p>{photoUploadFeedback.message}</p></div>
+                    <div className={`photo-upload-feedback is-${photoUploadFeedback.status}${photoUploadIsBusy ? " is-busy" : ""}`} role="status" aria-live="polite"><div className="feedback-icon">{photoUploadFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : photoUploadFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : photoUploadIsBusy ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <CloudUpload aria-hidden="true" />}</div><div><small>PHOTO UPLOAD</small><p>{photoUploadFeedback.message}</p></div></div>
                     {photoUploadIsBusy && <div className="upload-progress" role="status" aria-live="polite"><div className="upload-progress-track"><div className="upload-progress-bar" style={{ width: `${photoUploadFeedback.status === "saving" ? 100 : uploadProgress}%` }} /></div><span>{photoUploadFeedback.status === "saving" ? "Saving to catalogue…" : `Uploading… ${uploadProgress}%`}</span></div>}
                     <div className="form-actions">{mediaFile && !photoUploadIsBusy && <button type="button" className="quiet-action" onClick={() => selectPhotoFile(null)}>Remove selected</button>}<button type="button" className="primary-action" onClick={uploadColorMedia} disabled={!mediaFile || photoUploadIsBusy}>{photoUploadFeedback.status === "preparing" ? "Preparing…" : photoUploadFeedback.status === "uploading" ? `Uploading… ${uploadProgress}%` : photoUploadFeedback.status === "saving" ? "Saving…" : `Upload for ${selectedColor.englishName}`}</button></div>
                     <div className="photo-library"><div><p className="eyebrow">CURRENT COLOR PHOTOS</p><h4>{selectedColor.englishName}</h4></div>{selectedColorMedia.length ? <div className="photo-thumb-grid">{selectedColorMedia.map(media => <article className="media-thumb" key={media.id}><img src={media.url} alt={media.altText || `${selectedColor.englishName} item`} /><button type="button" className="delete-photo-action" onClick={() => deleteColorMedia(media.id)} disabled={deleteMedia.isPending} aria-label={`Delete ${selectedColor.englishName} photo`}>{deleteMedia.isPending ? "Deleting…" : <><Trash2 aria-hidden="true" />Delete photo</>}</button></article>)}</div> : <p className="empty-media">No photo is linked to this color yet. Choose a file above, then upload it for {selectedColor.englishName}.</p>}</div>
@@ -381,16 +425,16 @@ export default function Admin() {
             </div>
             <section className="import-workbench pos-import-workbench">
               <div className="import-card-heading"><p className="eyebrow">WEEKLY INVENTORY</p><h3>Upload and preview</h3><p>The POS filename is reference only. The file content is compared with your current catalogue by immutable POS Code.</p></div>
-              <label className="import-file"><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose latest POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input type="file" accept=".xlsx,.xls" onChange={chooseImport} /></label>
-              <button type="button" className="primary-action" onClick={async () => { if (!importFile || !importBase64) return; setPreview(await previewImport.mutateAsync({ filename: importFile.name, base64: importBase64 })); }} disabled={!importBase64 || previewImport.isPending}>{previewImport.isPending ? "Preparing complete preview…" : "Preview all POS changes"}</button>
-              {previewImport.error && <p className="form-error">{previewImport.error.message}</p>}
+              <label className={`import-file is-${importFeedback.status}`}><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose latest POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input type="file" accept=".xlsx,.xls" onChange={chooseImport} disabled={importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"} /></label>
+              <button type="button" className="primary-action" onClick={previewPosImport} disabled={!importBase64 || importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"}>{importFeedback.status === "previewing" ? "Comparing catalogue…" : "Preview all POS changes"}</button>
+              <div className={`import-feedback is-${importFeedback.status}`} role="status" aria-live="polite"><div className="feedback-icon">{importFeedback.status === "success" || importFeedback.status === "preview_ready" ? <CheckCircle2 aria-hidden="true" /> : importFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : ["reading", "previewing", "applying"].includes(importFeedback.status) ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <FileSpreadsheet aria-hidden="true" />}</div><div><small>{importFeedback.status === "applying" ? "APPLYING IMPORT" : importFeedback.status === "previewing" ? "BUILDING PREVIEW" : importFeedback.status === "preview_ready" ? "READY TO CONFIRM" : "POS IMPORT"}</small><p>{importFeedback.message}</p></div></div>
               {preview && <section className="preview-card import-detail-card">
                 <div className="import-summary"><span><b>{preview.summary.rows}</b> POS rows</span><span><b>{preview.summary.newProducts}</b> new items</span><span><b>{preview.summary.newVariants}</b> new colors or sizes</span><span><b>{preview.summary.updatedVariants}</b> price or quantity updates</span><span><b>{preview.summary.missingVariants}</b> POS rows not seen</span></div>
                 <p>{preview.alreadyApplied ? "This exact POS file was already applied. Upload a newer export when it is available." : preview.validation.invalidRows.length ? (preview.validation.invalidRows.length + " invalid row(s) must be corrected before this import can be applied.") : "Preview only — no catalogue changes have been made. Review every row below before applying."}</p>
                 {!preview.alreadyApplied && <div className="import-change-list" aria-label="All POS changes before confirmation">
                   {preview.changes.length ? preview.changes.map((change: ImportChangeView, index: number) => <article className={"import-change-row is-" + change.type} key={change.type + "-" + change.code + "-" + (change.posCode ?? index)}><div><p className="eyebrow">{importChangeTitle(change)}</p><h4>{change.code}</h4><p>{importChangeDescription(change)}</p></div></article>) : <p className="empty-workspace">No new, changed, or not-seen items were found in this file.</p>}
                 </div>}
-                <div className="form-actions"><button type="button" className="secondary-action" onClick={() => importFile && applyImport.mutate({ importId: preview.importId, filename: importFile.name, base64: importBase64 })} disabled={applyImport.isPending || preview.validation.invalidRows.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : applyImport.isPending ? "Applying import…" : "Confirm and apply this import"}</button>{applyImport.error && <p className="form-error">{applyImport.error.message}</p>}</div>
+                <div className="form-actions"><button type="button" className="secondary-action" onClick={applyPosImport} disabled={importFeedback.status === "applying" || preview.validation.invalidRows.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : importFeedback.status === "applying" ? "Applying verified changes…" : "Confirm and apply this import"}</button></div>
               </section>}
             </section>
             <section className="history-card import-history-card">

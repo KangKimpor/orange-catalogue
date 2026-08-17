@@ -79,6 +79,19 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".photo-upload-feedback.is-error");
   });
 
+  it("shows staged POS import feedback before reading, previewing, applying, succeeding, or failing", () => {
+    expect(admin).toContain("ImportFeedbackStatus");
+    expect(admin).toContain("Reading ${file.name} securely in your browser");
+    expect(admin).toContain("Comparing this POS file with the current catalogue");
+    expect(admin).toContain("Complete preview ready");
+    expect(admin).toContain("Applying verified changes");
+    expect(admin).toContain("Import complete:");
+    expect(admin).toContain("import-feedback");
+    expect(stylesheet).toContain(".import-feedback.is-preview_ready");
+    expect(stylesheet).toContain("@keyframes admin-feedback-shimmer");
+    expect(stylesheet).toContain("prefers-reduced-motion");
+  });
+
   it("adds drag-and-drop selection, local preview, removable selection, and measurable upload progress", () => {
     expect(admin).toContain("selectPhotoFile");
     expect(admin).toContain("Drag a photo here, or click to browse");

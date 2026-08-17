@@ -182,3 +182,6 @@
 - [x] Make Import history selectable and show all recorded new, changed, and not-seen POS rows for the selected applied import.
 - [x] Expand pre-confirmation POS previews to list every new, changed, and not-seen POS row before staff can apply the import.
 - [x] Add regression coverage and validate the unified POS Imports workflow, including preserved legacy import routing; 17 focused tests, TypeScript validation, production build, and whitespace checks passed. The full suite remains locally environment-gated by unavailable Supabase/session variables.
+- [x] Complete the owner-authorized fresh-test POS reset: remove POS-derived products, variants, colors, imports, import-change records, and media associations while retaining categories, settings, and staff access configuration.
+- [x] Add animated staged feedback for POS file reading, preview generation, import confirmation, completion, and errors, plus richer photo-upload feedback and progress motion with reduced-motion support.
+- [x] Add feedback-workflow regression coverage and validate with 18 focused tests, TypeScript validation, production build, and whitespace checks. The full suite remains locally environment-gated by unavailable Supabase/session variables.
