@@ -165,3 +165,8 @@
 - [x] Redesign the Review queue around import sections, with a clear selectable import summary and all associated changes exposed after selection.
 - [x] Group each selected import’s price and stock changes by cleaned-code item, while retaining each affected variant’s before-and-after values and review actions.
 - [x] Add regression coverage, verify responsive behavior, and release the import-first Review queue; focused grouping tests, TypeScript validation, and production build passed, while unrelated full-suite checks remain blocked by unavailable local Supabase and session credentials.
+
+- [x] Remove verified unreachable client template/UI modules and legacy standalone admin pages while preserving all unified-admin deep links.
+- [x] Prune dependencies made obsolete by the verified removals without altering the public, admin, POS, media, authentication, or deployment contracts.
+- [x] Add concise architecture guidance describing the active execution flow, invariants, and validation commands.
+- [x] Validate the architecture cleanup with tests, TypeScript, production build, generated serverless bundle, diff check, and a current-tree secret scan; 46 tests passed, while 9 integration tests remain blocked locally by intentionally unavailable Supabase/session variables.
