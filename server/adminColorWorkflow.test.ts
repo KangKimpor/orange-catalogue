@@ -44,16 +44,20 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(router).toContain("previewImport");
   });
 
-  it("adds review records only for price or stock changes and shows their values without exposing POS codes", () => {
+  it("records price or stock changes and presents Review queue entries by applied import and cleaned-code item", () => {
     expect(router).toContain('change_type: "stock_price_update"');
     expect(router).toContain("if (priceChanged || stockChanged) reviewRows.push");
-    expect(router).toContain('change_type=eq.stock_price_update&review_status=eq.pending');
+    expect(router).toContain("groupReviewChangesByImport");
+    expect(router).toContain("status=eq.applied");
+    expect(router).toContain("change_type=eq.stock_price_update");
     expect(router).not.toContain('change_type: "new_product"');
-    expect(admin).toContain("Inventory update review");
-    expect(admin).toContain("Price or stock changes to review");
-    expect(admin).toContain("change.cleanedCode");
-    expect(admin).toContain("change.previousStock");
+    expect(admin).toContain("Import review");
+    expect(admin).toContain("Select an applied POS import");
+    expect(admin).toContain("import-review-list");
+    expect(admin).toContain("review-item-groups");
+    expect(admin).toContain("item.cleanedCode");
     expect(admin).not.toContain("change.posCode");
+    expect(stylesheet).toContain(".import-review-layout");
   });
 
   it("shows model and Attribute-color photo coverage in the Catalogue editor", () => {

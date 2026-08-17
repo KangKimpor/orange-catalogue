@@ -161,3 +161,7 @@
 - [x] Restrict future Review queue entries to imported POS variants whose price or stock quantity changed, excluding newly added and unchanged variants.
 - [x] Show clear model and Attribute-color photo coverage in the combined Catalogue editor.
 - [x] Verify baseline counts, import/review behavior, regression coverage, and production release; parser validation, focused tests, TypeScript validation, and production build passed, while unrelated full-suite checks remain blocked by unavailable local Supabase and session credentials.
+
+- [x] Redesign the Review queue around import sections, with a clear selectable import summary and all associated changes exposed after selection.
+- [x] Group each selected import’s price and stock changes by cleaned-code item, while retaining each affected variant’s before-and-after values and review actions.
+- [x] Add regression coverage, verify responsive behavior, and release the import-first Review queue; focused grouping tests, TypeScript validation, and production build passed, while unrelated full-suite checks remain blocked by unavailable local Supabase and session credentials.

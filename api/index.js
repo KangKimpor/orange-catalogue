@@ -1217,6 +1217,24 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
   };
 }
 var importInput = z2.object({ filename: z2.string().min(1).max(255), base64: z2.string().min(16).max(MAX_POS_IMPORT_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/, "The POS workbook payload is not valid base64.") });
+function groupReviewChangesByImport(imports2, changes) {
+  const importsById = new Map(imports2.map((item) => [item.id, { id: item.id, originalFilename: item.original_filename, createdAt: item.created_at, status: item.status, itemMap: /* @__PURE__ */ new Map() }]));
+  for (const row of changes) {
+    const importGroup = importsById.get(row.import_id);
+    const change = row.after_json;
+    const cleanedCode = change?.code?.trim();
+    if (!importGroup || !change || !cleanedCode || !change.priceChanged && !change.stockChanged) continue;
+    const item = importGroup.itemMap.get(cleanedCode) ?? { cleanedCode, changes: [], pendingChangeCount: 0 };
+    const groupedChange = { id: row.id, priceChanged: Boolean(change.priceChanged), stockChanged: Boolean(change.stockChanged), previousPrice: change.previousPrice ?? null, price: change.price ?? null, previousStock: change.previousStock ?? null, stock: change.stock ?? null, reviewStatus: row.review_status };
+    item.changes.push(groupedChange);
+    if (groupedChange.reviewStatus === "pending") item.pendingChangeCount += 1;
+    importGroup.itemMap.set(cleanedCode, item);
+  }
+  return Array.from(importsById.values()).map((importGroup) => {
+    const items = Array.from(importGroup.itemMap.values()).sort((left, right) => left.cleanedCode.localeCompare(right.cleanedCode));
+    return { id: importGroup.id, originalFilename: importGroup.originalFilename, createdAt: importGroup.createdAt, status: importGroup.status, items, changeCount: items.reduce((total, item) => total + item.changes.length, 0), pendingChangeCount: items.reduce((total, item) => total + item.pendingChangeCount, 0) };
+  });
+}
 async function createPreview(input) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
   if (parsed.validation.duplicatePosCodes.length) throw new TRPCError4({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
@@ -1358,14 +1376,8 @@ var storeRouter = router({
     }),
     reviewQueue: publicProcedure.query(async ({ ctx }) => {
       await requireAdmin(ctx);
-      const rows = await supabaseRequest("import_changes?select=id,after_json,review_status&change_type=eq.stock_price_update&review_status=eq.pending&order=created_at.desc&limit=200");
-      return rows.flatMap((row) => {
-        const change = row.after_json;
-        if (!change) return [];
-        const cleanedCode = change.code?.trim();
-        if (!cleanedCode || !change.priceChanged && !change.stockChanged) return [];
-        return [{ id: row.id, cleanedCode, priceChanged: Boolean(change.priceChanged), stockChanged: Boolean(change.stockChanged), previousPrice: change.previousPrice ?? null, price: change.price ?? null, previousStock: change.previousStock ?? null, stock: change.stock ?? null, reviewStatus: row.review_status }];
-      });
+      const [imports2, changes] = await Promise.all([supabaseRequest("imports?select=id,original_filename,status,created_at&status=eq.applied&order=created_at.desc&limit=100"), supabaseRequest("import_changes?select=id,import_id,after_json,review_status&change_type=eq.stock_price_update&order=created_at.desc&limit=1000")]);
+      return groupReviewChangesByImport(imports2, changes);
     }),
     resolveImportChange: publicProcedure.input(z2.object({ id: z2.number().int(), reviewStatus: z2.enum(["accepted", "ignored"]) })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
