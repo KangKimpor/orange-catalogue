@@ -51,9 +51,9 @@ function importChangeTitle(change: ImportChangeView) {
 }
 
 function importChangeDescription(change: ImportChangeView) {
-  const identity = [`POS ${change.posCode ?? "unavailable"}`, change.color ? `Color ${change.color}` : "", change.size ? `Size ${change.size}` : ""].filter(Boolean);
+  const identity = [change.color ? `Attribute ${change.color}` : "", change.size ? `Size ${change.size}` : ""].filter(Boolean);
   if (change.type === "new_product" || change.type === "new_variant") return `${identity.join(" · ")} · Price ${change.price ?? "—"} · Quantity ${change.stock ?? "—"}`;
-  const details = [change.priceChanged ? `Price ${change.previousPrice ?? "—"} → ${change.price ?? "—"}` : "", change.stockChanged ? `Quantity ${change.previousStock ?? "—"} → ${change.stock ?? "—"}` : "", change.colorChanged ? `Color ${change.previousColor ?? "—"} → ${change.color ?? "—"}` : "", change.sizeChanged ? `Size ${change.previousSize ?? "—"} → ${change.size ?? "—"}` : ""].filter(Boolean);
+  const details = [change.priceChanged ? `Price ${change.previousPrice ?? "—"} → ${change.price ?? "—"}` : "", change.stockChanged ? `Quantity ${change.previousStock ?? "—"} → ${change.stock ?? "—"}` : ""].filter(Boolean);
   return `${identity.join(" · ")} · ${details.join(" · ")}`;
 }
 

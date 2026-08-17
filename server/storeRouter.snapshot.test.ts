@@ -14,7 +14,7 @@ vi.mock("./catalogDb", () => ({ fetchCatalogueRows: vi.fn(), fetchStorefrontCard
 vi.mock("./loginRateLimit", () => ({ adminLoginClientKey: vi.fn(), checkAdminLoginRateLimit: vi.fn() }));
 vi.mock("./cloudinaryMedia", () => ({ destroyCloudinaryProductImage: vi.fn() }));
 
-import { createPreview, groupImportChanges, importDetailChange, reviewableImportChanges } from "./storeRouter";
+import { createPreview, groupImportChanges, importDetailChange, previewVariantIdentity, reviewableImportChanges } from "./storeRouter";
 
 describe("weekly POS snapshot idempotency", () => {
   beforeEach(() => {
@@ -53,6 +53,7 @@ describe("weekly POS snapshot idempotency", () => {
       { id: 2, type: "updated" as const, code: "STYLE 200", posCode: "P201", color: "Cream", previousColor: "Cream", size: "M", previousSize: "M", colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: true, previousPrice: 9, price: 9, previousStock: 4, stock: 1, missingPosCodes: [] },
       { id: 3, type: "missing" as const, code: "ARCHIVED STYLE", posCode: "OLD-1", color: null, previousColor: null, size: null, previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, previousPrice: null, price: null, previousStock: null, stock: null, missingPosCodes: ["OLD-1"] },
       { id: 4, type: "new_variant" as const, code: "STYLE 201", posCode: "P202", color: "Blue", previousColor: null, size: "L", previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, previousPrice: null, price: 12, previousStock: null, stock: 3, missingPosCodes: [] },
+      { id: 5, type: "updated" as const, code: "STYLE 202", posCode: "P203", color: "Black", previousColor: "Cream", size: "M", previousSize: "M", colorChanged: true, sizeChanged: false, priceChanged: false, stockChanged: false, previousPrice: 10, price: 10, previousStock: 2, stock: 2, missingPosCodes: [] },
     ];
     const groups = groupImportChanges(changes);
     expect(reviewableImportChanges(changes)).toHaveLength(3);
@@ -91,19 +92,19 @@ describe("weekly POS snapshot idempotency", () => {
     parseWorkbook.mockReturnValue({
       digest: "comparison-preview-digest",
       items: [
-        { posCode: "UNCHANGED", cleanedCode: "STYLE 300", colorEnglish: "Black", size: "M", price: 10, stockQuantity: 3 },
-        { posCode: "PRICE", cleanedCode: "STYLE 300", colorEnglish: "Black", size: "M", price: 12, stockQuantity: 3 },
-        { posCode: "QUANTITY", cleanedCode: "STYLE 300", colorEnglish: "Black", size: "M", price: 10, stockQuantity: 7 },
-        { posCode: "BOTH", cleanedCode: "STYLE 300", colorEnglish: "Black", size: "M", price: 15, stockQuantity: 9 },
+        { posCode: "NEW-UNCHANGED", cleanedCode: "STYLE 300", colorKey: "black", colorEnglish: "Black", size: "XS", price: 10, stockQuantity: 3 },
+        { posCode: "NEW-PRICE", cleanedCode: "STYLE 300", colorKey: "black", colorEnglish: "Black", size: "S", price: 12, stockQuantity: 3 },
+        { posCode: "NEW-QUANTITY", cleanedCode: "STYLE 300", colorKey: "black", colorEnglish: "Black", size: "M", price: 10, stockQuantity: 7 },
+        { posCode: "NEW-BOTH", cleanedCode: "STYLE 300", colorKey: "black", colorEnglish: "Black", size: "L", price: 15, stockQuantity: 9 },
       ],
       validation: { headerRow: 5, duplicatePosCodes: [], invalidRows: [], missingNameRows: 0 },
     });
     request.mockImplementation((path: string) => {
       if (path.startsWith("variants?")) return Promise.resolve([
-        { id: 1, product_id: 20, color_id: 1, pos_code: "UNCHANGED", size: "M", price: "10.00", stock_quantity: 3 },
-        { id: 2, product_id: 20, color_id: 1, pos_code: "PRICE", size: "M", price: "10.00", stock_quantity: 3 },
-        { id: 3, product_id: 20, color_id: 1, pos_code: "QUANTITY", size: "M", price: "10.00", stock_quantity: 3 },
-        { id: 4, product_id: 20, color_id: 1, pos_code: "BOTH", size: "M", price: "10.00", stock_quantity: 3 },
+        { id: 1, product_id: 20, color_id: 1, pos_code: "OLD-UNCHANGED", size: "XS", price: "10.00", stock_quantity: 3 },
+        { id: 2, product_id: 20, color_id: 1, pos_code: "OLD-PRICE", size: "S", price: "10.00", stock_quantity: 3 },
+        { id: 3, product_id: 20, color_id: 1, pos_code: "OLD-QUANTITY", size: "M", price: "10.00", stock_quantity: 3 },
+        { id: 4, product_id: 20, color_id: 1, pos_code: "OLD-BOTH", size: "L", price: "10.00", stock_quantity: 3 },
       ]);
       if (path.startsWith("products?")) return Promise.resolve([{ id: 20, cleaned_code: "STYLE 300", slug: "style-300", category_source: "manual" }]);
       if (path.startsWith("colors?")) return Promise.resolve([{ id: 1, normalized_key: "black", english_name: "Black" }]);
@@ -114,11 +115,12 @@ describe("weekly POS snapshot idempotency", () => {
 
     const result = await createPreview({ filename: "comparison.xlsx", base64: "QUJDREVGR0hJSktMTU5PUA==" });
 
-    expect(result.summary).toMatchObject({ updatedVariants: 3, missingVariants: 0 });
+    expect(result.summary).toMatchObject({ newProducts: 0, newVariants: 0, updatedVariants: 3 });
     expect(result.changes).toHaveLength(3);
-    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: "PRICE", priceChanged: true, stockChanged: false, previousPrice: 10, price: 12, previousStock: 3, stock: 3 }));
-    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: "QUANTITY", priceChanged: false, stockChanged: true, previousPrice: 10, price: 10, previousStock: 3, stock: 7 }));
-    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: "BOTH", priceChanged: true, stockChanged: true, previousPrice: 10, price: 15, previousStock: 3, stock: 9 }));
-    expect(result.changes).not.toContainEqual(expect.objectContaining({ posCode: "UNCHANGED" }));
+    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: null, size: "S", priceChanged: true, stockChanged: false, previousPrice: 10, price: 12, previousStock: 3, stock: 3 }));
+    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: null, size: "M", priceChanged: false, stockChanged: true, previousPrice: 10, price: 10, previousStock: 3, stock: 7 }));
+    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: null, size: "L", priceChanged: true, stockChanged: true, previousPrice: 10, price: 15, previousStock: 3, stock: 9 }));
+    expect(result.changes).not.toContainEqual(expect.objectContaining({ size: "XS" }));
+    expect(previewVariantIdentity("STYLE 300", "black", "M")).toBe(previewVariantIdentity("STYLE 300", "black", "M"));
   });
 });
