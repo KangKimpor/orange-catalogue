@@ -60,6 +60,20 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".import-review-layout");
   });
 
+  it("organizes the full workspace around a desktop-first weekly POS routine with mobile-safe controls", () => {
+    expect(admin).toContain("WEEKLY OPERATIONS");
+    expect(admin).toContain("YOUR WEEKLY POS ROUTINE");
+    expect(admin).toContain("Import this week’s POS file");
+    expect(admin).toContain("weekly-workboard");
+    expect(admin).toContain("Weekly import");
+    expect(admin).toContain("Review imports");
+    expect(stylesheet).toContain("grid-template-columns: 270px minmax(0, 1fr)");
+    expect(stylesheet).toContain(".weekly-workboard");
+    expect(stylesheet).toContain(".dashboard-bottom");
+    expect(stylesheet).toContain("@media (max-width: 820px)");
+    expect(stylesheet).toContain(".admin-rail-context,");
+  });
+
   it("shows model and Attribute-color photo coverage in the Catalogue editor", () => {
     expect(admin).toContain("photoReadyColorCount");
     expect(admin).toContain("with photo");

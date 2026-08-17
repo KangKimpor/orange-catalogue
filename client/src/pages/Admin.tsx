@@ -21,10 +21,10 @@ import { trpc } from "@/lib/trpc";
 const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
 
 const workspaceMeta: Array<{ id: Workspace; label: string; path: string; icon: typeof LayoutDashboard; hint: string }> = [
-  { id: "overview", label: "Overview", path: "/admin", icon: LayoutDashboard, hint: "Today’s catalogue health" },
-  { id: "catalogue", label: "Catalogue", path: "/admin/items", icon: PackageSearch, hint: "Items, colors, and photos" },
-  { id: "imports", label: "POS imports", path: "/admin/import", icon: FileSpreadsheet, hint: "Preview and apply POS updates" },
-  { id: "reviews", label: "Review queue", path: "/admin/review-queue", icon: ClipboardCheck, hint: "Changes that need confirmation" },
+  { id: "overview", label: "Dashboard", path: "/admin", icon: LayoutDashboard, hint: "Your weekly catalogue routine" },
+  { id: "catalogue", label: "Catalogue", path: "/admin/items", icon: PackageSearch, hint: "Name items and add color photos" },
+  { id: "imports", label: "Weekly import", path: "/admin/import", icon: FileSpreadsheet, hint: "Preview and apply your POS export" },
+  { id: "reviews", label: "Review imports", path: "/admin/review-queue", icon: ClipboardCheck, hint: "Inspect price and stock changes" },
   { id: "settings", label: "Security", path: "/admin/security", icon: Settings, hint: "Admin password and access" },
 ];
 
@@ -123,6 +123,9 @@ export default function Admin() {
   const selectedReviewImport = reviewImports.find(item => item.id === expandedReviewImportId) ?? null;
   const attentionCount = reviewImports.reduce((total, item) => total + item.pendingChangeCount, 0);
   const photoReadyCount = products.filter(product => product.media.length > 0).length;
+  const latestImport = history.data?.at(-1) ?? null;
+  const recentImports = history.data?.slice(-3).reverse() ?? [];
+  const itemsNeedingPhotos = Math.max(products.length - photoReadyCount, 0);
   const photoUploadIsBusy = ["preparing", "uploading", "saving"].includes(photoUploadFeedback.status) || signUpload.isPending || registerMedia.isPending;
 
   useEffect(() => { setWorkspace(workspaceFromPath(location, window.location.search)); }, [location]);
@@ -285,29 +288,28 @@ export default function Admin() {
     <div className="admin-app">
       <aside className="admin-rail">
         <Link href="/" className="admin-wordmark" aria-label="Orange storefront home"><img src={LOGO_URL} alt="Orange" /><span>Admin</span></Link>
+        <div className="admin-rail-context"><p className="eyebrow">WEEKLY OPERATIONS</p><p>Bring in the latest POS file, check changes, then finish names and photos.</p></div>
         <nav aria-label="Admin workspaces">
           {workspaceMeta.map(item => {
             const Icon = item.icon;
-            return <button type="button" key={item.id} className={workspace === item.id ? "is-active" : ""} onClick={() => openWorkspace(item.id)}><Icon aria-hidden="true" /><span>{item.label}</span></button>;
+            return <button type="button" key={item.id} className={workspace === item.id ? "is-active" : ""} onClick={() => openWorkspace(item.id)}><Icon aria-hidden="true" /><span><b>{item.label}</b><small>{item.hint}</small></span></button>;
           })}
         </nav>
+        <div className="admin-rail-status"><span>Latest import</span><b>{latestImport ? new Date(latestImport.createdAt).toLocaleDateString() : "Not imported yet"}</b></div>
         <button type="button" onClick={() => logout.mutate()} className="admin-logout"><LogOut aria-hidden="true" />Sign out</button>
       </aside>
 
       <main className="admin-workspace">
         <header className="admin-topbar">
-          <h1>{workspaceMeta.find(item => item.id === workspace)?.label}</h1>
+          <div><p className="eyebrow">ORANGE CATALOGUE</p><h1>{workspaceMeta.find(item => item.id === workspace)?.label}</h1><p>{workspaceMeta.find(item => item.id === workspace)?.hint}</p></div>
           <div className="admin-session"><ShieldCheck aria-hidden="true" /><span>Admin session active</span><button type="button" className="admin-topbar-logout" onClick={() => logout.mutate()}><LogOut aria-hidden="true" />Sign out</button></div>
         </header>
 
         {workspace === "overview" && (
           <section className="admin-view overview-view">
-            <div className="metric-grid">
-              <article><span>Live items</span><strong>{products.length}</strong><small>Cleaned-code groups</small></article>
-              <article><span>Photo-ready</span><strong>{photoReadyCount}</strong><small>Items with photos</small></article>
-              <article><span>Inventory updates</span><strong>{attentionCount}</strong><small>Price or stock changes to review</small></article>
-              <article><span>Colors ready</span><strong>{products.reduce((total, product) => total + product.colors.length, 0)}</strong><small>POS Attribute colors</small></article>
-            </div>
+            <div className="weekly-hero"><div><p className="eyebrow">YOUR WEEKLY POS ROUTINE</p><h2>Import, check changes, then finish the catalogue.</h2><p>{latestImport ? `Your latest applied POS file was added on ${new Date(latestImport.createdAt).toLocaleDateString()}.` : "Start by importing your first POS export."}</p></div><button type="button" className="primary-action" onClick={() => openWorkspace("imports")}><FileSpreadsheet aria-hidden="true" />Import this week’s POS file</button></div>
+            <div className="weekly-workboard"><article><span>01</span><h3>Import POS file</h3><p>Preview your weekly export before anything changes.</p><button type="button" className="quiet-action" onClick={() => openWorkspace("imports")}>Open weekly import</button></article><article><span>02</span><h3>Review changes</h3><p>{attentionCount ? `${attentionCount} price or stock update${attentionCount === 1 ? "" : "s"} need attention.` : "No price or stock changes need attention."}</p><button type="button" className="quiet-action" onClick={() => openWorkspace("reviews")}>Open import review</button></article><article><span>03</span><h3>Finish catalogue</h3><p>{itemsNeedingPhotos ? `${itemsNeedingPhotos} item${itemsNeedingPhotos === 1 ? "" : "s"} still need photos.` : "Every item has at least one photo."}</p><button type="button" className="quiet-action" onClick={() => openWorkspace("catalogue")}>Open catalogue</button></article></div>
+            <div className="dashboard-bottom"><div className="metric-grid"><article><span>Live items</span><strong>{products.length}</strong><small>Cleaned-code groups</small></article><article><span>Photo-ready</span><strong>{photoReadyCount}</strong><small>Items with at least one photo</small></article><article><span>Updates</span><strong>{attentionCount}</strong><small>Price or stock changes to review</small></article><article><span>POS colors</span><strong>{products.reduce((total, product) => total + product.colors.length, 0)}</strong><small>Attribute colors in the catalogue</small></article></div><section className="dashboard-imports"><div><p className="eyebrow">RECENT POS FILES</p><h3>Import history</h3></div>{recentImports.length ? <div>{recentImports.map(item => <button type="button" key={item.id} onClick={() => openWorkspace("reviews")}><span>{item.originalFilename}</span><small>{new Date(item.createdAt).toLocaleDateString()}</small><b>{item.status}</b></button>)}</div> : <p>No POS import yet. Start the weekly routine above.</p>}</section></div>
           </section>
         )}
 
