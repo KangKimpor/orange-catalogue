@@ -189,3 +189,12 @@
 - [x] Add a safe owner-facing removal action for the newest applied POS import only: restore its recorded price and quantity changes, remove only its newly created variants or models when no media is attached, retain external Cloudinary assets, and mark the import as rolled back.
 - [x] Add clear admin confirmation and result feedback for import removal, preserving the full historical change audit and blocking unsafe removals when a later import or media attachment would be affected.
 - [x] Add regression coverage for cleaned-code change grouping and safe newest-import removal, then validate with 22 focused tests, TypeScript, production build, and whitespace checks. The full suite remains locally environment-gated by unavailable Supabase/session variables.
+
+- [x] Replace serial per-row POS application writes with a database-side transactional bulk product, color, and immutable POS-variant procedure so a 1,330+ row weekly dataset finishes well inside the Vercel request limit.
+- [x] Preserve idempotency, manual category ownership, lifecycle/media safety, import-history detail rows, newest-only rollback semantics, and non-destructive missing-snapshot handling in the transactional path.
+- [x] Provide an actionable admin error for a malformed or timed-out import response rather than exposing a raw JSON parse failure.
+- [x] Add transactional-import regression coverage, then validate focused POS workflows, type checking, production build, whitespace check, and credential scan before updating pull request #3. The full suite remains locally environment-gated by unavailable Supabase, Cloudinary, and session credentials.
+
+- [x] Replace the multi-request batch apply path with one database-side `apply_pos_import` transaction that either commits every POS mutation and audit record or rolls back completely.
+- [x] Preserve duplicate-digest protection, manual category ownership, lifecycle/media safety, missing-snapshot flags, grouped change history, and newest-only rollback compatibility inside the transaction.
+- [x] Add regression coverage for the RPC request contract and transactional migration invariants, then revalidate before updating pull request #3.

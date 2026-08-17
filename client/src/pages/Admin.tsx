@@ -72,6 +72,16 @@ function fileToBase64(file: File) {
   });
 }
 
+function posImportErrorMessage(error: unknown, action: "preview" | "apply") {
+  const message = error instanceof Error ? error.message : "";
+  if (/json\.parse|unexpected character|unexpected token </i.test(message)) {
+    return action === "apply"
+      ? "The import server returned an interrupted response before confirming completion. Refresh POS import history before retrying; if this file is not listed as applied, create a fresh preview."
+      : "The preview server returned an interrupted response. Choose the file again and create a new preview.";
+  }
+  return message || (action === "apply" ? "The POS import could not be applied. Your existing catalogue is unchanged." : "The POS preview could not be prepared. Please try again.");
+}
+
 function AdminLogin() {
   const utils = trpc.useUtils();
   const login = trpc.store.admin.login.useMutation({ onSuccess: () => utils.store.admin.session.invalidate() });
@@ -244,7 +254,7 @@ export default function Admin() {
       const changeCount = result.changes.length;
       setImportFeedback({ status: result.alreadyApplied ? "ready" : "preview_ready", message: result.alreadyApplied ? "This exact POS file was already applied. Choose a newer export to continue." : `Complete preview ready: ${changeCount} catalogue change${changeCount === 1 ? "" : "s"} are shown below.` });
     } catch (error) {
-      setImportFeedback({ status: "error", message: error instanceof Error ? error.message : "The POS preview could not be prepared. Please try again." });
+      setImportFeedback({ status: "error", message: posImportErrorMessage(error, "preview") });
     }
   }
   async function applyPosImport() {
@@ -256,7 +266,7 @@ export default function Admin() {
       setPreview(null);
       setImportFeedback({ status: "success", message: `Import complete: ${result.newProducts} new item${result.newProducts === 1 ? "" : "s"}, ${result.newVariants} new color or size${result.newVariants === 1 ? "" : "s"}, and ${result.updatedVariants} updated POS row${result.updatedVariants === 1 ? "" : "s"}.` });
     } catch (error) {
-      setImportFeedback({ status: "error", message: error instanceof Error ? error.message : "The POS import could not be applied. Your existing catalogue is unchanged." });
+      setImportFeedback({ status: "error", message: posImportErrorMessage(error, "apply") });
     }
   }
   async function removeSelectedImport() {
