@@ -11,11 +11,15 @@ const router = readFileSync(resolve(root, "server/storeRouter.ts"), "utf8");
 const stylesheet = readFileSync(resolve(root, "client/src/index.css"), "utf8");
 
 describe("cleaned-code admin and color media workflow", () => {
-  it("keeps staff workflow centered on cleaned-code items and editable website names", () => {
+  it("keeps the simplified staff workflow centered on names, categories, Just In, colors, and photos", () => {
     expect(admin).toContain("Find an item by cleaned code or website name");
     expect(admin).toContain("Website item name");
-    expect(admin).toContain("POS ATTRIBUTE COLORS");
-    expect(admin).toContain("POS Code is immutable");
+    expect(admin).toContain("CHOOSE A COLOR");
+    expect(admin).toContain("Simple item setup");
+    expect(admin).not.toContain("Review status");
+    expect(admin).not.toContain("POS Code is immutable");
+    expect(admin).not.toContain("POS ATTRIBUTE COLORS");
+    expect(admin).not.toContain("variant-table-header");
   });
 
   it("combines item editing and color photo management in the Catalogue workspace", () => {
@@ -38,6 +42,16 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(router).not.toContain("previewCatalogueWorkbook");
     expect(admin).toContain("POS XLSX import");
     expect(router).toContain("previewImport");
+  });
+
+  it("adds review records only for completely new cleaned-code items and never displays POS codes", () => {
+    expect(router).toContain('changes.filter(change => change?.type === "new_product")');
+    expect(router).toContain('after_json: { code: change!.code }');
+    expect(router).toContain('change_type=eq.new_product&review_status=eq.pending');
+    expect(router).not.toContain("change_type=in.(stock_price_update,missing_from_import,needs_review)");
+    expect(admin).toContain("New item review");
+    expect(admin).toContain("change.cleanedCode");
+    expect(admin).not.toContain("change.posCode");
   });
 
   it("guides a photo upload through validation, Cloudinary transfer, saving, and confirmation", () => {

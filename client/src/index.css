@@ -1794,3 +1794,37 @@ html {
   margin: 2px 0 0;
   accent-color: #8a623e;
 }
+
+/* Fresh-start catalogue editor */
+.picker-empty {
+  margin: 0;
+  padding: 28px 18px;
+  color: var(--admin-ink, #000000);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.simple-item-form {
+  grid-template-columns: minmax(0, 1.4fr) minmax(160px, .8fr) minmax(160px, .8fr);
+}
+
+@media (max-width: 1050px) {
+  .simple-item-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .simple-item-form label:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 540px) {
+  .simple-item-form {
+    grid-template-columns: 1fr;
+  }
+
+  .simple-item-form label:first-child {
+    grid-column: auto;
+  }
+}

@@ -1239,7 +1239,7 @@ async function createPreview(input) {
   const missing = existingVariants.filter((row) => !incoming.has(row.pos_code)).map((row) => ({ type: "missing", posCode: row.pos_code }));
   const summary = { rows: parsed.items.length, newProducts: changes.filter((change) => change?.type === "new_product").length, newVariants: changes.filter((change) => change?.type === "new_variant").length, updatedVariants: changes.filter((change) => change?.type === "updated").length, missingVariants: missing.length, invalidRows: parsed.validation.invalidRows.length };
   const [importRow] = await supabaseRequest("imports", { method: "POST", body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, summary_json: summary, validation_json: parsed.validation }) });
-  const reviewRows = [...changes.filter(Boolean).map((change) => ({ import_id: importRow.id, pos_code: change.posCode, change_type: change.type === "updated" ? "stock_price_update" : change.type, after_json: change })), ...missing.map((change) => ({ import_id: importRow.id, pos_code: change.posCode, change_type: "missing_from_import", after_json: change }))];
+  const reviewRows = changes.filter((change) => change?.type === "new_product").map((change) => ({ import_id: importRow.id, pos_code: null, change_type: "new_product", after_json: { code: change.code } }));
   if (reviewRows.length) await supabaseRequest("import_changes", { method: "POST", body: JSON.stringify(reviewRows) });
   return { importId: importRow.id, summary, validation: parsed.validation, changes: [...changes.slice(0, 40), ...missing.slice(0, 40)] };
 }
@@ -1335,9 +1335,9 @@ var storeRouter = router({
       await requireAdmin(ctx);
       return cataloguePayload(true, true);
     }),
-    updateProduct: publicProcedure.input(z2.object({ id: z2.number().int(), displayName: z2.string().max(255).nullable(), categoryId: z2.number().int().nullable(), isJustIn: z2.boolean().optional(), isPublished: z2.boolean().optional(), reviewStatus: z2.enum(["clean", "needs_review", "archived"]).optional() })).mutation(async ({ ctx, input }) => {
+    updateProduct: publicProcedure.input(z2.object({ id: z2.number().int(), displayName: z2.string().max(255).nullable(), categoryId: z2.number().int().nullable(), isJustIn: z2.boolean().optional() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
-      await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...input.isJustIn === void 0 ? {} : { is_just_in: input.isJustIn }, ...input.isPublished === void 0 ? {} : { is_published: input.isPublished }, ...input.reviewStatus === void 0 ? {} : { review_status: input.reviewStatus } }) });
+      await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...input.isJustIn === void 0 ? {} : { is_just_in: input.isJustIn } }) });
       return { success: true };
     }),
     previewImport: publicProcedure.input(importInput).mutation(async ({ ctx, input }) => {
@@ -1355,8 +1355,14 @@ var storeRouter = router({
     }),
     reviewQueue: publicProcedure.query(async ({ ctx }) => {
       await requireAdmin(ctx);
-      const rows = await supabaseRequest("import_changes?select=id,pos_code,change_type,review_status&change_type=in.(stock_price_update,missing_from_import,needs_review)&limit=200");
-      return rows.map((row) => ({ id: row.id, posCode: row.pos_code, changeType: row.change_type, reviewStatus: row.review_status }));
+      const rows = await supabaseRequest("import_changes?select=id,after_json,review_status&change_type=eq.new_product&review_status=eq.pending&order=created_at.desc&limit=200");
+      const queuedCodes = /* @__PURE__ */ new Set();
+      return rows.flatMap((row) => {
+        const cleanedCode = row.after_json?.code?.trim();
+        if (!cleanedCode || queuedCodes.has(cleanedCode)) return [];
+        queuedCodes.add(cleanedCode);
+        return [{ id: row.id, cleanedCode, reviewStatus: row.review_status }];
+      });
     }),
     resolveImportChange: publicProcedure.input(z2.object({ id: z2.number().int(), reviewStatus: z2.enum(["accepted", "ignored"]) })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);

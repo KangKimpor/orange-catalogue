@@ -147,3 +147,8 @@
 - [x] Remove the direct catalogue-workbook/template upload workflow from the admin UI and server contract, retaining the preview-first POS inventory import.
 - [x] Add clear per-step Cloudinary upload status, validation, success confirmation, and actionable failure feedback for color-specific item photos.
 - [x] Add regression coverage and verify the simplified admin workspace, preserved deep links, responsive layout, and production build before release; targeted admin tests and type/build checks passed, while unrelated full-suite tests remain credential-gated locally.
+
+- [x] Simplify the Catalogue editor to keep item naming, Attribute-color selection, and photo upload prominent while moving or removing unnecessary staff controls.
+- [x] Restrict the Review queue to newly detected cleaned-code items only, without displaying raw POS Codes or routine stock, price, variant, or missing-record changes.
+- [x] Clear the existing test POS-import catalogue, variant, import-history, review, colour, and media-metadata records while preserving categories, admin settings, and login protection for a fresh import.
+- [x] Add regression coverage, verify the reset result, and release the simplified fresh-start workflow; focused tests, TypeScript validation, and production build passed.
