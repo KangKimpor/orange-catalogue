@@ -198,3 +198,8 @@
 - [x] Replace the multi-request batch apply path with one database-side `apply_pos_import` transaction that either commits every POS mutation and audit record or rolls back completely.
 - [x] Preserve duplicate-digest protection, manual category ownership, lifecycle/media safety, missing-snapshot flags, grouped change history, and newest-only rollback compatibility inside the transaction.
 - [x] Add regression coverage for the RPC request contract and transactional migration invariants, then revalidate before updating pull request #3.
+
+- [x] Show only actual preview differences for each existing POS variant: render a price comparison only when price changes, a quantity comparison only when stock changes, and both comparisons only when both values change.
+- [x] Remove unchanged “Not seen in this file” rows from the staff-facing POS preview and import-history review views while retaining non-destructive internal missing-item safety data for rollback.
+- [x] Add preview-filtering regression coverage, validate the refined workflow, and deliver it through a pull request. Focused POS tests, TypeScript, production build, whitespace, and credential checks passed; the full suite remains locally environment-gated by unavailable Supabase, Cloudinary, and session credentials.
+- [ ] After implementation, reset production POS-derived data while preserving categories, settings, access configuration, and remote Cloudinary assets so the owner can test a new import from a clean state.

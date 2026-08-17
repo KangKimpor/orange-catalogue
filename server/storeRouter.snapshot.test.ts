@@ -14,7 +14,7 @@ vi.mock("./catalogDb", () => ({ fetchCatalogueRows: vi.fn(), fetchStorefrontCard
 vi.mock("./loginRateLimit", () => ({ adminLoginClientKey: vi.fn(), checkAdminLoginRateLimit: vi.fn() }));
 vi.mock("./cloudinaryMedia", () => ({ destroyCloudinaryProductImage: vi.fn() }));
 
-import { createPreview, groupImportChanges, importDetailChange } from "./storeRouter";
+import { createPreview, groupImportChanges, importDetailChange, reviewableImportChanges } from "./storeRouter";
 
 describe("weekly POS snapshot idempotency", () => {
   beforeEach(() => {
@@ -47,19 +47,23 @@ describe("weekly POS snapshot idempotency", () => {
     expect(importDetailChange({ id: 3, import_id: 11, product_id: 7, variant_id: null, pos_code: "P102", change_type: "missing_from_import", before_json: null, after_json: { code: "STYLE 102", missingPosCodes: ["P102", "P103"] }, created_at: "2026-08-17T00:00:00.000Z" })).toMatchObject({ type: "missing", code: "STYLE 102", missingPosCodes: ["P102", "P103"] });
   });
 
-  it("groups all colors, prices, and quantity changes under one cleaned-code item", () => {
-    const groups = groupImportChanges([
-      { id: 1, type: "updated", code: "STYLE 200", posCode: "P200", color: "Black", previousColor: "Black", size: "S", previousSize: "S", colorChanged: false, sizeChanged: false, priceChanged: true, stockChanged: true, previousPrice: 8, price: 10, previousStock: 2, stock: 5, missingPosCodes: [] },
-      { id: 2, type: "updated", code: "STYLE 200", posCode: "P201", color: "Cream", previousColor: "Cream", size: "M", previousSize: "M", colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: true, previousPrice: 9, price: 9, previousStock: 4, stock: 1, missingPosCodes: [] },
-      { id: 3, type: "new_variant", code: "STYLE 201", posCode: "P202", color: "Blue", previousColor: null, size: "L", previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, previousPrice: null, price: 12, previousStock: null, stock: 3, missingPosCodes: [] },
-    ]);
+  it("groups reviewable price and quantity changes under one cleaned-code item and excludes missing rows", () => {
+    const changes = [
+      { id: 1, type: "updated" as const, code: "STYLE 200", posCode: "P200", color: "Black", previousColor: "Black", size: "S", previousSize: "S", colorChanged: false, sizeChanged: false, priceChanged: true, stockChanged: true, previousPrice: 8, price: 10, previousStock: 2, stock: 5, missingPosCodes: [] },
+      { id: 2, type: "updated" as const, code: "STYLE 200", posCode: "P201", color: "Cream", previousColor: "Cream", size: "M", previousSize: "M", colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: true, previousPrice: 9, price: 9, previousStock: 4, stock: 1, missingPosCodes: [] },
+      { id: 3, type: "missing" as const, code: "ARCHIVED STYLE", posCode: "OLD-1", color: null, previousColor: null, size: null, previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, previousPrice: null, price: null, previousStock: null, stock: null, missingPosCodes: ["OLD-1"] },
+      { id: 4, type: "new_variant" as const, code: "STYLE 201", posCode: "P202", color: "Blue", previousColor: null, size: "L", previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, previousPrice: null, price: 12, previousStock: null, stock: 3, missingPosCodes: [] },
+    ];
+    const groups = groupImportChanges(changes);
+    expect(reviewableImportChanges(changes)).toHaveLength(3);
     expect(groups).toHaveLength(2);
     expect(groups[0]).toMatchObject({ code: "STYLE 200" });
     expect(groups[0]?.changes).toHaveLength(2);
     expect(groups[0]?.changes.map(change => change.color)).toEqual(["Black", "Cream"]);
+    expect(groups.flatMap(group => group.changes).some(change => change.type === "missing")).toBe(false);
   });
 
-  it("returns every new and not-seen change before staff can confirm an import", async () => {
+  it("returns only new or changed rows before staff can confirm an import", async () => {
     parseWorkbook.mockReturnValue({
       digest: "complete-preview-digest",
       items: Array.from({ length: 41 }, (_, index) => ({ posCode: `P${index}`, cleanedCode: `STYLE ${index}`, price: index + 1, stockQuantity: index + 2 })),
@@ -77,8 +81,44 @@ describe("weekly POS snapshot idempotency", () => {
     const result = await createPreview({ filename: "complete-weekly-export.xlsx", base64: "QUJDREVGR0hJSktMTU5PUA==" });
 
     expect(result).toMatchObject({ importId: 43, alreadyApplied: false, summary: { rows: 41, newProducts: 41, newVariants: 0, updatedVariants: 0, missingVariants: 1 } });
-    expect(result.changes).toHaveLength(42);
+    expect(result.changes).toHaveLength(41);
     expect(result.changes).toContainEqual(expect.objectContaining({ type: "new_product", code: "STYLE 40", posCode: "P40" }));
-    expect(result.changes).toContainEqual(expect.objectContaining({ type: "missing", code: "OLD STYLE", missingPosCodes: ["OLD-POS"] }));
+    expect(result.changes).not.toContainEqual(expect.objectContaining({ type: "missing" }));
+    expect(result.changeGroups.flatMap(group => group.changes).some(change => change.type === "missing")).toBe(false);
+  });
+
+  it("shows price-only, quantity-only, and combined comparisons while omitting unchanged variants", async () => {
+    parseWorkbook.mockReturnValue({
+      digest: "comparison-preview-digest",
+      items: [
+        { posCode: "UNCHANGED", cleanedCode: "STYLE 300", colorEnglish: "Black", size: "M", price: 10, stockQuantity: 3 },
+        { posCode: "PRICE", cleanedCode: "STYLE 300", colorEnglish: "Black", size: "M", price: 12, stockQuantity: 3 },
+        { posCode: "QUANTITY", cleanedCode: "STYLE 300", colorEnglish: "Black", size: "M", price: 10, stockQuantity: 7 },
+        { posCode: "BOTH", cleanedCode: "STYLE 300", colorEnglish: "Black", size: "M", price: 15, stockQuantity: 9 },
+      ],
+      validation: { headerRow: 5, duplicatePosCodes: [], invalidRows: [], missingNameRows: 0 },
+    });
+    request.mockImplementation((path: string) => {
+      if (path.startsWith("variants?")) return Promise.resolve([
+        { id: 1, product_id: 20, color_id: 1, pos_code: "UNCHANGED", size: "M", price: "10.00", stock_quantity: 3 },
+        { id: 2, product_id: 20, color_id: 1, pos_code: "PRICE", size: "M", price: "10.00", stock_quantity: 3 },
+        { id: 3, product_id: 20, color_id: 1, pos_code: "QUANTITY", size: "M", price: "10.00", stock_quantity: 3 },
+        { id: 4, product_id: 20, color_id: 1, pos_code: "BOTH", size: "M", price: "10.00", stock_quantity: 3 },
+      ]);
+      if (path.startsWith("products?")) return Promise.resolve([{ id: 20, cleaned_code: "STYLE 300", slug: "style-300", category_source: "manual" }]);
+      if (path.startsWith("colors?")) return Promise.resolve([{ id: 1, normalized_key: "black", english_name: "Black" }]);
+      if (path.startsWith("imports?")) return Promise.resolve([]);
+      if (path === "imports") return Promise.resolve([{ id: 44 }]);
+      throw new Error(`Unexpected request: ${path}`);
+    });
+
+    const result = await createPreview({ filename: "comparison.xlsx", base64: "QUJDREVGR0hJSktMTU5PUA==" });
+
+    expect(result.summary).toMatchObject({ updatedVariants: 3, missingVariants: 0 });
+    expect(result.changes).toHaveLength(3);
+    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: "PRICE", priceChanged: true, stockChanged: false, previousPrice: 10, price: 12, previousStock: 3, stock: 3 }));
+    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: "QUANTITY", priceChanged: false, stockChanged: true, previousPrice: 10, price: 10, previousStock: 3, stock: 7 }));
+    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: "BOTH", priceChanged: true, stockChanged: true, previousPrice: 10, price: 15, previousStock: 3, stock: 9 }));
+    expect(result.changes).not.toContainEqual(expect.objectContaining({ posCode: "UNCHANGED" }));
   });
 });

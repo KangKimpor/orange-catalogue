@@ -47,20 +47,18 @@ type ImportChangeGroupView = { code: string; changes: ImportChangeView[] };
 function importChangeTitle(change: ImportChangeView) {
   if (change.type === "new_product") return "New item";
   if (change.type === "new_variant") return "New color or size";
-  if (change.type === "missing") return "Not seen in this file";
   return "Price or quantity updated";
 }
 
 function importChangeDescription(change: ImportChangeView) {
-  if (change.type === "missing") return `POS code${change.missingPosCodes.length === 1 ? "" : "s"}: ${change.missingPosCodes.join(", ")}. This item is kept; nothing is deleted.`;
   const identity = [`POS ${change.posCode ?? "unavailable"}`, change.color ? `Color ${change.color}` : "", change.size ? `Size ${change.size}` : ""].filter(Boolean);
   if (change.type === "new_product" || change.type === "new_variant") return `${identity.join(" · ")} · Price ${change.price ?? "—"} · Quantity ${change.stock ?? "—"}`;
-  const details = [change.colorChanged ? `Color ${change.previousColor ?? "—"} → ${change.color ?? "—"}` : "", change.sizeChanged ? `Size ${change.previousSize ?? "—"} → ${change.size ?? "—"}` : "", change.priceChanged ? `Price ${change.previousPrice ?? "—"} → ${change.price ?? "—"}` : "", change.stockChanged ? `Quantity ${change.previousStock ?? "—"} → ${change.stock ?? "—"}` : ""].filter(Boolean);
+  const details = [change.priceChanged ? `Price ${change.previousPrice ?? "—"} → ${change.price ?? "—"}` : "", change.stockChanged ? `Quantity ${change.previousStock ?? "—"} → ${change.stock ?? "—"}` : "", change.colorChanged ? `Color ${change.previousColor ?? "—"} → ${change.color ?? "—"}` : "", change.sizeChanged ? `Size ${change.previousSize ?? "—"} → ${change.size ?? "—"}` : ""].filter(Boolean);
   return `${identity.join(" · ")} · ${details.join(" · ")}`;
 }
 
 function ImportChangeGroups({ groups }: { groups: ImportChangeGroupView[] }) {
-  return <div className="import-change-group-list">{groups.length ? groups.map(group => <article className="import-change-group" key={group.code}><header><div><p className="eyebrow">CLEANED-CODE ITEM</p><h4>{group.code}</h4></div><span>{group.changes.length} POS change{group.changes.length === 1 ? "" : "s"}</span></header><div className="import-variant-change-list">{group.changes.map(change => <div className={"import-variant-change-row is-" + change.type} key={change.id}><p className="eyebrow">{importChangeTitle(change)}</p><p>{importChangeDescription(change)}</p></div>)}</div></article>) : <p className="empty-workspace">No new, changed, or not-seen items were found in this file.</p>}</div>;
+  return <div className="import-change-group-list">{groups.length ? groups.map(group => <article className="import-change-group" key={group.code}><header><div><p className="eyebrow">CLEANED-CODE ITEM</p><h4>{group.code}</h4></div><span>{group.changes.length} POS change{group.changes.length === 1 ? "" : "s"}</span></header><div className="import-variant-change-list">{group.changes.map(change => <div className={"import-variant-change-row is-" + change.type} key={change.id}><p className="eyebrow">{importChangeTitle(change)}</p><p>{importChangeDescription(change)}</p></div>)}</div></article>) : <p className="empty-workspace">No new price, quantity, color, or size changes were found in this file.</p>}</div>;
 }
 
 function fileToBase64(file: File) {
@@ -460,7 +458,7 @@ export default function Admin() {
               <button type="button" className="primary-action" onClick={previewPosImport} disabled={!importBase64 || importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"}>{importFeedback.status === "previewing" ? "Comparing catalogue…" : "Preview all POS changes"}</button>
               <div className={`import-feedback is-${importFeedback.status}`} role="status" aria-live="polite"><div className="feedback-icon">{importFeedback.status === "success" || importFeedback.status === "preview_ready" ? <CheckCircle2 aria-hidden="true" /> : importFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : ["reading", "previewing", "applying"].includes(importFeedback.status) ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <FileSpreadsheet aria-hidden="true" />}</div><div><small>{importFeedback.status === "applying" ? "APPLYING IMPORT" : importFeedback.status === "previewing" ? "BUILDING PREVIEW" : importFeedback.status === "preview_ready" ? "READY TO CONFIRM" : "POS IMPORT"}</small><p>{importFeedback.message}</p></div></div>
               {preview && <section className="preview-card import-detail-card">
-                <div className="import-summary"><span><b>{preview.summary.rows}</b> POS rows</span><span><b>{preview.summary.newProducts}</b> new items</span><span><b>{preview.summary.newVariants}</b> new colors or sizes</span><span><b>{preview.summary.updatedVariants}</b> price or quantity updates</span><span><b>{preview.summary.missingVariants}</b> POS rows not seen</span></div>
+                <div className="import-summary"><span><b>{preview.summary.rows}</b> POS rows</span><span><b>{preview.summary.newProducts}</b> new items</span><span><b>{preview.summary.newVariants}</b> new colors or sizes</span><span><b>{preview.summary.updatedVariants}</b> price or quantity updates</span></div>
                 <p>{preview.alreadyApplied ? "This exact POS file was already applied. Upload a newer export when it is available." : preview.validation.invalidRows.length ? (preview.validation.invalidRows.length + " invalid row(s) must be corrected before this import can be applied.") : "Preview only — no catalogue changes have been made. Review every row below before applying."}</p>
                 {!preview.alreadyApplied && <div className="import-change-list" aria-label="All POS changes grouped by cleaned-code item"><ImportChangeGroups groups={preview.changeGroups as ImportChangeGroupView[]} /></div>}
                 <div className="form-actions"><button type="button" className="secondary-action" onClick={applyPosImport} disabled={importFeedback.status === "applying" || preview.validation.invalidRows.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : importFeedback.status === "applying" ? "Applying verified changes…" : "Confirm and apply this import"}</button></div>

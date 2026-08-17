@@ -1226,9 +1226,12 @@ function importDetailChange(row) {
   const type = after.changeType === "new_product" || after.changeType === "new_variant" || after.changeType === "updated" || after.changeType === "missing" ? after.changeType : row.change_type === "new_product" || row.change_type === "new_variant" || row.change_type === "missing_from_import" ? row.change_type === "missing_from_import" ? "missing" : row.change_type : "updated";
   return { id: row.id, type, code: after.code ?? before.code ?? "Unknown item", posCode: after.posCode ?? before.posCode ?? row.pos_code, color: after.color ?? before.color ?? null, previousColor: after.previousColor ?? before.previousColor ?? null, size: after.size ?? before.size ?? null, previousSize: after.previousSize ?? before.previousSize ?? null, colorChanged: Boolean(after.colorChanged), sizeChanged: Boolean(after.sizeChanged), priceChanged: Boolean(after.priceChanged), stockChanged: Boolean(after.stockChanged), previousPrice: after.previousPrice ?? before.previousPrice ?? null, price: after.price ?? null, previousStock: after.previousStock ?? before.previousStock ?? null, stock: after.stock ?? null, missingPosCodes: after.missingPosCodes ?? [] };
 }
+function reviewableImportChanges(changes) {
+  return changes.filter((change) => change.type !== "missing");
+}
 function groupImportChanges(changes) {
   const groups = /* @__PURE__ */ new Map();
-  for (const change of changes) groups.set(change.code, [...groups.get(change.code) ?? [], change]);
+  for (const change of reviewableImportChanges(changes)) groups.set(change.code, [...groups.get(change.code) ?? [], change]);
   return Array.from(groups, ([code, groupChanges]) => ({ code, changes: groupChanges.sort((left, right) => left.type.localeCompare(right.type) || (left.color ?? "").localeCompare(right.color ?? "") || (left.size ?? "").localeCompare(right.size ?? "") || (left.posCode ?? "").localeCompare(right.posCode ?? "")) })).sort((left, right) => left.code.localeCompare(right.code));
 }
 async function createPreview(input) {
@@ -1237,7 +1240,6 @@ async function createPreview(input) {
   const [existingVariants, existingProducts, existingColors, appliedImports] = await Promise.all([supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest("products?select=id,cleaned_code,slug,category_source"), supabaseRequest("colors?select=id,normalized_key,english_name"), supabaseRequest(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&limit=1`)]);
   const variantsByCode = new Map(existingVariants.map((row) => [row.pos_code, row]));
   const productsByCode = new Set(existingProducts.map((row) => row.cleaned_code));
-  const productsById = new Map(existingProducts.map((row) => [row.id, row]));
   const colorsById = new Map(existingColors.map((row) => [row.id, row]));
   const previewed = /* @__PURE__ */ new Set();
   const incoming = new Set(parsed.items.map((item) => item.posCode));
@@ -1257,13 +1259,8 @@ async function createPreview(input) {
     const sizeChanged = current.size !== item.size;
     if (priceChanged || stockChanged || colorChanged || sizeChanged) changes.push({ type: "updated", code: item.cleanedCode, posCode: item.posCode, color: item.colorEnglish, previousColor, size: item.size, previousSize: current.size, colorChanged, sizeChanged, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity, missingPosCodes: [] });
   }
-  const missingByProduct = /* @__PURE__ */ new Map();
-  for (const row of existingVariants.filter((row2) => !incoming.has(row2.pos_code))) missingByProduct.set(row.product_id, [...missingByProduct.get(row.product_id) ?? [], row]);
-  for (const [productId, rows] of Array.from(missingByProduct.entries())) {
-    const product = productsById.get(productId);
-    changes.push({ type: "missing", code: product?.cleaned_code ?? "Unknown item", posCode: rows[0]?.pos_code ?? null, color: null, previousColor: null, size: null, previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, previousPrice: null, price: null, previousStock: null, stock: null, missingPosCodes: rows.map((row) => row.pos_code) });
-  }
-  const summary = { rows: parsed.items.length, newProducts: changes.filter((change) => change.type === "new_product").length, newVariants: changes.filter((change) => change.type === "new_variant").length, updatedVariants: changes.filter((change) => change.type === "updated").length, missingVariants: Array.from(missingByProduct.values()).reduce((count, rows) => count + rows.length, 0), invalidRows: parsed.validation.invalidRows.length };
+  const missingVariants = existingVariants.filter((row) => !incoming.has(row.pos_code)).length;
+  const summary = { rows: parsed.items.length, newProducts: changes.filter((change) => change.type === "new_product").length, newVariants: changes.filter((change) => change.type === "new_variant").length, updatedVariants: changes.filter((change) => change.type === "updated").length, missingVariants, invalidRows: parsed.validation.invalidRows.length };
   const alreadyApplied = appliedImports[0];
   if (alreadyApplied) return { importId: alreadyApplied.id, summary, validation: parsed.validation, changes: [], changeGroups: [], alreadyApplied: true };
   const [importRow] = await supabaseRequest("imports", { method: "POST", body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, summary_json: summary, validation_json: parsed.validation }) });
@@ -1393,7 +1390,7 @@ var storeRouter = router({
       const [imports2, changes, latestApplied] = await Promise.all([supabaseRequest(`imports?select=id,original_filename,status,created_at,applied_at,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`), supabaseRequest("imports?select=id&status=eq.applied&order=applied_at.desc,id.desc&limit=1")]);
       const importRow = imports2[0];
       if (!importRow) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected import was not found." });
-      const detailChanges = changes.map(importDetailChange);
+      const detailChanges = reviewableImportChanges(changes.map(importDetailChange));
       return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), canRemove: latestApplied[0]?.id === importRow.id };
     }),
     signMediaUpload: publicProcedure.input(z2.object({ productCode: z2.string().min(1), categorySlug: z2.string().min(1), colorTag: z2.string().min(1) })).mutation(async ({ ctx, input }) => {
