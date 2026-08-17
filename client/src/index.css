@@ -1382,14 +1382,35 @@ html {
 .primary-action,
 .secondary-action,
 .quiet-action {
-  border: 1px solid #f3cfdb;
-  background: var(--admin-pink);
-  color: var(--admin-ink);
   box-shadow: none;
 }
 
+.primary-action {
+  border: 1px solid var(--admin-ink);
+  background: var(--admin-ink);
+  color: #ffffff;
+}
+
+.secondary-action {
+  border: 1px solid #f3cfdb;
+  background: var(--admin-pink);
+  color: var(--admin-ink);
+}
+
+.quiet-action {
+  border: 1px solid var(--admin-line);
+  background: transparent;
+  color: var(--admin-ink);
+}
+
 .primary-action:hover,
-.primary-action:focus-visible,
+.primary-action:focus-visible {
+  background: #262626;
+  border-color: #262626;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .16);
+}
+
 .secondary-action:hover,
 .secondary-action:focus-visible,
 .quiet-action:hover,
@@ -1403,6 +1424,13 @@ html {
   background: #fafafa;
   border-color: #eeeeee;
   color: #777777;
+}
+
+.secondary-action:disabled,
+.quiet-action:disabled {
+  background: #fafafa;
+  border-color: #eeeeee;
+  color: #b7aa9a;
 }
 
 .model-picker > label,
@@ -1480,10 +1508,16 @@ html {
   border-color: #faeaf0;
 }
 
-.in-stock,
-.out-stock,
+.in-stock {
+  color: #3f7d4a;
+}
+
+.out-stock {
+  color: #b23b3b;
+}
+
 .form-error {
-  color: var(--admin-ink);
+  color: #b23b3b;
 }
 
 .photo-association code {
