@@ -40,24 +40,24 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).not.toContain("Direct catalogue workbook");
     expect(admin).not.toContain("previewCatalogueWorkbook");
     expect(router).not.toContain("previewCatalogueWorkbook");
-    expect(admin).toContain("POS XLSX import");
+    expect(admin).toContain("Upload and preview");
     expect(router).toContain("previewImport");
   });
 
-  it("records price or stock changes and presents Review queue entries by applied import and cleaned-code item", () => {
+  it("records all POS changes in selectable import history and shows every preview row before confirmation", () => {
     expect(router).toContain('change_type: "stock_price_update"');
-    expect(router).toContain("if (priceChanged || stockChanged) reviewRows.push");
-    expect(router).toContain("groupReviewChangesByImport");
-    expect(router).toContain("status=eq.applied");
-    expect(router).toContain("change_type=eq.stock_price_update");
-    expect(router).not.toContain('change_type: "new_product"');
-    expect(admin).toContain("Import review");
-    expect(admin).toContain("Select an applied POS import");
-    expect(admin).toContain("import-review-list");
-    expect(admin).toContain("review-item-groups");
-    expect(admin).toContain("item.cleanedCode");
-    expect(admin).not.toContain("change.posCode");
-    expect(stylesheet).toContain(".import-review-layout");
+    expect(router).toContain('change_type: isNewProduct ? "new_product" : "new_variant"');
+    expect(router).toContain('change_type: "missing_from_import"');
+    expect(router).toContain("importDetails:");
+    expect(router).not.toContain("groupReviewChangesByImport");
+    expect(router).not.toContain("reviewQueue:");
+    expect(admin).toContain("Preview all POS changes");
+    expect(admin).toContain("Confirm and apply this import");
+    expect(admin).toContain("Open an import to see every recorded change");
+    expect(admin).toContain("import-history-list");
+    expect(admin).toContain("import-change-list");
+    expect(admin).not.toContain("Review queue");
+    expect(stylesheet).toContain(".import-history-layout");
   });
 
   it("shows model and Attribute-color photo coverage in the Catalogue editor", () => {

@@ -3,7 +3,6 @@ import { Link, useLocation } from "wouter";
 import {
   CheckCircle2,
   CircleAlert,
-  ClipboardCheck,
   CloudUpload,
   FileSpreadsheet,
   LayoutDashboard,
@@ -24,7 +23,6 @@ const workspaceMeta: Array<{ id: Workspace; label: string; path: string; icon: t
   { id: "overview", label: "Overview", path: "/admin", icon: LayoutDashboard, hint: "Today’s catalogue health" },
   { id: "catalogue", label: "Catalogue", path: "/admin/items", icon: PackageSearch, hint: "Items, colors, and photos" },
   { id: "imports", label: "POS imports", path: "/admin/import", icon: FileSpreadsheet, hint: "Preview and apply POS updates" },
-  { id: "reviews", label: "Review queue", path: "/admin/review-queue", icon: ClipboardCheck, hint: "Changes that need confirmation" },
   { id: "settings", label: "Security", path: "/admin/security", icon: Settings, hint: "Admin password and access" },
 ];
 
@@ -35,6 +33,22 @@ const initialPhotoUploadFeedback: PhotoUploadFeedback = {
   status: "idle",
   message: "Choose one JPG, PNG, or WebP photo. It will be linked only to the selected POS Attribute color.",
 };
+
+type ImportChangeView = { type: "new_product" | "new_variant" | "updated" | "missing"; code: string; posCode: string | null; priceChanged: boolean; stockChanged: boolean; previousPrice: number | null; price: number | null; previousStock: number | null; stock: number | null; missingPosCodes: string[] };
+
+function importChangeTitle(change: ImportChangeView) {
+  if (change.type === "new_product") return "New item";
+  if (change.type === "new_variant") return "New color or size";
+  if (change.type === "missing") return "Not seen in this file";
+  return "Price or quantity updated";
+}
+
+function importChangeDescription(change: ImportChangeView) {
+  if (change.type === "missing") return `POS code${change.missingPosCodes.length === 1 ? "" : "s"}: ${change.missingPosCodes.join(", ")}. This item is kept; nothing is deleted.`;
+  if (change.type === "new_product" || change.type === "new_variant") return `${change.posCode ?? "POS code unavailable"} · Price ${change.price ?? "—"} · Quantity ${change.stock ?? "—"}`;
+  const details = [change.priceChanged ? `Price ${change.previousPrice ?? "—"} → ${change.price ?? "—"}` : "", change.stockChanged ? `Quantity ${change.previousStock ?? "—"} → ${change.stock ?? "—"}` : ""].filter(Boolean);
+  return `${change.posCode ?? "POS code unavailable"} · ${details.join(" · ")}`;
+}
 
 function fileToBase64(file: File) {
   return file.arrayBuffer().then(buffer => {
@@ -56,7 +70,7 @@ function AdminLogin() {
       <div className="login-card">
         <p className="eyebrow">ORANGE ADMIN</p>
         <h1>Store workspace</h1>
-        <p>Manage item names, POS colors, photos, imports, and review tasks in one place.</p>
+        <p>Manage item names, POS colors, photos, and weekly POS imports in one place.</p>
         <form onSubmit={async (event: FormEvent) => { event.preventDefault(); await login.mutateAsync({ password }); setPassword(""); }}>
           <label>
             Password
@@ -75,14 +89,14 @@ export default function Admin() {
   const utils = trpc.useUtils();
   const { data: isAdmin, isLoading } = trpc.store.admin.session.useQuery();
   const overview = trpc.store.admin.overview.useQuery(undefined, { enabled: Boolean(isAdmin) });
+  const [selectedImportId, setSelectedImportId] = useState<number | null>(null);
   const history = trpc.store.admin.importHistory.useQuery(undefined, { enabled: Boolean(isAdmin) });
-  const reviewQueue = trpc.store.admin.reviewQueue.useQuery(undefined, { enabled: Boolean(isAdmin) });
+  const importDetails = trpc.store.admin.importDetails.useQuery({ importId: selectedImportId ?? 0 }, { enabled: Boolean(isAdmin && selectedImportId) });
   const logout = trpc.store.admin.logout.useMutation({ onSuccess: () => utils.store.admin.session.invalidate() });
   const updateProduct = trpc.store.admin.updateProduct.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
   const reuseArchivedContent = trpc.store.admin.reuseArchivedContent.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
   const previewImport = trpc.store.admin.previewImport.useMutation();
-  const applyImport = trpc.store.admin.applyImport.useMutation({ onSuccess: () => { utils.store.admin.overview.invalidate(); utils.store.admin.importHistory.invalidate(); utils.store.admin.reviewQueue.invalidate(); } });
-  const resolveImportChange = trpc.store.admin.resolveImportChange.useMutation({ onSuccess: () => utils.store.admin.reviewQueue.invalidate() });
+  const applyImport = trpc.store.admin.applyImport.useMutation({ onSuccess: () => { utils.store.admin.overview.invalidate(); utils.store.admin.importHistory.invalidate(); utils.store.admin.importDetails.invalidate(); } });
   const changePassword = trpc.store.admin.changePassword.useMutation();
   const signUpload = trpc.store.admin.signMediaUpload.useMutation();
   const registerMedia = trpc.store.admin.registerMedia.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
@@ -106,7 +120,6 @@ export default function Admin() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importBase64, setImportBase64] = useState("");
   const [preview, setPreview] = useState<any>(null);
-  const [expandedReviewImportId, setExpandedReviewImportId] = useState<number | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
@@ -123,15 +136,13 @@ export default function Admin() {
   const selectedColorMedia = useMemo(() => selectedProduct?.media.filter(media => selectedColorVariantIds.has(media.variantId ?? -1) || media.colorTag?.toLowerCase() === selectedColor?.englishName.toLowerCase()) ?? [], [selectedColor?.englishName, selectedColorVariantIds, selectedProduct?.media]);
   const colorPhotoCounts = useMemo(() => new Map<string, number>((selectedProduct?.colors ?? []).map(color => [`${color.id}-${color.englishName}`, selectedProduct?.media.filter(media => color.variants.some(variant => variant.id === media.variantId) || media.colorTag?.toLowerCase() === color.englishName.toLowerCase()).length ?? 0] as const)), [selectedProduct]);
   const photoReadyColorCount = useMemo(() => Array.from(colorPhotoCounts.values()).filter(count => count > 0).length, [colorPhotoCounts]);
-  const reviewImports = reviewQueue.data ?? [];
-  const selectedReviewImport = reviewImports.find(item => item.id === expandedReviewImportId) ?? null;
-  const attentionCount = reviewImports.reduce((total, item) => total + item.pendingChangeCount, 0);
+  const appliedImportCount = history.data?.filter(item => item.status === "applied").length ?? 0;
   const photoReadyCount = products.filter(product => product.media.length > 0).length;
   const archivedSourceItems = products.filter(product => product.lifecycleStatus === "discontinued" && product.id !== selectedProductId);
   const photoUploadIsBusy = ["preparing", "uploading", "saving"].includes(photoUploadFeedback.status) || signUpload.isPending || registerMedia.isPending;
 
   useEffect(() => { setWorkspace(workspaceFromPath(location, window.location.search)); }, [location]);
-  useEffect(() => { if (!reviewQueue.data?.length) { setExpandedReviewImportId(null); return; } setExpandedReviewImportId(current => reviewQueue.data.some(item => item.id === current) ? current : reviewQueue.data[0].id); }, [reviewQueue.data]);
+  useEffect(() => { if (!history.data?.length) { setSelectedImportId(null); return; } setSelectedImportId(current => history.data.some(item => item.id === current) ? current : history.data[0].id); }, [history.data]);
   useEffect(() => {
     if (!selectedProduct && products[0]) setSelectedProductId(products[0].id);
   }, [products, selectedProduct]);
@@ -325,7 +336,7 @@ export default function Admin() {
             <div className="metric-grid">
               <article><span>Live items</span><strong>{products.length}</strong><small>Cleaned-code groups</small></article>
               <article><span>Photo-ready</span><strong>{photoReadyCount}</strong><small>Items with photos</small></article>
-              <article><span>Inventory updates</span><strong>{attentionCount}</strong><small>Price or stock changes to review</small></article>
+              <article><span>Applied imports</span><strong>{appliedImportCount}</strong><small>Open POS Imports to see every change</small></article>
               <article><span>Colors ready</span><strong>{products.reduce((total, product) => total + product.colors.length, 0)}</strong><small>POS Attribute colors</small></article>
             </div>
           </section>
@@ -362,9 +373,35 @@ export default function Admin() {
           </section>
         )}
 
-        {workspace === "imports" && <section className="admin-view import-view"><div className="workspace-intro"><div><h2>Import your POS file</h2><p>Start with your latest POS export. Check the preview, then apply it to create or update your catalogue.</p></div><span className="helper-chip">Preview first · apply second</span></div><section className="import-workbench pos-import-workbench"><div className="import-card-heading"><p className="eyebrow">INVENTORY</p><h3>POS XLSX import</h3><p>Choose your new POS file, review the summary, and apply it when it looks right.</p></div><label className="import-file"><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input type="file" accept=".xlsx,.xls" onChange={chooseImport} /></label><button type="button" className="primary-action" onClick={async () => { if (!importFile || !importBase64) return; setPreview(await previewImport.mutateAsync({ filename: importFile.name, base64: importBase64 })); }} disabled={!importBase64 || previewImport.isPending}>{previewImport.isPending ? "Preparing preview…" : "Preview inventory changes"}</button>{previewImport.error && <p className="form-error">{previewImport.error.message}</p>}{preview && <div className="preview-card"><div className="import-summary"><span><b>{preview.summary.rows}</b> rows</span><span><b>{preview.summary.newProducts}</b> new cleaned-code items</span><span><b>{preview.summary.newVariants}</b> additional variants</span><span><b>{preview.summary.updatedVariants}</b> updated rows</span><span><b>{preview.summary.missingVariants}</b> not seen</span></div><p>{preview.alreadyApplied ? "This exact POS file was already applied. Upload a newer export when it is available." : preview.validation.invalidRows.length ? `${preview.validation.invalidRows.length} invalid row(s) must be corrected before this import can be applied.` : preview.summary.missingVariants ? `${preview.summary.missingVariants} POS row(s) were not seen in this snapshot. They will not be deleted; review them before changing any item status.` : "Validation passed. No catalogue changes have been made yet."}</p><button type="button" className="secondary-action" onClick={() => importFile && applyImport.mutate({ importId: preview.importId, filename: importFile.name, base64: importBase64 })} disabled={applyImport.isPending || preview.validation.invalidRows.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : applyImport.isPending ? "Applying import…" : "Apply verified inventory import"}</button></div>}</section><section className="history-card"><div><p className="eyebrow">RECENT IMPORTS</p><h3>Import history</h3></div>{history.data?.length ? <div>{history.data.slice().reverse().slice(0, 8).map(item => <p key={item.id}><span>{item.originalFilename}</span><small>{new Date(item.createdAt).toLocaleDateString()}</small><b>{item.status}</b></p>)}</div> : <p className="empty-media">No import history yet.</p>}</section></section>}
-
-        {workspace === "reviews" && <section className="admin-view review-view"><div className="workspace-intro"><div><h2>Import review</h2><p>Select an applied POS import to see price, stock, and not-seen changes from that file, grouped by cleaned-code item. Nothing is deleted automatically.</p></div><span className="helper-chip">{attentionCount} update{attentionCount === 1 ? "" : "s"}</span></div>{reviewImports.length ? <div className="import-review-layout"><section className="import-review-list" aria-label="Applied imports">{reviewImports.map(importGroup => <button type="button" className={importGroup.id === expandedReviewImportId ? "is-selected" : ""} onClick={() => setExpandedReviewImportId(importGroup.id)} key={importGroup.id}><span><b>{importGroup.originalFilename}</b><small>{new Date(importGroup.createdAt).toLocaleDateString()} · {importGroup.items.length} item{importGroup.items.length === 1 ? "" : "s"}</small></span><strong>{importGroup.changeCount} change{importGroup.changeCount === 1 ? "" : "s"}</strong>{importGroup.pendingChangeCount > 0 && <em>{importGroup.pendingChangeCount} to review</em>}</button>)}</section><section className="review-card import-review-detail">{selectedReviewImport ? <><div className="import-review-heading"><div><p className="eyebrow">SELECTED IMPORT</p><h3>{selectedReviewImport.originalFilename}</h3><p>{new Date(selectedReviewImport.createdAt).toLocaleString()} · {selectedReviewImport.changeCount} review item{selectedReviewImport.changeCount === 1 ? "" : "s"} from price, stock, or missing-POS changes</p></div><span>{selectedReviewImport.items.length} item{selectedReviewImport.items.length === 1 ? "" : "s"}</span></div>{selectedReviewImport.items.length ? <div className="review-item-groups">{selectedReviewImport.items.map(item => <article key={item.cleanedCode}><div className="review-item-heading"><div><p className="eyebrow">ITEM</p><h3>{item.cleanedCode}</h3></div>{item.pendingChangeCount > 0 && <span>{item.pendingChangeCount} to review</span>}</div><div className="review-change-list">{item.changes.map(change => <div className="review-change-row" key={change.id}><p>{change.missingFromImport && `Not seen in this POS snapshot${change.missingPosCodes.length ? `: ${change.missingPosCodes.join(", ")}` : ""}`}{change.missingFromImport && (change.priceChanged || change.stockChanged) && " · "}{change.priceChanged && `Price: ${change.previousPrice} → ${change.price}`}{change.priceChanged && change.stockChanged && " · "}{change.stockChanged && `Stock: ${change.previousStock} → ${change.stock}`}</p><div><small className={`review-status is-${change.reviewStatus}`}>{change.reviewStatus === "accepted" ? "Reviewed" : change.reviewStatus === "ignored" ? "Dismissed" : "Needs review"}</small>{change.reviewStatus === "pending" && <><button type="button" className="secondary-action" onClick={() => resolveImportChange.mutate({ id: change.id, reviewStatus: "accepted" })} disabled={resolveImportChange.isPending}>Mark reviewed</button><button type="button" className="quiet-action" onClick={() => resolveImportChange.mutate({ id: change.id, reviewStatus: "ignored" })} disabled={resolveImportChange.isPending}>Dismiss</button></>}</div></div>)}</div></article>)}</div> : <div className="empty-workspace">This import did not change any price or stock quantities.</div>}</> : <div className="empty-workspace">Choose an import to review its changes.</div>}</section></div> : <section className="review-card"><div className="empty-workspace">No applied imports are available yet.</div></section>}</section>}
+        {workspace === "imports" && (
+          <section className="admin-view import-view">
+            <div className="workspace-intro">
+              <div><h2>POS imports</h2><p>Upload the latest POS export, inspect every change, then apply it only when the complete preview looks right.</p></div>
+              <span className="helper-chip">Preview every change · apply once</span>
+            </div>
+            <section className="import-workbench pos-import-workbench">
+              <div className="import-card-heading"><p className="eyebrow">WEEKLY INVENTORY</p><h3>Upload and preview</h3><p>The POS filename is reference only. The file content is compared with your current catalogue by immutable POS Code.</p></div>
+              <label className="import-file"><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose latest POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input type="file" accept=".xlsx,.xls" onChange={chooseImport} /></label>
+              <button type="button" className="primary-action" onClick={async () => { if (!importFile || !importBase64) return; setPreview(await previewImport.mutateAsync({ filename: importFile.name, base64: importBase64 })); }} disabled={!importBase64 || previewImport.isPending}>{previewImport.isPending ? "Preparing complete preview…" : "Preview all POS changes"}</button>
+              {previewImport.error && <p className="form-error">{previewImport.error.message}</p>}
+              {preview && <section className="preview-card import-detail-card">
+                <div className="import-summary"><span><b>{preview.summary.rows}</b> POS rows</span><span><b>{preview.summary.newProducts}</b> new items</span><span><b>{preview.summary.newVariants}</b> new colors or sizes</span><span><b>{preview.summary.updatedVariants}</b> price or quantity updates</span><span><b>{preview.summary.missingVariants}</b> POS rows not seen</span></div>
+                <p>{preview.alreadyApplied ? "This exact POS file was already applied. Upload a newer export when it is available." : preview.validation.invalidRows.length ? (preview.validation.invalidRows.length + " invalid row(s) must be corrected before this import can be applied.") : "Preview only — no catalogue changes have been made. Review every row below before applying."}</p>
+                {!preview.alreadyApplied && <div className="import-change-list" aria-label="All POS changes before confirmation">
+                  {preview.changes.length ? preview.changes.map((change: ImportChangeView, index: number) => <article className={"import-change-row is-" + change.type} key={change.type + "-" + change.code + "-" + (change.posCode ?? index)}><div><p className="eyebrow">{importChangeTitle(change)}</p><h4>{change.code}</h4><p>{importChangeDescription(change)}</p></div></article>) : <p className="empty-workspace">No new, changed, or not-seen items were found in this file.</p>}
+                </div>}
+                <div className="form-actions"><button type="button" className="secondary-action" onClick={() => importFile && applyImport.mutate({ importId: preview.importId, filename: importFile.name, base64: importBase64 })} disabled={applyImport.isPending || preview.validation.invalidRows.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : applyImport.isPending ? "Applying import…" : "Confirm and apply this import"}</button>{applyImport.error && <p className="form-error">{applyImport.error.message}</p>}</div>
+              </section>}
+            </section>
+            <section className="history-card import-history-card">
+              <div><p className="eyebrow">IMPORT HISTORY</p><h3>Open an import to see every recorded change</h3><p>New imports record every new item, new color or size, price or quantity update, and POS row not seen in that file.</p></div>
+              {history.data?.length ? <div className="import-history-layout">
+                <section className="import-history-list" aria-label="POS import history">{history.data.map(item => <button type="button" key={item.id} className={item.id === selectedImportId ? "is-selected" : ""} onClick={() => setSelectedImportId(item.id)}><span><b>{item.originalFilename}</b><small>{new Date(item.createdAt).toLocaleString()} · {item.parsedRows} POS row{item.parsedRows === 1 ? "" : "s"}</small></span><strong>{item.status}</strong></button>)}</section>
+                <section className="import-history-detail">{importDetails.isLoading ? <div className="empty-workspace">Loading this import’s changes…</div> : importDetails.error ? <p className="form-error">{importDetails.error.message}</p> : importDetails.data ? <><div className="import-detail-heading"><div><p className="eyebrow">SELECTED IMPORT</p><h3>{importDetails.data.originalFilename}</h3><p>{new Date(importDetails.data.createdAt).toLocaleString()} · {importDetails.data.changes.length} recorded change{importDetails.data.changes.length === 1 ? "" : "s"}</p></div><span>{importDetails.data.status}</span></div><div className="import-change-list">{importDetails.data.changes.length ? importDetails.data.changes.map(change => <article className={"import-change-row is-" + change.type} key={change.id}><div><p className="eyebrow">{importChangeTitle(change)}</p><h4>{change.code}</h4><p>{importChangeDescription(change)}</p></div></article>) : <p className="empty-workspace">No detailed change rows were recorded for this older import.</p>}</div></> : <div className="empty-workspace">Choose an import to see its changes.</div>}</section>
+              </div> : <p className="empty-media">No import history yet.</p>}
+            </section>
+          </section>
+        )}
 
         {workspace === "settings" && <section className="admin-view settings-view"><div className="workspace-intro"><div><h2>Security</h2><p>Update the shared admin password when store staff or access requirements change.</p></div><span className="helper-chip">Password-protected</span></div><section className="security-card"><div><p className="eyebrow">ADMIN PASSWORD</p><h3>Change workspace password</h3><p>The active session will be renewed after a successful update.</p></div><form onSubmit={async event => { event.preventDefault(); await changePassword.mutateAsync({ currentPassword, newPassword }); setCurrentPassword(""); setNewPassword(""); }}><label>Current password<input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} autoComplete="current-password" /></label><label>New password<input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} minLength={4} autoComplete="new-password" /></label><button type="submit" className="primary-action" disabled={changePassword.isPending}>{changePassword.isPending ? "Updating…" : "Update password"}</button>{changePassword.error && <p className="form-error">{changePassword.error.message}</p>}</form></section></section>}
       </main>

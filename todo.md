@@ -178,3 +178,7 @@
 - [x] Add a secure archive-content reuse action that copies selected website-managed content from an archived model to a new POS-imported model without changing either immutable POS Code, and without duplicating Cloudinary assets.
 - [x] Extend the unified admin Import, Catalogue, and Review queue interfaces for lifecycle visibility, safe explicit archival, import warnings, and content reuse.
 - [x] Add regression tests for snapshot idempotency, no-auto-delete behavior, and lifecycle visibility; validate focused tests, TypeScript, build, and whitespace checks. The full suite remains locally environment-gated by unavailable Supabase/session variables.
+- [x] Remove the standalone Review queue navigation entry, server procedures, and review-decision process; route its legacy URL and query bookmark into POS Imports.
+- [x] Make Import history selectable and show all recorded new, changed, and not-seen POS rows for the selected applied import.
+- [x] Expand pre-confirmation POS previews to list every new, changed, and not-seen POS row before staff can apply the import.
+- [x] Add regression coverage and validate the unified POS Imports workflow, including preserved legacy import routing; 17 focused tests, TypeScript validation, production build, and whitespace checks passed. The full suite remains locally environment-gated by unavailable Supabase/session variables.
