@@ -45,9 +45,9 @@ describe("cleaned-code admin and color media workflow", () => {
   });
 
   it("records all POS changes in selectable import history and shows every preview row before confirmation", () => {
-    expect(router).toContain('change_type: "stock_price_update"');
-    expect(router).toContain('const changeType = newProductCodes.has(item.cleanedCode) && !recordedNewProduct.has(item.cleanedCode) ? "new_product" : "new_variant"');
-    expect(router).toContain('change_type: "missing_from_import"');
+    expect(router).toContain('"rpc/apply_pos_import"');
+    expect(router).toContain("p_import_id: input.importId");
+    expect(router).toContain("p_items: parsed.items");
     expect(router).toContain("importDetails:");
     expect(router).not.toContain("groupReviewChangesByImport");
     expect(router).not.toContain("reviewQueue:");
