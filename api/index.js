@@ -1227,7 +1227,10 @@ function importDetailChange(row) {
   return { id: row.id, type, code: after.code ?? before.code ?? "Unknown item", posCode: after.posCode ?? before.posCode ?? row.pos_code, color: after.color ?? before.color ?? null, previousColor: after.previousColor ?? before.previousColor ?? null, size: after.size ?? before.size ?? null, previousSize: after.previousSize ?? before.previousSize ?? null, colorChanged: Boolean(after.colorChanged), sizeChanged: Boolean(after.sizeChanged), priceChanged: Boolean(after.priceChanged), stockChanged: Boolean(after.stockChanged), previousPrice: after.previousPrice ?? before.previousPrice ?? null, price: after.price ?? null, previousStock: after.previousStock ?? before.previousStock ?? null, stock: after.stock ?? null, missingPosCodes: after.missingPosCodes ?? [] };
 }
 function reviewableImportChanges(changes) {
-  return changes.filter((change) => change.type !== "missing");
+  return changes.filter((change) => change.type !== "missing" && (change.type !== "updated" || change.priceChanged || change.stockChanged));
+}
+function previewVariantIdentity(cleanedCode, colorKey, size) {
+  return `${cleanedCode}\0${colorKey}\0${size ?? ""}`;
 }
 function groupImportChanges(changes) {
   const groups = /* @__PURE__ */ new Map();
@@ -1238,14 +1241,21 @@ async function createPreview(input) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
   if (parsed.validation.duplicatePosCodes.length) throw new TRPCError4({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
   const [existingVariants, existingProducts, existingColors, appliedImports] = await Promise.all([supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest("products?select=id,cleaned_code,slug,category_source"), supabaseRequest("colors?select=id,normalized_key,english_name"), supabaseRequest(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&limit=1`)]);
-  const variantsByCode = new Map(existingVariants.map((row) => [row.pos_code, row]));
   const productsByCode = new Set(existingProducts.map((row) => row.cleaned_code));
+  const productsById = new Map(existingProducts.map((row) => [row.id, row]));
   const colorsById = new Map(existingColors.map((row) => [row.id, row]));
+  const variantsByIdentity = /* @__PURE__ */ new Map();
+  for (const row of existingVariants) {
+    const product = productsById.get(row.product_id);
+    const color = row.color_id ? colorsById.get(row.color_id) : void 0;
+    if (!product || !color) continue;
+    variantsByIdentity.set(previewVariantIdentity(product.cleaned_code, color.normalized_key, row.size), row);
+  }
   const previewed = /* @__PURE__ */ new Set();
   const incoming = new Set(parsed.items.map((item) => item.posCode));
   const changes = [];
   for (const item of parsed.items) {
-    const current = variantsByCode.get(item.posCode);
+    const current = variantsByIdentity.get(previewVariantIdentity(item.cleanedCode, item.colorKey, item.size));
     if (!current) {
       const type = !productsByCode.has(item.cleanedCode) && !previewed.has(item.cleanedCode) ? "new_product" : "new_variant";
       if (type === "new_product") previewed.add(item.cleanedCode);
@@ -1254,10 +1264,7 @@ async function createPreview(input) {
     }
     const priceChanged = Number(current.price) !== item.price;
     const stockChanged = current.stock_quantity !== item.stockQuantity;
-    const previousColor = current.color_id ? colorsById.get(current.color_id)?.english_name ?? null : null;
-    const colorChanged = previousColor !== item.colorEnglish;
-    const sizeChanged = current.size !== item.size;
-    if (priceChanged || stockChanged || colorChanged || sizeChanged) changes.push({ type: "updated", code: item.cleanedCode, posCode: item.posCode, color: item.colorEnglish, previousColor, size: item.size, previousSize: current.size, colorChanged, sizeChanged, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity, missingPosCodes: [] });
+    if (priceChanged || stockChanged) changes.push({ type: "updated", code: item.cleanedCode, posCode: null, color: item.colorEnglish, previousColor: item.colorEnglish, size: item.size, previousSize: item.size, colorChanged: false, sizeChanged: false, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity, missingPosCodes: [] });
   }
   const missingVariants = existingVariants.filter((row) => !incoming.has(row.pos_code)).length;
   const summary = { rows: parsed.items.length, newProducts: changes.filter((change) => change.type === "new_product").length, newVariants: changes.filter((change) => change.type === "new_variant").length, updatedVariants: changes.filter((change) => change.type === "updated").length, missingVariants, invalidRows: parsed.validation.invalidRows.length };

@@ -203,3 +203,7 @@
 - [x] Remove unchanged “Not seen in this file” rows from the staff-facing POS preview and import-history review views while retaining non-destructive internal missing-item safety data for rollback.
 - [x] Add preview-filtering regression coverage, validate the refined workflow, and deliver it through a pull request. Focused POS tests, TypeScript, production build, whitespace, and credential checks passed; the full suite remains locally environment-gated by unavailable Supabase, Cloudinary, and session credentials.
 - [x] After implementation, reset production POS-derived data while preserving categories, settings, access configuration, and remote Cloudinary assets so the owner can test a new import from a clean state. Verified zero products, variants, colors, media metadata, imports, and import-change rows remain.
+
+- [x] Compare existing and incoming preview rows by cleaned code plus parsed POS Attribute color and size, rather than displaying or relying on raw POS Code for staff-facing change review.
+- [x] Show matched dataset changes as old-versus-new price and quantity values only; hide raw POS Code, and do not create a review row when those values are unchanged.
+- [x] Add regressions for a changed raw POS Code with the same cleaned-code and Attribute identity, then validate and update pull request #4. Focused POS tests, TypeScript, production build, whitespace, and credential checks passed; the full suite remains locally environment-gated by unavailable Supabase, Cloudinary, and session credentials.

@@ -61,6 +61,8 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("The import server returned an interrupted response before confirming completion.");
     expect(admin).toContain("Price ${change.previousPrice ?? \"—\"} → ${change.price ?? \"—\"}");
     expect(admin).toContain("Quantity ${change.previousStock ?? \"—\"} → ${change.stock ?? \"—\"}");
+    expect(admin).toContain("Attribute ${change.color}");
+    expect(admin).not.toContain("POS ${change.posCode");
     expect(admin).not.toContain("POS rows not seen");
     expect(router).toContain("removeImport:");
     expect(admin).not.toContain("Review queue");
