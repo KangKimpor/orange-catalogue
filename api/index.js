@@ -713,8 +713,8 @@ var systemRouter = router({
 });
 
 // server/storeRouter.ts
-import crypto5 from "node:crypto";
-import { TRPCError as TRPCError5 } from "@trpc/server";
+import crypto4 from "node:crypto";
+import { TRPCError as TRPCError4 } from "@trpc/server";
 import { SignJWT as SignJWT2, jwtVerify as jwtVerify2 } from "jose";
 import { parse as parseCookie } from "cookie";
 import { z as z2 } from "zod";
@@ -1116,15 +1116,6 @@ function assertOrangeProductPublicId(publicId) {
 function cloudinaryDestroySignature(publicId, timestamp2, apiSecret) {
   return crypto3.createHash("sha1").update(`public_id=${publicId}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
 }
-async function cloudinaryProductImageExists(publicId, config, request = fetch) {
-  assertOrangeProductPublicId(publicId);
-  const authorization = Buffer.from(`${config.apiKey}:${config.apiSecret}`).toString("base64");
-  const encodedPublicId = publicId.split("/").map(encodeURIComponent).join("/");
-  const response = await request(`https://api.cloudinary.com/v1_1/${config.cloudName}/resources/image/upload/${encodedPublicId}`, {
-    headers: { Authorization: `Basic ${authorization}` }
-  });
-  return response.ok;
-}
 async function destroyCloudinaryProductImage(publicId, config, request = fetch) {
   assertOrangeProductPublicId(publicId);
   const timestamp2 = Math.floor(Date.now() / 1e3);
@@ -1146,227 +1137,6 @@ async function destroyCloudinaryProductImage(publicId, config, request = fetch) 
   throw new Error("Cloudinary could not confirm photo removal.");
 }
 
-// server/catalogueWorkbookImport.ts
-import crypto4 from "node:crypto";
-import { TRPCError as TRPCError4 } from "@trpc/server";
-
-// shared/asyncPool.ts
-async function mapWithConcurrency(items, limit, mapper) {
-  const results = new Array(items.length);
-  let nextIndex = 0;
-  const workers = Array.from({ length: Math.min(Math.max(1, limit), items.length) }, async () => {
-    while (nextIndex < items.length) {
-      const index2 = nextIndex;
-      nextIndex += 1;
-      results[index2] = await mapper(items[index2], index2);
-    }
-  });
-  await Promise.all(workers);
-  return results;
-}
-
-// server/catalogueWorkbookImport.ts
-function normalize(value) {
-  return value.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase();
-}
-function safeFolder(value) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "item";
-}
-function signedCloudinaryParams(params, apiSecret) {
-  const payload = Object.entries(params).sort(([left], [right]) => left.localeCompare(right)).map(([key, value]) => `${key}=${value}`).join("&");
-  return crypto4.createHash("sha1").update(`${payload}${apiSecret}`).digest("hex");
-}
-function workbookPreviewFrom(value) {
-  if (!value || typeof value !== "object") return null;
-  const candidate = value;
-  if (candidate.kind !== "catalogue_workbook" || !Array.isArray(candidate.uploads) || !Array.isArray(candidate.names)) return null;
-  return candidate;
-}
-function expectedPublicId(target) {
-  const folder = `orange/products/${safeFolder(target.cleanedCode)}`;
-  const color = safeFolder(target.colorTag);
-  return { folder, publicId: `color-${color}-${target.contentHash.slice(0, 24)}` };
-}
-function publicIdFor(target) {
-  const { folder, publicId } = expectedPublicId(target);
-  return `${folder}/${publicId}`;
-}
-async function catalogueLookup() {
-  const [products2, variants2, colors2, categories2] = await Promise.all([
-    supabaseRequest("products?select=id,cleaned_code,display_name,category_id"),
-    supabaseRequest("variants?select=id,product_id,color_id"),
-    supabaseRequest("colors?select=id,english_name,khmer_name,normalized_key"),
-    supabaseRequest("categories?select=id,slug")
-  ]);
-  return { products: products2, variants: variants2, colors: colors2, categories: categories2 };
-}
-async function previewCatalogueWorkbookImport(input) {
-  const { products: products2, variants: variants2, colors: colors2, categories: categories2 } = await catalogueLookup();
-  const productsByCode = new Map(products2.map((product) => [normalize(product.cleaned_code), product]));
-  const colorsById = new Map(colors2.map((color) => [color.id, color]));
-  const categoryById = new Map(categories2.map((category) => [category.id, category]));
-  const variantsByProduct = /* @__PURE__ */ new Map();
-  for (const variant of variants2) variantsByProduct.set(variant.product_id, [...variantsByProduct.get(variant.product_id) ?? [], variant]);
-  const errors = [];
-  const uploads = [];
-  const namesByProduct = /* @__PURE__ */ new Map();
-  const photoKeys = /* @__PURE__ */ new Set();
-  const photoIdentities = /* @__PURE__ */ new Set();
-  for (const row of input.rows) {
-    const product = productsByCode.get(normalize(row.cleanedCode));
-    if (!product) {
-      errors.push(`Excel row ${row.excelRow}: \u201C${row.cleanedCode}\u201D is not an existing imported item. Import the current POS file first, then use its cleaned code.`);
-      continue;
-    }
-    if (row.websiteName) {
-      const prior = namesByProduct.get(product.id);
-      if (prior && prior.websiteName !== row.websiteName) errors.push(`Excel row ${row.excelRow}: this item has a different website name from row ${prior.excelRow}. Keep one consistent name per cleaned code.`);
-      else namesByProduct.set(product.id, { productId: product.id, excelRow: row.excelRow, websiteName: row.websiteName });
-    }
-    if (!row.photoKeys.length) continue;
-    const wantedColor = normalize(row.attributeColor ?? "");
-    const colorVariant = (variantsByProduct.get(product.id) ?? []).find((variant) => {
-      const color2 = variant.color_id ? colorsById.get(variant.color_id) : void 0;
-      return Boolean(color2 && (normalize(color2.english_name) === wantedColor || normalize(color2.khmer_name ?? "") === wantedColor));
-    });
-    if (!colorVariant) {
-      errors.push(`Excel row ${row.excelRow}: \u201C${row.attributeColor ?? ""}\u201D is not a POS Attribute colour for ${product.cleaned_code}. Copy the exact colour from the item\u2019s colour list.`);
-      continue;
-    }
-    const color = colorVariant.color_id ? colorsById.get(colorVariant.color_id) : void 0;
-    if (!color) {
-      errors.push(`Excel row ${row.excelRow}: the selected item colour is not available for photo association.`);
-      continue;
-    }
-    const categorySlug = product.category_id ? categoryById.get(product.category_id)?.slug : void 0;
-    if (!categorySlug) {
-      errors.push(`Excel row ${row.excelRow}: ${product.cleaned_code} has no assigned catalogue category yet. Assign its category before uploading photos.`);
-      continue;
-    }
-    for (const photoKey of row.photoKeys) {
-      if (photoKeys.has(photoKey)) {
-        errors.push(`Excel row ${row.excelRow}: the same embedded photo was listed more than once.`);
-        continue;
-      }
-      const contentHash = row.photoHashes[photoKey];
-      if (!/^[a-f0-9]{64}$/.test(contentHash ?? "")) {
-        errors.push(`Excel row ${row.excelRow}: the embedded photo could not be verified. Reinsert the original photo and try again.`);
-        continue;
-      }
-      const identity = `${colorVariant.id}:${contentHash}`;
-      if (photoIdentities.has(identity)) {
-        errors.push(`Excel row ${row.excelRow}: this exact photo is already assigned to the same product colour in the workbook.`);
-        continue;
-      }
-      photoKeys.add(photoKey);
-      photoIdentities.add(identity);
-      uploads.push({ photoKey, excelRow: row.excelRow, productId: product.id, cleanedCode: product.cleaned_code, displayName: product.display_name, categorySlug, variantId: colorVariant.id, colorTag: color.english_name, contentHash, alreadyRegistered: false });
-    }
-  }
-  if (errors.length) return { importId: null, summary: { rows: input.rows.length, names: namesByProduct.size, photos: uploads.length, newPhotos: 0, reusedPhotos: 0, errors: errors.length }, errors, digest: input.digest };
-  const existingMedia = await supabaseRequest("product_media?select=id,product_id,variant_id,cloudinary_public_id");
-  const existingPublicIds = new Set(existingMedia.map((media) => media.cloudinary_public_id));
-  for (const target of uploads) target.alreadyRegistered = existingPublicIds.has(publicIdFor(target));
-  const reusedPhotos = uploads.filter((upload) => upload.alreadyRegistered).length;
-  const summary = { rows: input.rows.length, names: namesByProduct.size, photos: uploads.length, newPhotos: uploads.length - reusedPhotos, reusedPhotos, errors: 0 };
-  const storedPreview = { kind: "catalogue_workbook", uploads, names: Array.from(namesByProduct.values()) };
-  const [created] = await supabaseRequest("imports", {
-    method: "POST",
-    body: JSON.stringify({ original_filename: input.filename, digest: input.digest, status: "preview", parsed_rows: input.rows.length, summary_json: summary, validation_json: storedPreview })
-  });
-  return { importId: created.id, summary, errors, digest: input.digest };
-}
-async function loadPreview(importId, digest) {
-  const rows = await supabaseRequest(`imports?select=id,status,digest,validation_json&id=eq.${importId}&limit=1`);
-  const stored = rows[0];
-  if (!stored || stored.status !== "preview" || stored.digest !== digest) throw new TRPCError4({ code: "NOT_FOUND", message: "The workbook preview is no longer available. Create a new preview." });
-  const preview = workbookPreviewFrom(stored.validation_json);
-  if (!preview) throw new TRPCError4({ code: "BAD_REQUEST", message: "This preview was not created from an Orange Catalogue workbook." });
-  return { stored, preview };
-}
-async function prepareCatalogueWorkbookUploads(input) {
-  const { preview } = await loadPreview(input.importId, input.digest);
-  const pending = preview.uploads.filter((upload) => !upload.alreadyRegistered);
-  if (!pending.length) return { uploads: [], reusedPhotoKeys: preview.uploads.map((upload) => upload.photoKey) };
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
-  if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
-  const timestamp2 = Math.floor(Date.now() / 1e3);
-  const uploads = pending.map((target) => {
-    const { folder, publicId } = expectedPublicId(target);
-    const tags = `orange,product:${safeFolder(target.cleanedCode)},category:${target.categorySlug},color:${target.colorTag}`;
-    const signature = signedCloudinaryParams({ folder, public_id: publicId, tags, timestamp: timestamp2 }, apiSecret);
-    return { photoKey: target.photoKey, uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp: timestamp2, folder, publicId, tags, signature };
-  });
-  return { uploads, reusedPhotoKeys: preview.uploads.filter((upload) => upload.alreadyRegistered).map((upload) => upload.photoKey) };
-}
-async function retireReplacedMedia(currentMedia, preview, cloudConfig, replaceExistingMedia) {
-  if (!replaceExistingMedia || !preview.uploads.length) return 0;
-  const importedVariants = new Set(preview.uploads.map((upload) => upload.variantId));
-  const importedIds = new Set(preview.uploads.map((upload) => publicIdFor(upload)));
-  const stale = currentMedia.filter((media) => media.variant_id !== null && importedVariants.has(media.variant_id) && !importedIds.has(media.cloudinary_public_id));
-  if (!stale.length) return 0;
-  await mapWithConcurrency(stale, 4, (media) => supabaseRequest(`product_media?${supabaseEq("id", media.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } }));
-  const retainedIds = /* @__PURE__ */ new Set([...currentMedia.filter((media) => !stale.some((item) => item.id === media.id)).map((media) => media.cloudinary_public_id), ...preview.uploads.map((upload) => publicIdFor(upload))]);
-  const retiredIds = Array.from(new Set(stale.map((media) => media.cloudinary_public_id).filter((publicId) => !retainedIds.has(publicId))));
-  await mapWithConcurrency(retiredIds, 3, async (publicId) => {
-    try {
-      await destroyCloudinaryProductImage(publicId, cloudConfig);
-    } catch (error) {
-      console.warn(`Could not remove retired Cloudinary photo ${publicId}`, error);
-    }
-  });
-  return stale.length;
-}
-async function applyCatalogueWorkbookImport(input) {
-  const { preview } = await loadPreview(input.importId, input.digest);
-  const pendingUploads = preview.uploads.filter((upload) => !upload.alreadyRegistered);
-  const expectedKeys = new Set(pendingUploads.map((upload) => upload.photoKey));
-  const suppliedKeys = new Set(input.uploadedPhotoKeys);
-  if (suppliedKeys.size !== input.uploadedPhotoKeys.length || suppliedKeys.size !== expectedKeys.size || Array.from(expectedKeys).some((key) => !suppliedKeys.has(key))) {
-    throw new TRPCError4({ code: "BAD_REQUEST", message: "Every new embedded photo must finish uploading before the workbook can be applied." });
-  }
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
-  if ((pendingUploads.length || input.replaceExistingMedia) && (!cloudName || !apiKey || !apiSecret)) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
-  if (pendingUploads.length) {
-    await mapWithConcurrency(pendingUploads, 4, async (upload) => {
-      const exists = await cloudinaryProductImageExists(publicIdFor(upload), { cloudName, apiKey, apiSecret });
-      if (!exists) throw new TRPCError4({ code: "BAD_REQUEST", message: `The photo from Excel row ${upload.excelRow} did not finish uploading. Upload only the failed photos and apply again.` });
-    });
-  }
-  const currentMedia = await supabaseRequest("product_media?select=id,product_id,variant_id,cloudinary_public_id,is_primary");
-  const productHasMedia = new Set(currentMedia.map((media) => media.product_id));
-  await mapWithConcurrency(preview.names, 5, async (name) => supabaseRequest(`products?${supabaseEq("id", name.productId)}`, { method: "PATCH", body: JSON.stringify({ display_name: name.websiteName }) }));
-  let photosRegistered = 0;
-  for (const upload of preview.uploads) {
-    if (upload.alreadyRegistered) continue;
-    const cloudinaryPublicId = publicIdFor(upload);
-    const isPrimary = !productHasMedia.has(upload.productId);
-    if (isPrimary) await supabaseRequest(`product_media?${supabaseEq("product_id", upload.productId)}`, { method: "PATCH", body: JSON.stringify({ is_primary: false }) });
-    await supabaseRequest("product_media?on_conflict=cloudinary_public_id", {
-      method: "POST",
-      headers: { Prefer: "resolution=ignore-duplicates,return=minimal" },
-      body: JSON.stringify({ product_id: upload.productId, variant_id: upload.variantId, cloudinary_public_id: cloudinaryPublicId, optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${cloudinaryPublicId}`, alt_text: `${upload.displayName ?? upload.cleanedCode} \u2014 ${upload.colorTag}`, color_tag: upload.colorTag, is_primary: isPrimary })
-    });
-    productHasMedia.add(upload.productId);
-    photosRegistered += 1;
-  }
-  const photosRetired = await retireReplacedMedia(currentMedia, preview, { cloudName, apiKey, apiSecret }, Boolean(input.replaceExistingMedia));
-  if (input.replaceExistingMedia && preview.uploads.length) {
-    const refreshedMedia = await supabaseRequest("product_media?select=id,product_id,variant_id,cloudinary_public_id,is_primary");
-    const touchedProducts = new Set(preview.uploads.map((upload) => upload.productId));
-    for (const productId of Array.from(touchedProducts)) {
-      const productMedia2 = refreshedMedia.filter((media) => media.product_id === productId);
-      if (productMedia2.length && !productMedia2.some((media) => media.is_primary)) await supabaseRequest(`product_media?${supabaseEq("id", productMedia2[0].id)}`, { method: "PATCH", body: JSON.stringify({ is_primary: true }) });
-    }
-  }
-  await supabaseRequest(`imports?${supabaseEq("id", input.importId)}`, { method: "PATCH", body: JSON.stringify({ status: "applied", applied_at: (/* @__PURE__ */ new Date()).toISOString(), summary_json: { rows: preview.names.length + preview.uploads.length, namesUpdated: preview.names.length, photosRegistered, photosReused: preview.uploads.filter((upload) => upload.alreadyRegistered).length, photosRetired, source: "catalogue_workbook" } }) });
-  return { namesUpdated: preview.names.length, photosRegistered, photosReused: preview.uploads.filter((upload) => upload.alreadyRegistered).length, photosRetired };
-}
-
 // server/storeRouter.ts
 var ADMIN_COOKIE = "orange_admin_session";
 var ADMIN_PASSWORD_KEY = "admin_password_hash";
@@ -1378,23 +1148,23 @@ var adminPasswordChangeInput = z2.object({
 });
 function tokenKey() {
   const secret = process.env.JWT_SECRET;
-  if (!secret) throw new TRPCError5({ code: "INTERNAL_SERVER_ERROR", message: "The secure session key is unavailable." });
+  if (!secret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "The secure session key is unavailable." });
   return new TextEncoder().encode(secret);
 }
 function hashPassword(password) {
-  const salt = crypto5.randomBytes(16).toString("hex");
-  return `${salt}:${crypto5.scryptSync(password, salt, 64).toString("hex")}`;
+  const salt = crypto4.randomBytes(16).toString("hex");
+  return `${salt}:${crypto4.scryptSync(password, salt, 64).toString("hex")}`;
 }
 function passwordMatches(password, encoded) {
   const [salt, expected] = encoded.split(":");
   if (!salt || !expected) return false;
-  const actual = crypto5.scryptSync(password, salt, 64).toString("hex");
-  return actual.length === expected.length && crypto5.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+  const actual = crypto4.scryptSync(password, salt, 64).toString("hex");
+  return actual.length === expected.length && crypto4.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
 }
 function safeTextEqual(left, right) {
   const a = Buffer.from(left);
   const b = Buffer.from(right);
-  return a.length === b.length && crypto5.timingSafeEqual(a, b);
+  return a.length === b.length && crypto4.timingSafeEqual(a, b);
 }
 async function readStoredPasswordHash() {
   const rows = await supabaseRequest(`store_settings?select=value&key=eq.${ADMIN_PASSWORD_KEY}&limit=1`);
@@ -1417,7 +1187,7 @@ async function hasAdminSession(ctx) {
   }
 }
 async function requireAdmin(ctx) {
-  if (!await hasAdminSession(ctx)) throw new TRPCError5({ code: "UNAUTHORIZED", message: "Admin access is required." });
+  if (!await hasAdminSession(ctx)) throw new TRPCError4({ code: "UNAUTHORIZED", message: "Admin access is required." });
 }
 var publicAvailability = (quantity) => quantity > 0;
 function testOnlyAdminPassword() {
@@ -1447,22 +1217,9 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
   };
 }
 var importInput = z2.object({ filename: z2.string().min(1).max(255), base64: z2.string().min(16).max(MAX_POS_IMPORT_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/, "The POS workbook payload is not valid base64.") });
-var catalogueWorkbookRowInput = z2.object({
-  excelRow: z2.number().int().positive(),
-  cleanedCode: z2.string().min(1).max(255),
-  websiteName: z2.string().min(1).max(255).nullable(),
-  attributeColor: z2.string().min(1).max(255).nullable(),
-  photoKeys: z2.array(z2.string().regex(/^row-\d+-photo-\d+$/)).max(10),
-  photoHashes: z2.record(z2.string().regex(/^row-\d+-photo-\d+$/), z2.string().regex(/^[a-f0-9]{64}$/))
-});
-var catalogueWorkbookImportInput = z2.object({
-  filename: z2.string().min(1).max(255),
-  digest: z2.string().regex(/^[a-f0-9]{64}$/),
-  rows: z2.array(catalogueWorkbookRowInput).min(1).max(1e3)
-});
 async function createPreview(input) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
-  if (parsed.validation.duplicatePosCodes.length) throw new TRPCError5({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
+  if (parsed.validation.duplicatePosCodes.length) throw new TRPCError4({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
   const [existingVariants, existingProducts] = await Promise.all([supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest("products?select=id,cleaned_code,slug,category_source")]);
   const variantsByCode = new Map(existingVariants.map((row) => [row.pos_code, row]));
   const productsByCode = new Set(existingProducts.map((row) => row.cleaned_code));
@@ -1488,11 +1245,11 @@ async function createPreview(input) {
 }
 async function applyImport(input) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
-  if (parsed.validation.invalidRows.length || parsed.validation.duplicatePosCodes.length) throw new TRPCError5({ code: "BAD_REQUEST", message: "Resolve invalid or duplicate POS rows before applying the import." });
+  if (parsed.validation.invalidRows.length || parsed.validation.duplicatePosCodes.length) throw new TRPCError4({ code: "BAD_REQUEST", message: "Resolve invalid or duplicate POS rows before applying the import." });
   const imports2 = await supabaseRequest(`imports?select=id,status,digest&id=eq.${input.importId}&limit=1`);
   const importRow = imports2[0];
-  if (!importRow || importRow.status !== "preview") throw new TRPCError5({ code: "NOT_FOUND", message: "The requested import preview is unavailable." });
-  if (importRow.digest !== parsed.digest) throw new TRPCError5({ code: "BAD_REQUEST", message: "The file differs from the saved import preview. Create a new preview." });
+  if (!importRow || importRow.status !== "preview") throw new TRPCError4({ code: "NOT_FOUND", message: "The requested import preview is unavailable." });
+  if (importRow.digest !== parsed.digest) throw new TRPCError4({ code: "BAD_REQUEST", message: "The file differs from the saved import preview. Create a new preview." });
   const [categoryRows, productRows, variantRows, colorRows] = await Promise.all([supabaseRequest("categories?select=id,slug"), supabaseRequest("products?select=id,cleaned_code,slug,category_source"), supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest("colors?select=id,normalized_key")]);
   const categories2 = new Map(categoryRows.map((row) => [row.slug, row]));
   const products2 = new Map(productRows.map((row) => [row.cleaned_code, row]));
@@ -1508,7 +1265,7 @@ async function applyImport(input) {
     let product = products2.get(item.cleanedCode);
     if (!product) {
       let slug = item.slug;
-      if (usedSlugs.has(slug)) slug = `${slug}-${crypto5.createHash("sha1").update(item.cleanedCode).digest("hex").slice(0, 6)}`;
+      if (usedSlugs.has(slug)) slug = `${slug}-${crypto4.createHash("sha1").update(item.cleanedCode).digest("hex").slice(0, 6)}`;
       [product] = await supabaseRequest("products", { method: "POST", body: JSON.stringify({ slug, cleaned_code: item.cleanedCode, category_id: category?.id ?? null, category_source: item.categorySlug ? "rule" : "unassigned", review_status: item.categorySlug ? "clean" : "needs_review" }) });
       products2.set(item.cleanedCode, product);
       usedSlugs.add(slug);
@@ -1538,7 +1295,7 @@ async function applyImport(input) {
 var storeRouter = router({
   catalogue: router({ list: publicProcedure.query(() => fetchStorefrontCards()), getBySlug: publicProcedure.input(z2.object({ slug: z2.string().min(1) })).query(async ({ input }) => {
     const product = await fetchStorefrontProduct(input.slug);
-    if (!product) throw new TRPCError5({ code: "NOT_FOUND", message: "Product not found." });
+    if (!product) throw new TRPCError4({ code: "NOT_FOUND", message: "Product not found." });
     return product;
   }), categories: publicProcedure.query(() => PUBLIC_CATEGORIES), messengerUrl: publicProcedure.input(z2.object({ productCode: z2.string(), color: z2.string(), size: z2.string().nullable().optional() })).query(({ input }) => buildMessengerOrderUrl(input)) }),
   admin: router({
@@ -1547,16 +1304,16 @@ var storeRouter = router({
       const clientKey = adminLoginClientKey(ctx.req.headers);
       const testPassword = testOnlyAdminPassword();
       const preflight = testPassword ? { allowed: true } : await checkAdminLoginRateLimit(clientKey, "check");
-      if (!preflight.allowed) throw new TRPCError5({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
+      if (!preflight.allowed) throw new TRPCError4({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
       const stored = await readStoredPasswordHash();
       const initial = process.env.ADMIN_PASSWORD;
       const valid = testPassword ? safeTextEqual(input.password, testPassword) : stored ? passwordMatches(input.password, stored) : Boolean(initial && safeTextEqual(input.password, initial));
       const result = testPassword ? { allowed: true } : await checkAdminLoginRateLimit(clientKey, valid ? "success" : "failure");
       if (!valid) {
-        if (!result.allowed) throw new TRPCError5({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
-        throw new TRPCError5({ code: "UNAUTHORIZED", message: "Unable to sign in with those credentials." });
+        if (!result.allowed) throw new TRPCError4({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
+        throw new TRPCError4({ code: "UNAUTHORIZED", message: "Unable to sign in with those credentials." });
       }
-      if (!result.allowed) throw new TRPCError5({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
+      if (!result.allowed) throw new TRPCError4({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
       if (!stored && !testPassword) await savePasswordHash(hashPassword(input.password));
       await issueAdminSession(ctx);
       return { success: true };
@@ -1569,7 +1326,7 @@ var storeRouter = router({
       await requireAdmin(ctx);
       const stored = await readStoredPasswordHash();
       const valid = stored ? passwordMatches(input.currentPassword, stored) : input.currentPassword === process.env.ADMIN_PASSWORD;
-      if (!valid) throw new TRPCError5({ code: "UNAUTHORIZED", message: "Current password is incorrect." });
+      if (!valid) throw new TRPCError4({ code: "UNAUTHORIZED", message: "Current password is incorrect." });
       await savePasswordHash(hashPassword(input.newPassword));
       await issueAdminSession(ctx);
       return { success: true };
@@ -1591,18 +1348,6 @@ var storeRouter = router({
       await requireAdmin(ctx);
       return applyImport(input);
     }),
-    previewCatalogueWorkbook: publicProcedure.input(catalogueWorkbookImportInput).mutation(async ({ ctx, input }) => {
-      await requireAdmin(ctx);
-      return previewCatalogueWorkbookImport(input);
-    }),
-    prepareCatalogueWorkbookUploads: publicProcedure.input(z2.object({ importId: z2.number().int().positive(), digest: z2.string().regex(/^[a-f0-9]{64}$/) })).mutation(async ({ ctx, input }) => {
-      await requireAdmin(ctx);
-      return prepareCatalogueWorkbookUploads(input);
-    }),
-    applyCatalogueWorkbook: publicProcedure.input(z2.object({ importId: z2.number().int().positive(), digest: z2.string().regex(/^[a-f0-9]{64}$/), uploadedPhotoKeys: z2.array(z2.string().regex(/^row-\d+-photo-\d+$/)).max(600), replaceExistingMedia: z2.boolean().optional() })).mutation(async ({ ctx, input }) => {
-      await requireAdmin(ctx);
-      return applyCatalogueWorkbookImport(input);
-    }),
     importHistory: publicProcedure.query(async ({ ctx }) => {
       await requireAdmin(ctx);
       const rows = await supabaseRequest("imports?select=id,original_filename,status,created_at&order=created_at.asc");
@@ -1623,17 +1368,17 @@ var storeRouter = router({
       const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
       const apiKey = process.env.CLOUDINARY_API_KEY;
       const apiSecret = process.env.CLOUDINARY_API_SECRET;
-      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError5({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
       const normalized = input.productCode.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       const timestamp2 = Math.floor(Date.now() / 1e3);
       const folder = `orange/products/${normalized}`;
       const tags = `orange,product:${normalized},category:${input.categorySlug},color:${input.colorTag}`;
-      const signature = crypto5.createHash("sha1").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
+      const signature = crypto4.createHash("sha1").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
       return { uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp: timestamp2, folder, tags, signature };
     }),
     registerMedia: publicProcedure.input(z2.object({ productId: z2.number().int(), variantId: z2.number().int().nullable().optional(), publicId: z2.string().min(1), secureUrl: z2.string().url(), altText: z2.string().max(255).nullable().optional(), colorTag: z2.string().max(128).nullable().optional(), isPrimary: z2.boolean().default(false) })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
-      if (!input.publicId.startsWith("orange/products/")) throw new TRPCError5({ code: "BAD_REQUEST", message: "The uploaded media is not in an approved Orange product folder." });
+      if (!input.publicId.startsWith("orange/products/")) throw new TRPCError4({ code: "BAD_REQUEST", message: "The uploaded media is not in an approved Orange product folder." });
       const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
       if (input.isPrimary) await supabaseRequest(`product_media?${supabaseEq("product_id", input.productId)}`, { method: "PATCH", body: JSON.stringify({ is_primary: false }) });
       await supabaseRequest("product_media", { method: "POST", body: JSON.stringify({ product_id: input.productId, variant_id: input.variantId ?? null, cloudinary_public_id: input.publicId, optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${input.publicId}`, alt_text: input.altText ?? null, color_tag: input.colorTag ?? null, is_primary: input.isPrimary }) });
@@ -1643,15 +1388,15 @@ var storeRouter = router({
       await requireAdmin(ctx);
       const mediaRows = await supabaseRequest(`product_media?select=id,cloudinary_public_id&${supabaseEq("id", input.mediaId)}&limit=1`);
       const media = mediaRows[0];
-      if (!media) throw new TRPCError5({ code: "NOT_FOUND", message: "The selected photo record was not found." });
+      if (!media) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected photo record was not found." });
       const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
       const apiKey = process.env.CLOUDINARY_API_KEY;
       const apiSecret = process.env.CLOUDINARY_API_SECRET;
-      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError5({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
       try {
         await destroyCloudinaryProductImage(media.cloudinary_public_id, { cloudName, apiKey, apiSecret });
       } catch (error) {
-        throw new TRPCError5({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
+        throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
       }
       await supabaseRequest(`product_media?${supabaseEq("id", media.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
       return { success: true };

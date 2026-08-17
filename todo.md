@@ -142,3 +142,8 @@
 - [x] Add the Supabase performance-advisor foreign-key indexes and retain currently unused indexes for later traffic-based review.
 - [x] Improve workbook imports with preflight batch guidance, bounded concurrent uploads, retry support, stable duplicate detection, and safe photo replacement behavior.
 - [x] Validate performance, media quality, import behavior, responsive layouts, and production build output.
+
+- [ ] Combine the admin Items and Photos tabs into one simple Catalogue workspace while retaining `/admin/items` and `/admin/photos` bookmarked entry points.
+- [ ] Remove the direct catalogue-workbook/template upload workflow from the admin UI and server contract, retaining the preview-first POS inventory import.
+- [ ] Add clear per-step Cloudinary upload status, validation, success confirmation, and actionable failure feedback for color-specific item photos.
+- [ ] Add regression coverage and verify the simplified admin workspace, preserved deep links, responsive layout, and production build before release.
