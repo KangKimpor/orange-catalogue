@@ -189,3 +189,8 @@
 - [x] Add a safe owner-facing removal action for the newest applied POS import only: restore its recorded price and quantity changes, remove only its newly created variants or models when no media is attached, retain external Cloudinary assets, and mark the import as rolled back.
 - [x] Add clear admin confirmation and result feedback for import removal, preserving the full historical change audit and blocking unsafe removals when a later import or media attachment would be affected.
 - [x] Add regression coverage for cleaned-code change grouping and safe newest-import removal, then validate with 22 focused tests, TypeScript, production build, and whitespace checks. The full suite remains locally environment-gated by unavailable Supabase/session variables.
+
+- [ ] Replace serial per-row POS application writes with conflict-safe bulk product, color, and immutable POS-variant operations so a 1,330+ row weekly dataset finishes well inside the Vercel request limit.
+- [ ] Preserve idempotency, manual category ownership, lifecycle/media safety, import-history detail rows, newest-only rollback semantics, and non-destructive missing-snapshot handling in the batch path.
+- [ ] Provide an actionable admin error for a malformed or timed-out import response rather than exposing a raw JSON parse failure.
+- [ ] Add batch-import regression coverage, then validate the full test suite, type checking, production build, whitespace check, and credential scan before opening a pull request.

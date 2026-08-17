@@ -1289,49 +1289,88 @@ async function applyImport(input) {
   const variants2 = new Map(variantRows.map((row) => [row.pos_code, row]));
   const colors2 = new Map(colorRows.map((row) => [row.normalized_key, row]));
   const colorsById = new Map(colorRows.map((row) => [row.id, row]));
-  const usedSlugs = new Set(productRows.map((row) => row.slug));
   const incoming = new Set(parsed.items.map((item) => item.posCode));
-  let newProducts = 0;
+  const itemsByProduct = /* @__PURE__ */ new Map();
+  for (const item of parsed.items) if (!itemsByProduct.has(item.cleanedCode)) itemsByProduct.set(item.cleanedCode, item);
+  const usedSlugs = new Set(productRows.map((row) => row.slug));
+  const newProductCodes = /* @__PURE__ */ new Set();
+  const productInsertRows = Array.from(itemsByProduct.values()).flatMap((item) => {
+    if (products2.has(item.cleanedCode)) return [];
+    newProductCodes.add(item.cleanedCode);
+    let slug = item.slug;
+    if (usedSlugs.has(slug)) slug = `${slug}-${crypto4.createHash("sha1").update(item.cleanedCode).digest("hex").slice(0, 6)}`;
+    usedSlugs.add(slug);
+    const category = item.categorySlug ? categories2.get(item.categorySlug) : void 0;
+    return [{ slug, cleaned_code: item.cleanedCode, category_id: category?.id ?? null, category_source: item.categorySlug ? "rule" : "unassigned", review_status: item.categorySlug ? "clean" : "needs_review" }];
+  });
+  if (productInsertRows.length) {
+    const insertedProducts = await supabaseRequest("products?on_conflict=cleaned_code", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify(productInsertRows)
+    });
+    for (const product of insertedProducts) products2.set(product.cleaned_code, product);
+  }
+  const productUpdateGroups = /* @__PURE__ */ new Map();
+  for (const [cleanedCode, item] of Array.from(itemsByProduct.entries())) {
+    if (newProductCodes.has(cleanedCode)) continue;
+    const product = products2.get(cleanedCode);
+    if (!product) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "A POS product could not be resolved after bulk insertion." });
+    const category = item.categorySlug ? categories2.get(item.categorySlug) : void 0;
+    const values = product.category_source === "manual" ? { is_removed_from_latest_import: false } : { category_id: category?.id ?? null, category_source: item.categorySlug ? "rule" : "unassigned", review_status: item.categorySlug ? "clean" : "needs_review", is_removed_from_latest_import: false };
+    const key = JSON.stringify(values);
+    const group = productUpdateGroups.get(key) ?? { ids: [], values };
+    group.ids.push(product.id);
+    productUpdateGroups.set(key, group);
+  }
+  const chunkIds = (ids, size = 250) => Array.from({ length: Math.ceil(ids.length / size) }, (_, index2) => ids.slice(index2 * size, (index2 + 1) * size));
+  await Promise.all(Array.from(productUpdateGroups.values()).flatMap((group) => chunkIds(group.ids).map((ids) => supabaseRequest(`products?id=in.(${ids.join(",")})`, { method: "PATCH", body: JSON.stringify(group.values) }))));
+  const colorInsertRows = Array.from(new Map(parsed.items.filter((item) => !colors2.has(item.colorKey)).map((item) => [item.colorKey, { khmer_name: item.colorKhmer, english_name: item.colorEnglish, hex: item.colorHex, normalized_key: item.colorKey }])).values());
+  if (colorInsertRows.length) {
+    const insertedColors = await supabaseRequest("colors?on_conflict=normalized_key", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify(colorInsertRows)
+    });
+    for (const color of insertedColors) colors2.set(color.normalized_key, color);
+  }
+  const variantUpsertRows = parsed.items.map((item) => {
+    const product = products2.get(item.cleanedCode);
+    const color = colors2.get(item.colorKey);
+    if (!product || !color) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "A POS product or color could not be resolved for the bulk variant update." });
+    return { product_id: product.id, color_id: color.id, pos_code: item.posCode, size: item.size, price: item.price.toFixed(2), stock_quantity: item.stockQuantity, last_seen_import_id: input.importId, is_visible: true };
+  });
+  const persistedVariants = variantUpsertRows.length ? await supabaseRequest("variants?on_conflict=pos_code", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify(variantUpsertRows)
+  }) : [];
+  const persistedByCode = new Map(persistedVariants.map((row) => [row.pos_code, row]));
   let newVariants = 0;
   let updatedVariants = 0;
+  const recordedNewProduct = /* @__PURE__ */ new Set();
   const importChangeRows = [];
   for (const item of parsed.items) {
-    const category = item.categorySlug ? categories2.get(item.categorySlug) : void 0;
-    let product = products2.get(item.cleanedCode);
-    const isNewProduct = !product;
-    if (!product) {
-      let slug = item.slug;
-      if (usedSlugs.has(slug)) slug = `${slug}-${crypto4.createHash("sha1").update(item.cleanedCode).digest("hex").slice(0, 6)}`;
-      [product] = await supabaseRequest("products", { method: "POST", body: JSON.stringify({ slug, cleaned_code: item.cleanedCode, category_id: category?.id ?? null, category_source: item.categorySlug ? "rule" : "unassigned", review_status: item.categorySlug ? "clean" : "needs_review" }) });
-      products2.set(item.cleanedCode, product);
-      usedSlugs.add(slug);
-      newProducts += 1;
-    } else {
-      const productUpdates = product.category_source === "manual" ? { is_removed_from_latest_import: false } : { category_id: category?.id ?? null, category_source: item.categorySlug ? "rule" : "unassigned", review_status: item.categorySlug ? "clean" : "needs_review", is_removed_from_latest_import: false };
-      await supabaseRequest(`products?${supabaseEq("id", product.id)}`, { method: "PATCH", body: JSON.stringify(productUpdates) });
-    }
-    let color = colors2.get(item.colorKey);
-    if (!color) {
-      [color] = await supabaseRequest("colors", { method: "POST", body: JSON.stringify({ khmer_name: item.colorKhmer, english_name: item.colorEnglish, hex: item.colorHex, normalized_key: item.colorKey }) });
-      colors2.set(item.colorKey, color);
-    }
+    const product = products2.get(item.cleanedCode);
+    const color = colors2.get(item.colorKey);
     const current = variants2.get(item.posCode);
-    const values = { product_id: product.id, color_id: color.id, size: item.size, price: item.price.toFixed(2), stock_quantity: item.stockQuantity, last_seen_import_id: input.importId, is_visible: true };
-    if (current) {
-      const priceChanged = Number(current.price) !== item.price;
-      const stockChanged = current.stock_quantity !== item.stockQuantity;
-      const previousColor = current.color_id ? colorsById.get(current.color_id)?.english_name ?? null : null;
-      const colorChanged = current.color_id !== color.id;
-      const sizeChanged = current.size !== item.size;
-      if (priceChanged || stockChanged || colorChanged || sizeChanged) {
-        updatedVariants += 1;
-        importChangeRows.push({ import_id: input.importId, product_id: product.id, variant_id: current.id, pos_code: current.pos_code, change_type: "stock_price_update", before_json: { code: item.cleanedCode, posCode: current.pos_code, color: previousColor, colorId: current.color_id, size: current.size, previousPrice: Number(current.price), previousStock: current.stock_quantity }, after_json: { changeType: "updated", code: item.cleanedCode, posCode: current.pos_code, color: item.colorEnglish, previousColor, colorId: color.id, previousColorId: current.color_id, size: item.size, previousSize: current.size, colorChanged, sizeChanged, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity } });
-      }
-      await supabaseRequest(`variants?${supabaseEq("id", current.id)}`, { method: "PATCH", body: JSON.stringify(values) });
-    } else {
-      const [newVariant] = await supabaseRequest("variants", { method: "POST", body: JSON.stringify({ ...values, pos_code: item.posCode }) });
+    const persisted = persistedByCode.get(item.posCode);
+    if (!product || !color || !persisted) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "The bulk POS variant update did not return every saved POS code." });
+    if (!current) {
       newVariants += 1;
-      importChangeRows.push({ import_id: input.importId, product_id: product.id, variant_id: newVariant.id, pos_code: item.posCode, change_type: isNewProduct ? "new_product" : "new_variant", after_json: { changeType: isNewProduct ? "new_product" : "new_variant", code: item.cleanedCode, posCode: item.posCode, color: item.colorEnglish, colorId: color.id, size: item.size, price: item.price, stock: item.stockQuantity } });
+      const changeType = newProductCodes.has(item.cleanedCode) && !recordedNewProduct.has(item.cleanedCode) ? "new_product" : "new_variant";
+      recordedNewProduct.add(item.cleanedCode);
+      importChangeRows.push({ import_id: input.importId, product_id: product.id, variant_id: persisted.id, pos_code: item.posCode, change_type: changeType, after_json: { changeType, code: item.cleanedCode, posCode: item.posCode, color: item.colorEnglish, colorId: color.id, size: item.size, price: item.price, stock: item.stockQuantity } });
+      continue;
+    }
+    const priceChanged = Number(current.price) !== item.price;
+    const stockChanged = current.stock_quantity !== item.stockQuantity;
+    const previousColor = current.color_id ? colorsById.get(current.color_id)?.english_name ?? null : null;
+    const colorChanged = current.color_id !== color.id;
+    const sizeChanged = current.size !== item.size;
+    if (priceChanged || stockChanged || colorChanged || sizeChanged) {
+      updatedVariants += 1;
+      importChangeRows.push({ import_id: input.importId, product_id: product.id, variant_id: current.id, pos_code: current.pos_code, change_type: "stock_price_update", before_json: { code: item.cleanedCode, posCode: current.pos_code, color: previousColor, colorId: current.color_id, size: current.size, previousPrice: Number(current.price), previousStock: current.stock_quantity }, after_json: { changeType: "updated", code: item.cleanedCode, posCode: current.pos_code, color: item.colorEnglish, previousColor, colorId: color.id, previousColorId: current.color_id, size: item.size, previousSize: current.size, colorChanged, sizeChanged, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity } });
     }
   }
   const missing = variantRows.filter((row) => !incoming.has(row.pos_code));
@@ -1343,9 +1382,9 @@ async function applyImport(input) {
     if (!product) continue;
     importChangeRows.push({ import_id: input.importId, product_id: productId, variant_id: null, pos_code: rows[0]?.pos_code ?? null, change_type: "missing_from_import", before_json: { code: product.cleaned_code, wasRemovedFromLatestImport: Boolean(product.is_removed_from_latest_import) }, after_json: { changeType: "missing", code: product.cleaned_code, posCode: rows[0]?.pos_code ?? null, missingPosCodes: rows.map((row) => row.pos_code) } });
   }
-  const productIds = Array.from(missingByProduct.keys());
-  if (productIds.length) await supabaseRequest(`products?id=in.(${productIds.join(",")})`, { method: "PATCH", body: JSON.stringify({ is_removed_from_latest_import: true }) });
+  await Promise.all(chunkIds(Array.from(missingByProduct.keys())).map((ids) => supabaseRequest(`products?id=in.(${ids.join(",")})`, { method: "PATCH", body: JSON.stringify({ is_removed_from_latest_import: true }) })));
   if (importChangeRows.length) await supabaseRequest("import_changes", { method: "POST", body: JSON.stringify(importChangeRows) });
+  const newProducts = newProductCodes.size;
   await supabaseRequest(`imports?${supabaseEq("id", input.importId)}`, { method: "PATCH", body: JSON.stringify({ status: "applied", applied_at: (/* @__PURE__ */ new Date()).toISOString(), summary_json: { newProducts, newVariants, updatedVariants, missingVariants: missing.length } }) });
   return { newProducts, newVariants, updatedVariants, missingVariants: missing.length };
 }
