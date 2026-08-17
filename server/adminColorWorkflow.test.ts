@@ -53,9 +53,11 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(router).not.toContain("reviewQueue:");
     expect(admin).toContain("Preview all POS changes");
     expect(admin).toContain("Confirm and apply this import");
-    expect(admin).toContain("Open an import to see every recorded change");
+    expect(admin).toContain("Open an import to see every cleaned-code change group");
     expect(admin).toContain("import-history-list");
-    expect(admin).toContain("import-change-list");
+    expect(admin).toContain("import-change-group-list");
+    expect(admin).toContain("Remove newest import");
+    expect(router).toContain("removeImport:");
     expect(admin).not.toContain("Review queue");
     expect(stylesheet).toContain(".import-history-layout");
   });

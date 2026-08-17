@@ -88,16 +88,17 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
 
 const importInput = z.object({ filename: z.string().min(1).max(255), base64: z.string().min(16).max(MAX_POS_IMPORT_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/, "The POS workbook payload is not valid base64.") });
 type LifecycleStatus = "active" | "out_of_stock" | "discontinued";
-type DbProduct = { id: number; cleaned_code: string; slug: string; category_source: string; lifecycle_status?: LifecycleStatus };
+type DbProduct = { id: number; cleaned_code: string; slug: string; category_source: string; lifecycle_status?: LifecycleStatus; is_removed_from_latest_import?: boolean };
 type DbVariant = { id: number; product_id: number; color_id: number | null; pos_code: string; size: string | null; price: string | number; stock_quantity: number };
-type DbColor = { id: number; normalized_key: string };
+type DbColor = { id: number; normalized_key: string; english_name?: string | null };
 type DbProductMedia = { id: number; cloudinary_public_id: string };
 type DbReusableProduct = { id: number; display_name: string | null; category_id: number | null; category_source: string; is_just_in: boolean; lifecycle_status: LifecycleStatus };
 type DbReusableMedia = { product_id: number; variant_id: number | null; cloudinary_public_id: string; optimized_url: string; alt_text: string | null; color_tag: string | null; sort_order: number; is_primary: boolean };
-type ImportChangeMetadata = { code?: string; posCode?: string; changeType?: "new_product" | "new_variant" | "updated" | "missing"; priceChanged?: boolean; stockChanged?: boolean; previousPrice?: number; price?: number; previousStock?: number; stock?: number; missingPosCodes?: string[] };
+type ImportChangeMetadata = { code?: string; posCode?: string; changeType?: "new_product" | "new_variant" | "updated" | "missing"; color?: string | null; previousColor?: string | null; colorId?: number | null; previousColorId?: number | null; size?: string | null; previousSize?: string | null; colorChanged?: boolean; sizeChanged?: boolean; priceChanged?: boolean; stockChanged?: boolean; previousPrice?: number; price?: number; previousStock?: number; stock?: number; missingPosCodes?: string[]; wasRemovedFromLatestImport?: boolean };
 type DbImport = { id: number; original_filename: string; status: string; created_at: string; applied_at?: string | null; parsed_rows?: number; summary_json?: Record<string, unknown> | null };
-type DbImportChange = { id: number; import_id: number; pos_code: string | null; change_type: string; before_json: ImportChangeMetadata | null; after_json: ImportChangeMetadata | null; created_at: string };
-export type ImportDetailChange = { id: number; type: "new_product" | "new_variant" | "updated" | "missing"; code: string; posCode: string | null; priceChanged: boolean; stockChanged: boolean; previousPrice: number | null; price: number | null; previousStock: number | null; stock: number | null; missingPosCodes: string[] };
+type DbImportChange = { id: number; import_id: number; product_id: number | null; variant_id: number | null; pos_code: string | null; change_type: string; before_json: ImportChangeMetadata | null; after_json: ImportChangeMetadata | null; created_at: string };
+export type ImportDetailChange = { id: number; type: "new_product" | "new_variant" | "updated" | "missing"; code: string; posCode: string | null; color: string | null; previousColor: string | null; size: string | null; previousSize: string | null; colorChanged: boolean; sizeChanged: boolean; priceChanged: boolean; stockChanged: boolean; previousPrice: number | null; price: number | null; previousStock: number | null; stock: number | null; missingPosCodes: string[] };
+export type ImportChangeGroup = { code: string; changes: ImportDetailChange[] };
 
 export function importDetailChange(row: DbImportChange): ImportDetailChange {
   const after = row.after_json ?? {};
@@ -105,16 +106,23 @@ export function importDetailChange(row: DbImportChange): ImportDetailChange {
   const type = after.changeType === "new_product" || after.changeType === "new_variant" || after.changeType === "updated" || after.changeType === "missing"
     ? after.changeType
     : row.change_type === "new_product" || row.change_type === "new_variant" || row.change_type === "missing_from_import" ? (row.change_type === "missing_from_import" ? "missing" : row.change_type) : "updated";
-  return { id: row.id, type, code: after.code ?? before.code ?? "Unknown item", posCode: after.posCode ?? before.posCode ?? row.pos_code, priceChanged: Boolean(after.priceChanged), stockChanged: Boolean(after.stockChanged), previousPrice: after.previousPrice ?? before.previousPrice ?? null, price: after.price ?? null, previousStock: after.previousStock ?? before.previousStock ?? null, stock: after.stock ?? null, missingPosCodes: after.missingPosCodes ?? [] };
+  return { id: row.id, type, code: after.code ?? before.code ?? "Unknown item", posCode: after.posCode ?? before.posCode ?? row.pos_code, color: after.color ?? before.color ?? null, previousColor: after.previousColor ?? before.previousColor ?? null, size: after.size ?? before.size ?? null, previousSize: after.previousSize ?? before.previousSize ?? null, colorChanged: Boolean(after.colorChanged), sizeChanged: Boolean(after.sizeChanged), priceChanged: Boolean(after.priceChanged), stockChanged: Boolean(after.stockChanged), previousPrice: after.previousPrice ?? before.previousPrice ?? null, price: after.price ?? null, previousStock: after.previousStock ?? before.previousStock ?? null, stock: after.stock ?? null, missingPosCodes: after.missingPosCodes ?? [] };
+}
+
+export function groupImportChanges(changes: ImportDetailChange[]): ImportChangeGroup[] {
+  const groups = new Map<string, ImportDetailChange[]>();
+  for (const change of changes) groups.set(change.code, [...(groups.get(change.code) ?? []), change]);
+  return Array.from(groups, ([code, groupChanges]) => ({ code, changes: groupChanges.sort((left, right) => left.type.localeCompare(right.type) || (left.color ?? "").localeCompare(right.color ?? "") || (left.size ?? "").localeCompare(right.size ?? "") || (left.posCode ?? "").localeCompare(right.posCode ?? "")) })).sort((left, right) => left.code.localeCompare(right.code));
 }
 
 export async function createPreview(input: z.infer<typeof importInput>) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
   if (parsed.validation.duplicatePosCodes.length) throw new TRPCError({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
-  const [existingVariants, existingProducts, appliedImports] = await Promise.all([supabaseRequest<DbVariant[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest<DbProduct[]>("products?select=id,cleaned_code,slug,category_source"), supabaseRequest<Array<{ id: number }>>(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&limit=1`)]);
+  const [existingVariants, existingProducts, existingColors, appliedImports] = await Promise.all([supabaseRequest<DbVariant[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest<DbProduct[]>("products?select=id,cleaned_code,slug,category_source"), supabaseRequest<DbColor[]>("colors?select=id,normalized_key,english_name"), supabaseRequest<Array<{ id: number }>>(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&limit=1`)]);
   const variantsByCode = new Map(existingVariants.map(row => [row.pos_code, row]));
   const productsByCode = new Set(existingProducts.map(row => row.cleaned_code));
   const productsById = new Map(existingProducts.map(row => [row.id, row]));
+  const colorsById = new Map(existingColors.map(row => [row.id, row]));
   const previewed = new Set<string>();
   const incoming = new Set(parsed.items.map(item => item.posCode));
   const changes: Array<Omit<ImportDetailChange, "id">> = [];
@@ -123,24 +131,27 @@ export async function createPreview(input: z.infer<typeof importInput>) {
     if (!current) {
       const type = !productsByCode.has(item.cleanedCode) && !previewed.has(item.cleanedCode) ? "new_product" : "new_variant";
       if (type === "new_product") previewed.add(item.cleanedCode);
-      changes.push({ type, code: item.cleanedCode, posCode: item.posCode, priceChanged: false, stockChanged: false, previousPrice: null, price: item.price, previousStock: null, stock: item.stockQuantity, missingPosCodes: [] });
+      changes.push({ type, code: item.cleanedCode, posCode: item.posCode, color: item.colorEnglish, previousColor: null, size: item.size, previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, previousPrice: null, price: item.price, previousStock: null, stock: item.stockQuantity, missingPosCodes: [] });
       continue;
     }
     const priceChanged = Number(current.price) !== item.price;
     const stockChanged = current.stock_quantity !== item.stockQuantity;
-    if (priceChanged || stockChanged) changes.push({ type: "updated", code: item.cleanedCode, posCode: item.posCode, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity, missingPosCodes: [] });
+    const previousColor = current.color_id ? colorsById.get(current.color_id)?.english_name ?? null : null;
+    const colorChanged = previousColor !== item.colorEnglish;
+    const sizeChanged = current.size !== item.size;
+    if (priceChanged || stockChanged || colorChanged || sizeChanged) changes.push({ type: "updated", code: item.cleanedCode, posCode: item.posCode, color: item.colorEnglish, previousColor, size: item.size, previousSize: current.size, colorChanged, sizeChanged, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity, missingPosCodes: [] });
   }
   const missingByProduct = new Map<number, DbVariant[]>();
   for (const row of existingVariants.filter(row => !incoming.has(row.pos_code))) missingByProduct.set(row.product_id, [...(missingByProduct.get(row.product_id) ?? []), row]);
   for (const [productId, rows] of Array.from(missingByProduct.entries())) {
     const product = productsById.get(productId);
-    changes.push({ type: "missing", code: product?.cleaned_code ?? "Unknown item", posCode: rows[0]?.pos_code ?? null, priceChanged: false, stockChanged: false, previousPrice: null, price: null, previousStock: null, stock: null, missingPosCodes: rows.map(row => row.pos_code) });
+    changes.push({ type: "missing", code: product?.cleaned_code ?? "Unknown item", posCode: rows[0]?.pos_code ?? null, color: null, previousColor: null, size: null, previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, previousPrice: null, price: null, previousStock: null, stock: null, missingPosCodes: rows.map(row => row.pos_code) });
   }
   const summary = { rows: parsed.items.length, newProducts: changes.filter(change => change.type === "new_product").length, newVariants: changes.filter(change => change.type === "new_variant").length, updatedVariants: changes.filter(change => change.type === "updated").length, missingVariants: Array.from(missingByProduct.values()).reduce((count, rows) => count + rows.length, 0), invalidRows: parsed.validation.invalidRows.length };
   const alreadyApplied = appliedImports[0];
-  if (alreadyApplied) return { importId: alreadyApplied.id, summary, validation: parsed.validation, changes: [], alreadyApplied: true };
+  if (alreadyApplied) return { importId: alreadyApplied.id, summary, validation: parsed.validation, changes: [], changeGroups: [], alreadyApplied: true };
   const [importRow] = await supabaseRequest<Array<{ id: number }>>("imports", { method: "POST", body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, summary_json: summary, validation_json: parsed.validation }) });
-  return { importId: importRow.id, summary, validation: parsed.validation, changes, alreadyApplied: false };
+  return { importId: importRow.id, summary, validation: parsed.validation, changes, changeGroups: groupImportChanges(changes.map((change, index) => ({ id: -(index + 1), ...change }))), alreadyApplied: false };
 }
 
 export async function applyImport(input: z.infer<typeof importInput> & { importId: number }) {
@@ -155,14 +166,15 @@ export async function applyImport(input: z.infer<typeof importInput> & { importI
 
   const [categoryRows, productRows, variantRows, colorRows] = await Promise.all([
     supabaseRequest<Array<{ id: number; slug: string }>>("categories?select=id,slug"),
-    supabaseRequest<DbProduct[]>("products?select=id,cleaned_code,slug,category_source"),
+    supabaseRequest<DbProduct[]>("products?select=id,cleaned_code,slug,category_source,is_removed_from_latest_import"),
     supabaseRequest<DbVariant[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"),
-    supabaseRequest<DbColor[]>("colors?select=id,normalized_key"),
+    supabaseRequest<DbColor[]>("colors?select=id,normalized_key,english_name"),
   ]);
   const categories = new Map(categoryRows.map(row => [row.slug, row]));
   const products = new Map(productRows.map(row => [row.cleaned_code, row]));
   const variants = new Map(variantRows.map(row => [row.pos_code, row]));
   const colors = new Map(colorRows.map(row => [row.normalized_key, row]));
+  const colorsById = new Map(colorRows.map(row => [row.id, row]));
   const usedSlugs = new Set(productRows.map(row => row.slug));
   const incoming = new Set(parsed.items.map(item => item.posCode));
   let newProducts = 0;
@@ -198,13 +210,18 @@ export async function applyImport(input: z.infer<typeof importInput> & { importI
     if (current) {
       const priceChanged = Number(current.price) !== item.price;
       const stockChanged = current.stock_quantity !== item.stockQuantity;
-      if (priceChanged || stockChanged || current.color_id !== color.id || current.size !== item.size) updatedVariants += 1;
-      if (priceChanged || stockChanged) importChangeRows.push({ import_id: input.importId, product_id: product.id, variant_id: current.id, pos_code: current.pos_code, change_type: "stock_price_update", before_json: { code: item.cleanedCode, posCode: current.pos_code, previousPrice: Number(current.price), previousStock: current.stock_quantity }, after_json: { changeType: "updated", code: item.cleanedCode, posCode: current.pos_code, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity } });
+      const previousColor = current.color_id ? colorsById.get(current.color_id)?.english_name ?? null : null;
+      const colorChanged = current.color_id !== color.id;
+      const sizeChanged = current.size !== item.size;
+      if (priceChanged || stockChanged || colorChanged || sizeChanged) {
+        updatedVariants += 1;
+        importChangeRows.push({ import_id: input.importId, product_id: product.id, variant_id: current.id, pos_code: current.pos_code, change_type: "stock_price_update", before_json: { code: item.cleanedCode, posCode: current.pos_code, color: previousColor, colorId: current.color_id, size: current.size, previousPrice: Number(current.price), previousStock: current.stock_quantity }, after_json: { changeType: "updated", code: item.cleanedCode, posCode: current.pos_code, color: item.colorEnglish, previousColor, colorId: color.id, previousColorId: current.color_id, size: item.size, previousSize: current.size, colorChanged, sizeChanged, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity } });
+      }
       await supabaseRequest(`variants?${supabaseEq("id", current.id)}`, { method: "PATCH", body: JSON.stringify(values) });
     } else {
       const [newVariant] = await supabaseRequest<DbVariant[]>("variants", { method: "POST", body: JSON.stringify({ ...values, pos_code: item.posCode }) });
       newVariants += 1;
-      importChangeRows.push({ import_id: input.importId, product_id: product.id, variant_id: newVariant.id, pos_code: item.posCode, change_type: isNewProduct ? "new_product" : "new_variant", after_json: { changeType: isNewProduct ? "new_product" : "new_variant", code: item.cleanedCode, posCode: item.posCode, price: item.price, stock: item.stockQuantity } });
+      importChangeRows.push({ import_id: input.importId, product_id: product.id, variant_id: newVariant.id, pos_code: item.posCode, change_type: isNewProduct ? "new_product" : "new_variant", after_json: { changeType: isNewProduct ? "new_product" : "new_variant", code: item.cleanedCode, posCode: item.posCode, color: item.colorEnglish, colorId: color.id, size: item.size, price: item.price, stock: item.stockQuantity } });
     }
   }
 
@@ -215,13 +232,23 @@ export async function applyImport(input: z.infer<typeof importInput> & { importI
   for (const [productId, rows] of Array.from(missingByProduct.entries())) {
     const product = productsById.get(productId);
     if (!product) continue;
-    importChangeRows.push({ import_id: input.importId, product_id: productId, variant_id: null, pos_code: rows[0]?.pos_code ?? null, change_type: "missing_from_import", after_json: { changeType: "missing", code: product.cleaned_code, posCode: rows[0]?.pos_code ?? null, missingPosCodes: rows.map(row => row.pos_code) } });
+    importChangeRows.push({ import_id: input.importId, product_id: productId, variant_id: null, pos_code: rows[0]?.pos_code ?? null, change_type: "missing_from_import", before_json: { code: product.cleaned_code, wasRemovedFromLatestImport: Boolean(product.is_removed_from_latest_import) }, after_json: { changeType: "missing", code: product.cleaned_code, posCode: rows[0]?.pos_code ?? null, missingPosCodes: rows.map(row => row.pos_code) } });
   }
   const productIds = Array.from(missingByProduct.keys());
   if (productIds.length) await supabaseRequest(`products?id=in.(${productIds.join(",")})`, { method: "PATCH", body: JSON.stringify({ is_removed_from_latest_import: true }) });
   if (importChangeRows.length) await supabaseRequest("import_changes", { method: "POST", body: JSON.stringify(importChangeRows) });
   await supabaseRequest(`imports?${supabaseEq("id", input.importId)}`, { method: "PATCH", body: JSON.stringify({ status: "applied", applied_at: new Date().toISOString(), summary_json: { newProducts, newVariants, updatedVariants, missingVariants: missing.length } }) });
   return { newProducts, newVariants, updatedVariants, missingVariants: missing.length };
+}
+
+async function removeLatestAppliedImport(importId: number) {
+  try {
+    const summary = await supabaseRequest<{ removedImportId: number; removedProducts: number; removedVariants: number; restoredVariants: number; restoredMissingProducts: number }>("rpc/rollback_pos_import", { method: "POST", body: JSON.stringify({ p_import_id: importId }) });
+    if (!summary) throw new Error("The import removal did not return a result.");
+    return summary;
+  } catch (error) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The selected POS import could not be removed." });
+  }
 }
 
 async function copyArchivedWebsiteContent(sourceProductId: number, targetProductId: number) {
@@ -264,8 +291,9 @@ export const storeRouter = router({
     updateProduct: publicProcedure.input(z.object({ id: z.number().int(), displayName: z.string().max(255).nullable(), categoryId: z.number().int().nullable(), isJustIn: z.boolean().optional(), lifecycleStatus: z.enum(["active", "out_of_stock", "discontinued"]).optional() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...(input.isJustIn === undefined ? {} : { is_just_in: input.isJustIn }), ...(input.lifecycleStatus === undefined ? {} : { lifecycle_status: input.lifecycleStatus }) }) }); return { success: true }; }),
     reuseArchivedContent: publicProcedure.input(z.object({ sourceProductId: z.number().int().positive(), targetProductId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return copyArchivedWebsiteContent(input.sourceProductId, input.targetProductId); }),
     previewImport: publicProcedure.input(importInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return createPreview(input); }), applyImport: publicProcedure.input(importInput.extend({ importId: z.number().int() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return applyImport(input); }),
-    importHistory: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const rows = await supabaseRequest<DbImport[]>("imports?select=id,original_filename,status,created_at,applied_at,parsed_rows,summary_json&status=eq.applied&order=created_at.desc&limit=100"); return rows.map(row => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {} })); }),
-    importDetails: publicProcedure.input(z.object({ importId: z.number().int().positive() })).query(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const [imports, changes] = await Promise.all([supabaseRequest<DbImport[]>(`imports?select=id,original_filename,status,created_at,applied_at,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest<DbImportChange[]>(`import_changes?select=id,import_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`)]); const importRow = imports[0]; if (!importRow) throw new TRPCError({ code: "NOT_FOUND", message: "The selected import was not found." }); return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: changes.map(importDetailChange).sort((left, right) => left.code.localeCompare(right.code) || left.type.localeCompare(right.type)) }; }),
+    removeImport: publicProcedure.input(z.object({ importId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return removeLatestAppliedImport(input.importId); }),
+    importHistory: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const rows = await supabaseRequest<DbImport[]>("imports?select=id,original_filename,status,created_at,applied_at,parsed_rows,summary_json&status=eq.applied&order=applied_at.desc,id.desc&limit=100"); return rows.map((row, index) => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {}, canRemove: index === 0 })); }),
+    importDetails: publicProcedure.input(z.object({ importId: z.number().int().positive() })).query(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const [imports, changes, latestApplied] = await Promise.all([supabaseRequest<DbImport[]>(`imports?select=id,original_filename,status,created_at,applied_at,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest<DbImportChange[]>(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`), supabaseRequest<Array<{ id: number }>>("imports?select=id&status=eq.applied&order=applied_at.desc,id.desc&limit=1")]); const importRow = imports[0]; if (!importRow) throw new TRPCError({ code: "NOT_FOUND", message: "The selected import was not found." }); const detailChanges = changes.map(importDetailChange); return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), canRemove: latestApplied[0]?.id === importRow.id }; }),
     signMediaUpload: publicProcedure.input(z.object({ productCode: z.string().min(1), categorySlug: z.string().min(1), colorTag: z.string().min(1) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const cloudName = process.env.CLOUDINARY_CLOUD_NAME; const apiKey = process.env.CLOUDINARY_API_KEY; const apiSecret = process.env.CLOUDINARY_API_SECRET; if (!cloudName || !apiKey || !apiSecret) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." }); const normalized = input.productCode.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); const timestamp = Math.floor(Date.now() / 1000); const folder = `orange/products/${normalized}`; const tags = `orange,product:${normalized},category:${input.categorySlug},color:${input.colorTag}`; const signature = crypto.createHash("sha1").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp}${apiSecret}`).digest("hex"); return { uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp, folder, tags, signature }; }),
     registerMedia: publicProcedure.input(z.object({ productId: z.number().int(), variantId: z.number().int().nullable().optional(), publicId: z.string().min(1), secureUrl: z.string().url(), altText: z.string().max(255).nullable().optional(), colorTag: z.string().max(128).nullable().optional(), isPrimary: z.boolean().default(false) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); if (!input.publicId.startsWith("orange/products/")) throw new TRPCError({ code: "BAD_REQUEST", message: "The uploaded media is not in an approved Orange product folder." }); const cloudName = process.env.CLOUDINARY_CLOUD_NAME; if (input.isPrimary) await supabaseRequest(`product_media?${supabaseEq("product_id", input.productId)}`, { method: "PATCH", body: JSON.stringify({ is_primary: false }) }); await supabaseRequest("product_media", { method: "POST", body: JSON.stringify({ product_id: input.productId, variant_id: input.variantId ?? null, cloudinary_public_id: input.publicId, optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${input.publicId}`, alt_text: input.altText ?? null, color_tag: input.colorTag ?? null, is_primary: input.isPrimary }) }); return { success: true }; }),
     deleteMedia: publicProcedure.input(z.object({ mediaId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
