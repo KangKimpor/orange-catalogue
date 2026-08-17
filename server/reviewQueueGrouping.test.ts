@@ -25,6 +25,16 @@ describe("groupReviewChangesByImport", () => {
     expect(result[1].items[0].cleanedCode).toBe("ZL 0002");
   });
 
+  it("keeps missing POS rows as review candidates without treating them as automatic deletion", () => {
+    const result = groupReviewChangesByImport(
+      [{ id: 22, original_filename: "weekly-snapshot.xlsx", status: "applied", created_at: "2026-08-24T08:00:00.000Z" }],
+      [{ id: 5, import_id: 22, review_status: "pending", after_json: { code: "ZL 0041", missingFromImport: true, missingPosCodes: ["P0006125", "P0006126"] } }],
+    );
+
+    expect(result[0]).toMatchObject({ changeCount: 1, pendingChangeCount: 1 });
+    expect(result[0].items[0]?.changes[0]).toMatchObject({ missingFromImport: true, missingPosCodes: ["P0006125", "P0006126"], reviewStatus: "pending" });
+  });
+
   it("keeps applied imports visible even when that file did not change price or stock", () => {
     const result = groupReviewChangesByImport(
       [{ id: 21, original_filename: "no-changes.xlsx", status: "applied", created_at: "2026-08-17T08:00:00.000Z" }],

@@ -61,6 +61,7 @@ export type ProductRow = {
   category_source: "rule" | "manual" | "unassigned";
   is_just_in: boolean;
   is_published: boolean;
+  lifecycle_status: "active" | "out_of_stock" | "discontinued";
   is_removed_from_latest_import: boolean;
   review_status: "clean" | "needs_review" | "archived";
 };

@@ -81,21 +81,24 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
       });
       const variants = variantsByProduct.get(product.id) ?? [];
       const category = product.categoryId ? categoriesById.get(product.categoryId) : undefined;
-      return { id: product.id, slug: product.slug, displayName: product.displayName, cleanedCode: product.cleanedCode, category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" }, isJustIn: product.isJustIn, isPublished: product.isPublished, isRemovedFromLatestImport: product.isRemovedFromLatestImport, reviewStatus: product.reviewStatus, available: variants.some(v => publicAvailability(v.stockQuantity)), priceMin: variants.length ? Math.min(...variants.map(v => Number(v.price))) : 0, priceMax: variants.length ? Math.max(...variants.map(v => Number(v.price))) : 0, colors, media: (mediaByProduct.get(product.id) ?? []).map(media => ({ id: media.id, url: media.optimizedUrl, altText: media.altText, isPrimary: media.isPrimary, variantId: media.variantId, colorTag: media.colorTag })) };
+      return { id: product.id, slug: product.slug, displayName: product.displayName, cleanedCode: product.cleanedCode, category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" }, isJustIn: product.isJustIn, isPublished: product.isPublished, lifecycleStatus: product.lifecycleStatus, isRemovedFromLatestImport: product.isRemovedFromLatestImport, reviewStatus: product.reviewStatus, available: product.lifecycleStatus === "active" && variants.some(v => publicAvailability(v.stockQuantity)), priceMin: variants.length ? Math.min(...variants.map(v => Number(v.price))) : 0, priceMax: variants.length ? Math.max(...variants.map(v => Number(v.price))) : 0, colors, media: (mediaByProduct.get(product.id) ?? []).map(media => ({ id: media.id, url: media.optimizedUrl, altText: media.altText, isPrimary: media.isPrimary, variantId: media.variantId, colorTag: media.colorTag })) };
     }),
   };
 }
 
 const importInput = z.object({ filename: z.string().min(1).max(255), base64: z.string().min(16).max(MAX_POS_IMPORT_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/, "The POS workbook payload is not valid base64.") });
-type DbProduct = { id: number; cleaned_code: string; slug: string; category_source: string };
+type LifecycleStatus = "active" | "out_of_stock" | "discontinued";
+type DbProduct = { id: number; cleaned_code: string; slug: string; category_source: string; lifecycle_status?: LifecycleStatus };
 type DbVariant = { id: number; product_id: number; color_id: number | null; pos_code: string; size: string | null; price: string | number; stock_quantity: number };
 type DbColor = { id: number; normalized_key: string };
 type DbProductMedia = { id: number; cloudinary_public_id: string };
+type DbReusableProduct = { id: number; display_name: string | null; category_id: number | null; category_source: string; is_just_in: boolean; lifecycle_status: LifecycleStatus };
+type DbReusableMedia = { product_id: number; variant_id: number | null; cloudinary_public_id: string; optimized_url: string; alt_text: string | null; color_tag: string | null; sort_order: number; is_primary: boolean };
 type DbImport = { id: number; original_filename: string; status: string; created_at: string };
-type ReviewChangeMetadata = { code?: string; priceChanged?: boolean; stockChanged?: boolean; previousPrice?: number; price?: number; previousStock?: number; stock?: number };
+type ReviewChangeMetadata = { code?: string; priceChanged?: boolean; stockChanged?: boolean; previousPrice?: number; price?: number; previousStock?: number; stock?: number; missingFromImport?: boolean; missingPosCodes?: string[] };
 type DbReviewChange = { id: number; import_id: number; after_json: ReviewChangeMetadata | null; review_status: string };
 
-type GroupedReviewChange = { id: number; priceChanged: boolean; stockChanged: boolean; previousPrice: number | null; price: number | null; previousStock: number | null; stock: number | null; reviewStatus: string };
+type GroupedReviewChange = { id: number; priceChanged: boolean; stockChanged: boolean; missingFromImport: boolean; missingPosCodes: string[]; previousPrice: number | null; price: number | null; previousStock: number | null; stock: number | null; reviewStatus: string };
 type GroupedReviewItem = { cleanedCode: string; changes: GroupedReviewChange[]; pendingChangeCount: number };
 export type GroupedReviewImport = { id: number; originalFilename: string; createdAt: string; status: string; items: GroupedReviewItem[]; changeCount: number; pendingChangeCount: number };
 
@@ -105,9 +108,9 @@ export function groupReviewChangesByImport(imports: DbImport[], changes: DbRevie
     const importGroup = importsById.get(row.import_id);
     const change = row.after_json;
     const cleanedCode = change?.code?.trim();
-    if (!importGroup || !change || !cleanedCode || (!change.priceChanged && !change.stockChanged)) continue;
+    if (!importGroup || !change || !cleanedCode || (!change.priceChanged && !change.stockChanged && !change.missingFromImport)) continue;
     const item = importGroup.itemMap.get(cleanedCode) ?? { cleanedCode, changes: [], pendingChangeCount: 0 };
-    const groupedChange = { id: row.id, priceChanged: Boolean(change.priceChanged), stockChanged: Boolean(change.stockChanged), previousPrice: change.previousPrice ?? null, price: change.price ?? null, previousStock: change.previousStock ?? null, stock: change.stock ?? null, reviewStatus: row.review_status };
+    const groupedChange = { id: row.id, priceChanged: Boolean(change.priceChanged), stockChanged: Boolean(change.stockChanged), missingFromImport: Boolean(change.missingFromImport), missingPosCodes: change.missingPosCodes ?? [], previousPrice: change.previousPrice ?? null, price: change.price ?? null, previousStock: change.previousStock ?? null, stock: change.stock ?? null, reviewStatus: row.review_status };
     item.changes.push(groupedChange);
     if (groupedChange.reviewStatus === "pending") item.pendingChangeCount += 1;
     importGroup.itemMap.set(cleanedCode, item);
@@ -121,13 +124,15 @@ export function groupReviewChangesByImport(imports: DbImport[], changes: DbRevie
 export async function createPreview(input: z.infer<typeof importInput>) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
   if (parsed.validation.duplicatePosCodes.length) throw new TRPCError({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
-  const [existingVariants, existingProducts] = await Promise.all([supabaseRequest<DbVariant[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest<DbProduct[]>("products?select=id,cleaned_code,slug,category_source")]);
+  const [existingVariants, existingProducts, appliedImports] = await Promise.all([supabaseRequest<DbVariant[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest<DbProduct[]>("products?select=id,cleaned_code,slug,category_source"), supabaseRequest<Array<{ id: number }>>(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&limit=1`)]);
   const variantsByCode = new Map(existingVariants.map(row => [row.pos_code, row])); const productsByCode = new Set(existingProducts.map(row => row.cleaned_code)); const previewed = new Set<string>(); const incoming = new Set(parsed.items.map(item => item.posCode));
   const changes = parsed.items.map(item => { const current = variantsByCode.get(item.posCode); if (!current) { const newProduct = !productsByCode.has(item.cleanedCode) && !previewed.has(item.cleanedCode); if (newProduct) previewed.add(item.cleanedCode); return { type: newProduct ? "new_product" : "new_variant", posCode: item.posCode, code: item.cleanedCode, price: item.price, stock: item.stockQuantity }; } const priceChanged = Number(current.price) !== item.price; const stockChanged = current.stock_quantity !== item.stockQuantity; return priceChanged || stockChanged ? { type: "updated", posCode: item.posCode, code: item.cleanedCode, priceChanged, stockChanged, price: item.price, stock: item.stockQuantity } : null; }).filter(Boolean);
   const missing = existingVariants.filter(row => !incoming.has(row.pos_code)).map(row => ({ type: "missing", posCode: row.pos_code }));
   const summary = { rows: parsed.items.length, newProducts: changes.filter(change => change?.type === "new_product").length, newVariants: changes.filter(change => change?.type === "new_variant").length, updatedVariants: changes.filter(change => change?.type === "updated").length, missingVariants: missing.length, invalidRows: parsed.validation.invalidRows.length };
+  const alreadyApplied = appliedImports[0];
+  if (alreadyApplied) return { importId: alreadyApplied.id, summary, validation: parsed.validation, changes: [], alreadyApplied: true };
   const [importRow] = await supabaseRequest<Array<{ id: number }>>("imports", { method: "POST", body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, summary_json: summary, validation_json: parsed.validation }) });
-  return { importId: importRow.id, summary, validation: parsed.validation, changes: [...changes.slice(0, 40), ...missing.slice(0, 40)] };
+  return { importId: importRow.id, summary, validation: parsed.validation, changes: [...changes.slice(0, 40), ...missing.slice(0, 40)], alreadyApplied: false };
 }
 
 export async function applyImport(input: z.infer<typeof importInput> & { importId: number }) {
@@ -136,6 +141,8 @@ export async function applyImport(input: z.infer<typeof importInput> & { importI
   const imports = await supabaseRequest<Array<{ id: number; status: string; digest: string }>>(`imports?select=id,status,digest&id=eq.${input.importId}&limit=1`); const importRow = imports[0];
   if (!importRow || importRow.status !== "preview") throw new TRPCError({ code: "NOT_FOUND", message: "The requested import preview is unavailable." });
   if (importRow.digest !== parsed.digest) throw new TRPCError({ code: "BAD_REQUEST", message: "The file differs from the saved import preview. Create a new preview." });
+  const appliedWithSameDigest = await supabaseRequest<Array<{ id: number }>>(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&id=neq.${input.importId}&limit=1`);
+  if (appliedWithSameDigest.length) throw new TRPCError({ code: "CONFLICT", message: "This POS workbook was already applied. Upload a newer export instead." });
   const [categoryRows, productRows, variantRows, colorRows] = await Promise.all([supabaseRequest<Array<{ id: number; slug: string }>>("categories?select=id,slug"), supabaseRequest<DbProduct[]>("products?select=id,cleaned_code,slug,category_source"), supabaseRequest<DbVariant[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest<DbColor[]>("colors?select=id,normalized_key")]);
   const categories = new Map(categoryRows.map(row => [row.slug, row])); const products = new Map(productRows.map(row => [row.cleaned_code, row])); const variants = new Map(variantRows.map(row => [row.pos_code, row])); const colors = new Map(colorRows.map(row => [row.normalized_key, row])); const usedSlugs = new Set(productRows.map(row => row.slug)); const incoming = new Set(parsed.items.map(item => item.posCode)); let newProducts = 0; let newVariants = 0; let updatedVariants = 0; const reviewRows: Array<Record<string, unknown>> = [];
   for (const item of parsed.items) {
@@ -146,10 +153,49 @@ export async function applyImport(input: z.infer<typeof importInput> & { importI
     const current = variants.get(item.posCode); const values = { product_id: product.id, color_id: color.id, size: item.size, price: item.price.toFixed(2), stock_quantity: item.stockQuantity, last_seen_import_id: input.importId, is_visible: true };
     if (current) { const priceChanged = Number(current.price) !== item.price; const stockChanged = current.stock_quantity !== item.stockQuantity; if (priceChanged || stockChanged || current.color_id !== color.id || current.size !== item.size) updatedVariants += 1; if (priceChanged || stockChanged) reviewRows.push({ import_id: input.importId, product_id: product.id, variant_id: current.id, pos_code: current.pos_code, change_type: "stock_price_update", after_json: { code: item.cleanedCode, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity } }); await supabaseRequest(`variants?${supabaseEq("id", current.id)}`, { method: "PATCH", body: JSON.stringify(values) }); } else { await supabaseRequest("variants", { method: "POST", body: JSON.stringify({ ...values, pos_code: item.posCode }) }); newVariants += 1; }
   }
-  const missing = variantRows.filter(row => !incoming.has(row.pos_code)); const productIds = Array.from(new Set(missing.map(row => row.product_id))); if (productIds.length) await supabaseRequest(`products?id=in.(${productIds.join(",")})`, { method: "PATCH", body: JSON.stringify({ is_removed_from_latest_import: true, review_status: "needs_review" }) });
+  const missing = variantRows.filter(row => !incoming.has(row.pos_code));
+  const productsById = new Map(productRows.map(row => [row.id, row]));
+  const missingByProduct = new Map<number, DbVariant[]>();
+  for (const row of missing) missingByProduct.set(row.product_id, [...(missingByProduct.get(row.product_id) ?? []), row]);
+  for (const [productId, rows] of Array.from(missingByProduct.entries())) {
+    const product = productsById.get(productId);
+    if (!product) continue;
+    reviewRows.push({ import_id: input.importId, product_id: productId, variant_id: null, pos_code: rows[0]?.pos_code ?? null, change_type: "missing_from_import", after_json: { code: product.cleaned_code, missingFromImport: true, missingPosCodes: rows.map(row => row.pos_code) } });
+  }
+  const productIds = Array.from(missingByProduct.keys());
+  if (productIds.length) await supabaseRequest(`products?id=in.(${productIds.join(",")})`, { method: "PATCH", body: JSON.stringify({ is_removed_from_latest_import: true, review_status: "needs_review" }) });
   if (reviewRows.length) await supabaseRequest("import_changes", { method: "POST", body: JSON.stringify(reviewRows) });
   await supabaseRequest(`imports?${supabaseEq("id", input.importId)}`, { method: "PATCH", body: JSON.stringify({ status: "applied", applied_at: new Date().toISOString(), summary_json: { newProducts, newVariants, updatedVariants, missingVariants: missing.length } }) });
   return { newProducts, newVariants, updatedVariants, missingVariants: missing.length };
+}
+
+async function copyArchivedWebsiteContent(sourceProductId: number, targetProductId: number) {
+  if (sourceProductId === targetProductId) throw new TRPCError({ code: "BAD_REQUEST", message: "Choose a different archived item to reuse its website content." });
+  const [sourceRows, targetRows] = await Promise.all([
+    supabaseRequest<DbReusableProduct[]>(`products?select=id,display_name,category_id,category_source,is_just_in,lifecycle_status&${supabaseEq("id", sourceProductId)}&limit=1`),
+    supabaseRequest<DbReusableProduct[]>(`products?select=id,display_name,category_id,category_source,is_just_in,lifecycle_status&${supabaseEq("id", targetProductId)}&limit=1`),
+  ]);
+  const source = sourceRows[0];
+  const target = targetRows[0];
+  if (!source || !target) throw new TRPCError({ code: "NOT_FOUND", message: "The selected source or target item no longer exists." });
+  if (source.lifecycle_status !== "discontinued") throw new TRPCError({ code: "BAD_REQUEST", message: "Website content can be reused only from a discontinued item." });
+  if (target.lifecycle_status === "discontinued") throw new TRPCError({ code: "BAD_REQUEST", message: "Restore the target item before reusing archived content." });
+
+  await supabaseRequest(`products?${supabaseEq("id", target.id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ display_name: source.display_name, category_id: source.category_id, category_source: source.category_source, is_just_in: source.is_just_in }),
+  });
+
+  const [sourceMedia, targetMedia] = await Promise.all([
+    supabaseRequest<DbReusableMedia[]>(`product_media?select=product_id,variant_id,cloudinary_public_id,optimized_url,alt_text,color_tag,sort_order,is_primary&${supabaseEq("product_id", source.id)}&order=sort_order.asc`),
+    supabaseRequest<DbReusableMedia[]>(`product_media?select=product_id,variant_id,cloudinary_public_id,optimized_url,alt_text,color_tag,sort_order,is_primary&${supabaseEq("product_id", target.id)}&order=sort_order.asc`),
+  ]);
+  const existingMedia = new Set(targetMedia.map(media => `${media.cloudinary_public_id}:${media.color_tag ?? ""}`));
+  const copiedRows = sourceMedia
+    .filter(media => !existingMedia.has(`${media.cloudinary_public_id}:${media.color_tag ?? ""}`))
+    .map((media, index) => ({ product_id: target.id, variant_id: null, cloudinary_public_id: media.cloudinary_public_id, optimized_url: media.optimized_url, alt_text: media.alt_text, color_tag: media.color_tag, sort_order: targetMedia.length + index, is_primary: targetMedia.length === 0 && index === 0 }));
+  if (copiedRows.length) await supabaseRequest("product_media", { method: "POST", body: JSON.stringify(copiedRows) });
+  return { copiedMediaCount: copiedRows.length };
 }
 
 export const storeRouter = router({
@@ -160,10 +206,11 @@ export const storeRouter = router({
     logout: publicProcedure.mutation(({ ctx }) => { ctx.res.clearCookie(ADMIN_COOKIE, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" }); return { success: true }; }),
     changePassword: publicProcedure.input(adminPasswordChangeInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const stored = await readStoredPasswordHash(); const valid = stored ? passwordMatches(input.currentPassword, stored) : input.currentPassword === process.env.ADMIN_PASSWORD; if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password is incorrect." }); await savePasswordHash(hashPassword(input.newPassword)); await issueAdminSession(ctx as Context); return { success: true }; }),
     overview: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); return cataloguePayload(true, true); }),
-    updateProduct: publicProcedure.input(z.object({ id: z.number().int(), displayName: z.string().max(255).nullable(), categoryId: z.number().int().nullable(), isJustIn: z.boolean().optional() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...(input.isJustIn === undefined ? {} : { is_just_in: input.isJustIn }) }) }); return { success: true }; }),
+    updateProduct: publicProcedure.input(z.object({ id: z.number().int(), displayName: z.string().max(255).nullable(), categoryId: z.number().int().nullable(), isJustIn: z.boolean().optional(), lifecycleStatus: z.enum(["active", "out_of_stock", "discontinued"]).optional() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...(input.isJustIn === undefined ? {} : { is_just_in: input.isJustIn }), ...(input.lifecycleStatus === undefined ? {} : { lifecycle_status: input.lifecycleStatus }) }) }); return { success: true }; }),
+    reuseArchivedContent: publicProcedure.input(z.object({ sourceProductId: z.number().int().positive(), targetProductId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return copyArchivedWebsiteContent(input.sourceProductId, input.targetProductId); }),
     previewImport: publicProcedure.input(importInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return createPreview(input); }), applyImport: publicProcedure.input(importInput.extend({ importId: z.number().int() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return applyImport(input); }),
     importHistory: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const rows = await supabaseRequest<Array<{ id: number; original_filename: string; status: string; created_at: string }>>("imports?select=id,original_filename,status,created_at&order=created_at.asc"); return rows.map(row => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at })); }),
-    reviewQueue: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const [imports, changes] = await Promise.all([supabaseRequest<DbImport[]>("imports?select=id,original_filename,status,created_at&status=eq.applied&order=created_at.desc&limit=100"), supabaseRequest<DbReviewChange[]>("import_changes?select=id,import_id,after_json,review_status&change_type=eq.stock_price_update&order=created_at.desc&limit=1000")]); return groupReviewChangesByImport(imports, changes); }),
+    reviewQueue: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const [imports, changes] = await Promise.all([supabaseRequest<DbImport[]>("imports?select=id,original_filename,status,created_at&status=eq.applied&order=created_at.desc&limit=100"), supabaseRequest<DbReviewChange[]>("import_changes?select=id,import_id,after_json,review_status&change_type=in.(stock_price_update,missing_from_import)&order=created_at.desc&limit=1000")]); return groupReviewChangesByImport(imports, changes); }),
     resolveImportChange: publicProcedure.input(z.object({ id: z.number().int(), reviewStatus: z.enum(["accepted", "ignored"]) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`import_changes?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ review_status: input.reviewStatus }) }); return { success: true }; }),
     signMediaUpload: publicProcedure.input(z.object({ productCode: z.string().min(1), categorySlug: z.string().min(1), colorTag: z.string().min(1) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const cloudName = process.env.CLOUDINARY_CLOUD_NAME; const apiKey = process.env.CLOUDINARY_API_KEY; const apiSecret = process.env.CLOUDINARY_API_SECRET; if (!cloudName || !apiKey || !apiSecret) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." }); const normalized = input.productCode.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); const timestamp = Math.floor(Date.now() / 1000); const folder = `orange/products/${normalized}`; const tags = `orange,product:${normalized},category:${input.categorySlug},color:${input.colorTag}`; const signature = crypto.createHash("sha1").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp}${apiSecret}`).digest("hex"); return { uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp, folder, tags, signature }; }),
     registerMedia: publicProcedure.input(z.object({ productId: z.number().int(), variantId: z.number().int().nullable().optional(), publicId: z.string().min(1), secureUrl: z.string().url(), altText: z.string().max(255).nullable().optional(), colorTag: z.string().max(128).nullable().optional(), isPrimary: z.boolean().default(false) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); if (!input.publicId.startsWith("orange/products/")) throw new TRPCError({ code: "BAD_REQUEST", message: "The uploaded media is not in an approved Orange product folder." }); const cloudName = process.env.CLOUDINARY_CLOUD_NAME; if (input.isPrimary) await supabaseRequest(`product_media?${supabaseEq("product_id", input.productId)}`, { method: "PATCH", body: JSON.stringify({ is_primary: false }) }); await supabaseRequest("product_media", { method: "POST", body: JSON.stringify({ product_id: input.productId, variant_id: input.variantId ?? null, cloudinary_public_id: input.publicId, optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${input.publicId}`, alt_text: input.altText ?? null, color_tag: input.colorTag ?? null, is_primary: input.isPrimary }) }); return { success: true }; }),
@@ -172,14 +219,17 @@ export const storeRouter = router({
       const mediaRows = await supabaseRequest<DbProductMedia[]>(`product_media?select=id,cloudinary_public_id&${supabaseEq("id", input.mediaId)}&limit=1`);
       const media = mediaRows[0];
       if (!media) throw new TRPCError({ code: "NOT_FOUND", message: "The selected photo record was not found." });
-      const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-      const apiKey = process.env.CLOUDINARY_API_KEY;
-      const apiSecret = process.env.CLOUDINARY_API_SECRET;
-      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
-      try {
-        await destroyCloudinaryProductImage(media.cloudinary_public_id, { cloudName, apiKey, apiSecret });
-      } catch (error) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
+      const otherAssociations = await supabaseRequest<Array<{ id: number }>>(`product_media?select=id&${supabaseEq("cloudinary_public_id", media.cloudinary_public_id)}&id=neq.${media.id}&limit=1`);
+      if (!otherAssociations.length) {
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+        const apiKey = process.env.CLOUDINARY_API_KEY;
+        const apiSecret = process.env.CLOUDINARY_API_SECRET;
+        if (!cloudName || !apiKey || !apiSecret) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+        try {
+          await destroyCloudinaryProductImage(media.cloudinary_public_id, { cloudName, apiKey, apiSecret });
+        } catch (error) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
+        }
       }
       await supabaseRequest(`product_media?${supabaseEq("id", media.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
       return { success: true };

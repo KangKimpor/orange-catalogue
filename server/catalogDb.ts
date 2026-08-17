@@ -7,7 +7,7 @@ type CardColor = { id: number | null; englishName: string; hex: string; availabl
 export async function fetchCatalogueRows(includeHidden = false) {
   const [categoryRows, productRows, variantRows, mediaRows, colorRows] = await Promise.all([
     supabaseRequest<CategoryRow[]>("categories?select=*&order=sort_order.asc"),
-    supabaseRequest<ProductRow[]>(`products?select=*${includeHidden ? "" : "&is_published=eq.true"}`),
+    supabaseRequest<ProductRow[]>(`products?select=*${includeHidden ? "" : "&is_published=eq.true&lifecycle_status=neq.discontinued"}`),
     supabaseRequest<VariantRow[]>("variants?select=*&is_visible=eq.true"),
     supabaseRequest<ProductMediaRow[]>("product_media?select=*&order=sort_order.asc"),
     supabaseRequest<ColorRow[]>("colors?select=*&order=sort_order.asc"),
@@ -16,7 +16,7 @@ export async function fetchCatalogueRows(includeHidden = false) {
     categoryRows: categoryRows.map(row => ({ id: row.id, slug: row.slug, label: row.label, sortOrder: row.sort_order, isVisible: row.is_visible })),
     productRows: productRows.map(row => ({
       id: row.id, slug: row.slug, cleanedCode: row.cleaned_code, displayName: row.display_name, categoryId: row.category_id,
-      categorySource: row.category_source, isJustIn: row.is_just_in, isPublished: row.is_published, isRemovedFromLatestImport: row.is_removed_from_latest_import,
+      categorySource: row.category_source, isJustIn: row.is_just_in, isPublished: row.is_published, lifecycleStatus: row.lifecycle_status, isRemovedFromLatestImport: row.is_removed_from_latest_import,
       reviewStatus: row.review_status,
     })),
     variantRows: variantRows.map(row => ({
@@ -47,7 +47,7 @@ function groupByProduct<T extends { product_id: number }>(rows: T[]) {
   return grouped;
 }
 
-function cardColors(variants: VariantRow[], colorsById: ReturnType<typeof colorMap>): CardColor[] {
+function cardColors(variants: VariantRow[], colorsById: ReturnType<typeof colorMap>, lifecycleStatus: ProductRow["lifecycle_status"]): CardColor[] {
   const grouped = new Map<number | null, VariantRow[]>();
   for (const variant of variants) grouped.set(variant.color_id, [...(grouped.get(variant.color_id) ?? []), variant]);
   return Array.from(grouped.entries()).map(([colorId, groupedVariants]) => {
@@ -56,7 +56,7 @@ function cardColors(variants: VariantRow[], colorsById: ReturnType<typeof colorM
       id: colorId,
       englishName: color?.englishName ?? "One Color",
       hex: color?.hex ?? "#9A9A94",
-      available: groupedVariants.some(variant => variant.stock_quantity > 0),
+      available: lifecycleStatus === "active" && groupedVariants.some(variant => variant.stock_quantity > 0),
     };
   });
 }
@@ -72,12 +72,13 @@ function cardProduct(product: ProductRow, variants: VariantRow[], primaryMedia: 
     category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" },
     isJustIn: product.is_just_in,
     isPublished: product.is_published,
+    lifecycleStatus: product.lifecycle_status,
     isRemovedFromLatestImport: product.is_removed_from_latest_import,
     reviewStatus: product.review_status,
-    available: variants.some(variant => variant.stock_quantity > 0),
+    available: product.lifecycle_status === "active" && variants.some(variant => variant.stock_quantity > 0),
     priceMin: prices.length ? Math.min(...prices) : 0,
     priceMax: prices.length ? Math.max(...prices) : 0,
-    colors: cardColors(variants, colorsById),
+    colors: cardColors(variants, colorsById, product.lifecycle_status),
     media: primaryMedia ? [{ id: primaryMedia.id, url: primaryMedia.optimized_url, altText: primaryMedia.alt_text, isPrimary: primaryMedia.is_primary }] : [],
   };
 }
@@ -85,7 +86,7 @@ function cardProduct(product: ProductRow, variants: VariantRow[], primaryMedia: 
 export async function fetchStorefrontCards() {
   const [categoryRows, productRows, variantRows, mediaRows, colorRows] = await Promise.all([
     supabaseRequest<CategoryRow[]>("categories?select=id,slug,label,sort_order,is_visible&order=sort_order.asc"),
-    supabaseRequest<ProductRow[]>("products?select=id,slug,cleaned_code,display_name,category_id,category_source,is_just_in,is_published,is_removed_from_latest_import,review_status&is_published=eq.true"),
+    supabaseRequest<ProductRow[]>("products?select=id,slug,cleaned_code,display_name,category_id,category_source,is_just_in,is_published,lifecycle_status,is_removed_from_latest_import,review_status&is_published=eq.true&lifecycle_status=neq.discontinued"),
     supabaseRequest<VariantRow[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,is_visible,last_seen_import_id&is_visible=eq.true"),
     supabaseRequest<ProductMediaRow[]>("product_media?select=id,product_id,variant_id,cloudinary_public_id,optimized_url,alt_text,color_tag,sort_order,is_primary&is_primary=eq.true&order=sort_order.asc"),
     supabaseRequest<ColorRow[]>("colors?select=id,khmer_name,english_name,hex,normalized_key,sort_order&order=sort_order.asc"),
@@ -103,7 +104,7 @@ export async function fetchStorefrontCards() {
 }
 
 export async function fetchStorefrontProduct(slug: string) {
-  const productRows = await supabaseRequest<ProductRow[]>(`products?select=id,slug,cleaned_code,display_name,category_id,category_source,is_just_in,is_published,is_removed_from_latest_import,review_status&slug=eq.${encodeURIComponent(slug)}&is_published=eq.true&limit=1`);
+  const productRows = await supabaseRequest<ProductRow[]>(`products?select=id,slug,cleaned_code,display_name,category_id,category_source,is_just_in,is_published,lifecycle_status,is_removed_from_latest_import,review_status&slug=eq.${encodeURIComponent(slug)}&is_published=eq.true&lifecycle_status=neq.discontinued&limit=1`);
   const product = productRows[0];
   if (!product) return null;
 
@@ -130,8 +131,8 @@ export async function fetchStorefrontProduct(slug: string) {
       khmerName: color?.khmerName ?? null,
       englishName: color?.englishName ?? "One Color",
       hex: color?.hex ?? "#9A9A94",
-      available: variants.some(variant => variant.stock_quantity > 0),
-      variants: variants.map(variant => ({ id: variant.id, posCode: variant.pos_code, size: variant.size, price: Number(variant.price), available: variant.stock_quantity > 0 })),
+      available: product.lifecycle_status === "active" && variants.some(variant => variant.stock_quantity > 0),
+      variants: variants.map(variant => ({ id: variant.id, posCode: variant.pos_code, size: variant.size, price: Number(variant.price), available: product.lifecycle_status === "active" && variant.stock_quantity > 0 })),
     };
   });
   return {
@@ -142,9 +143,10 @@ export async function fetchStorefrontProduct(slug: string) {
     category,
     isJustIn: product.is_just_in,
     isPublished: product.is_published,
+    lifecycleStatus: product.lifecycle_status,
     isRemovedFromLatestImport: product.is_removed_from_latest_import,
     reviewStatus: product.review_status,
-    available: variantRows.some(variant => variant.stock_quantity > 0),
+    available: product.lifecycle_status === "active" && variantRows.some(variant => variant.stock_quantity > 0),
     priceMin: variantRows.length ? Math.min(...variantRows.map(variant => Number(variant.price))) : 0,
     priceMax: variantRows.length ? Math.max(...variantRows.map(variant => Number(variant.price))) : 0,
     colors,

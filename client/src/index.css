@@ -2050,3 +2050,39 @@ html {
   .review-change-row > div { width: 100%; }
   .review-change-row button { width: 100%; }
 }
+
+/* POS lifecycle and archived-content reuse */
+.archive-reuse-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  border: 1px solid #f7dbe5;
+  background: #fff7fa;
+}
+.archive-reuse-panel label {
+  display: grid;
+  gap: 7px;
+  color: #30282d;
+  font: 600 10px "DM Mono", monospace;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.archive-reuse-panel select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #f7c4d3;
+  background: #fff;
+  color: #211b1f;
+  padding: 12px;
+  font: 14px "DM Sans", sans-serif;
+}
+.form-success {
+  margin: 0;
+  color: #216242;
+  font-size: 12px;
+  line-height: 1.45;
+}
+@media (max-width: 540px) {
+  .archive-reuse-panel .form-actions { flex-direction: column; align-items: stretch; }
+  .archive-reuse-panel .form-actions button { width: 100%; }
+}

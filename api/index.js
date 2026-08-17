@@ -835,7 +835,7 @@ function supabaseEq(column, value) {
 async function fetchCatalogueRows(includeHidden = false) {
   const [categoryRows, productRows, variantRows, mediaRows, colorRows] = await Promise.all([
     supabaseRequest("categories?select=*&order=sort_order.asc"),
-    supabaseRequest(`products?select=*${includeHidden ? "" : "&is_published=eq.true"}`),
+    supabaseRequest(`products?select=*${includeHidden ? "" : "&is_published=eq.true&lifecycle_status=neq.discontinued"}`),
     supabaseRequest("variants?select=*&is_visible=eq.true"),
     supabaseRequest("product_media?select=*&order=sort_order.asc"),
     supabaseRequest("colors?select=*&order=sort_order.asc")
@@ -851,6 +851,7 @@ async function fetchCatalogueRows(includeHidden = false) {
       categorySource: row.category_source,
       isJustIn: row.is_just_in,
       isPublished: row.is_published,
+      lifecycleStatus: row.lifecycle_status,
       isRemovedFromLatestImport: row.is_removed_from_latest_import,
       reviewStatus: row.review_status
     })),
@@ -897,7 +898,7 @@ function groupByProduct(rows) {
   for (const row of rows) grouped.set(row.product_id, [...grouped.get(row.product_id) ?? [], row]);
   return grouped;
 }
-function cardColors(variants2, colorsById) {
+function cardColors(variants2, colorsById, lifecycleStatus) {
   const grouped = /* @__PURE__ */ new Map();
   for (const variant of variants2) grouped.set(variant.color_id, [...grouped.get(variant.color_id) ?? [], variant]);
   return Array.from(grouped.entries()).map(([colorId, groupedVariants]) => {
@@ -906,7 +907,7 @@ function cardColors(variants2, colorsById) {
       id: colorId,
       englishName: color?.englishName ?? "One Color",
       hex: color?.hex ?? "#9A9A94",
-      available: groupedVariants.some((variant) => variant.stock_quantity > 0)
+      available: lifecycleStatus === "active" && groupedVariants.some((variant) => variant.stock_quantity > 0)
     };
   });
 }
@@ -921,19 +922,20 @@ function cardProduct(product, variants2, primaryMedia, categoriesById, colorsByI
     category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" },
     isJustIn: product.is_just_in,
     isPublished: product.is_published,
+    lifecycleStatus: product.lifecycle_status,
     isRemovedFromLatestImport: product.is_removed_from_latest_import,
     reviewStatus: product.review_status,
-    available: variants2.some((variant) => variant.stock_quantity > 0),
+    available: product.lifecycle_status === "active" && variants2.some((variant) => variant.stock_quantity > 0),
     priceMin: prices.length ? Math.min(...prices) : 0,
     priceMax: prices.length ? Math.max(...prices) : 0,
-    colors: cardColors(variants2, colorsById),
+    colors: cardColors(variants2, colorsById, product.lifecycle_status),
     media: primaryMedia ? [{ id: primaryMedia.id, url: primaryMedia.optimized_url, altText: primaryMedia.alt_text, isPrimary: primaryMedia.is_primary }] : []
   };
 }
 async function fetchStorefrontCards() {
   const [categoryRows, productRows, variantRows, mediaRows, colorRows] = await Promise.all([
     supabaseRequest("categories?select=id,slug,label,sort_order,is_visible&order=sort_order.asc"),
-    supabaseRequest("products?select=id,slug,cleaned_code,display_name,category_id,category_source,is_just_in,is_published,is_removed_from_latest_import,review_status&is_published=eq.true"),
+    supabaseRequest("products?select=id,slug,cleaned_code,display_name,category_id,category_source,is_just_in,is_published,lifecycle_status,is_removed_from_latest_import,review_status&is_published=eq.true&lifecycle_status=neq.discontinued"),
     supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,is_visible,last_seen_import_id&is_visible=eq.true"),
     supabaseRequest("product_media?select=id,product_id,variant_id,cloudinary_public_id,optimized_url,alt_text,color_tag,sort_order,is_primary&is_primary=eq.true&order=sort_order.asc"),
     supabaseRequest("colors?select=id,khmer_name,english_name,hex,normalized_key,sort_order&order=sort_order.asc")
@@ -948,7 +950,7 @@ async function fetchStorefrontCards() {
   };
 }
 async function fetchStorefrontProduct(slug) {
-  const productRows = await supabaseRequest(`products?select=id,slug,cleaned_code,display_name,category_id,category_source,is_just_in,is_published,is_removed_from_latest_import,review_status&slug=eq.${encodeURIComponent(slug)}&is_published=eq.true&limit=1`);
+  const productRows = await supabaseRequest(`products?select=id,slug,cleaned_code,display_name,category_id,category_source,is_just_in,is_published,lifecycle_status,is_removed_from_latest_import,review_status&slug=eq.${encodeURIComponent(slug)}&is_published=eq.true&lifecycle_status=neq.discontinued&limit=1`);
   const product = productRows[0];
   if (!product) return null;
   const [categoryRows, variantRows, mediaRows] = await Promise.all([
@@ -970,8 +972,8 @@ async function fetchStorefrontProduct(slug) {
       khmerName: color?.khmerName ?? null,
       englishName: color?.englishName ?? "One Color",
       hex: color?.hex ?? "#9A9A94",
-      available: variants2.some((variant) => variant.stock_quantity > 0),
-      variants: variants2.map((variant) => ({ id: variant.id, posCode: variant.pos_code, size: variant.size, price: Number(variant.price), available: variant.stock_quantity > 0 }))
+      available: product.lifecycle_status === "active" && variants2.some((variant) => variant.stock_quantity > 0),
+      variants: variants2.map((variant) => ({ id: variant.id, posCode: variant.pos_code, size: variant.size, price: Number(variant.price), available: product.lifecycle_status === "active" && variant.stock_quantity > 0 }))
     };
   });
   return {
@@ -982,9 +984,10 @@ async function fetchStorefrontProduct(slug) {
     category,
     isJustIn: product.is_just_in,
     isPublished: product.is_published,
+    lifecycleStatus: product.lifecycle_status,
     isRemovedFromLatestImport: product.is_removed_from_latest_import,
     reviewStatus: product.review_status,
-    available: variantRows.some((variant) => variant.stock_quantity > 0),
+    available: product.lifecycle_status === "active" && variantRows.some((variant) => variant.stock_quantity > 0),
     priceMin: variantRows.length ? Math.min(...variantRows.map((variant) => Number(variant.price))) : 0,
     priceMax: variantRows.length ? Math.max(...variantRows.map((variant) => Number(variant.price))) : 0,
     colors: colors2,
@@ -1212,7 +1215,7 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
       });
       const variants2 = variantsByProduct.get(product.id) ?? [];
       const category = product.categoryId ? categoriesById.get(product.categoryId) : void 0;
-      return { id: product.id, slug: product.slug, displayName: product.displayName, cleanedCode: product.cleanedCode, category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" }, isJustIn: product.isJustIn, isPublished: product.isPublished, isRemovedFromLatestImport: product.isRemovedFromLatestImport, reviewStatus: product.reviewStatus, available: variants2.some((v) => publicAvailability(v.stockQuantity)), priceMin: variants2.length ? Math.min(...variants2.map((v) => Number(v.price))) : 0, priceMax: variants2.length ? Math.max(...variants2.map((v) => Number(v.price))) : 0, colors: colors2, media: (mediaByProduct.get(product.id) ?? []).map((media) => ({ id: media.id, url: media.optimizedUrl, altText: media.altText, isPrimary: media.isPrimary, variantId: media.variantId, colorTag: media.colorTag })) };
+      return { id: product.id, slug: product.slug, displayName: product.displayName, cleanedCode: product.cleanedCode, category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" }, isJustIn: product.isJustIn, isPublished: product.isPublished, lifecycleStatus: product.lifecycleStatus, isRemovedFromLatestImport: product.isRemovedFromLatestImport, reviewStatus: product.reviewStatus, available: product.lifecycleStatus === "active" && variants2.some((v) => publicAvailability(v.stockQuantity)), priceMin: variants2.length ? Math.min(...variants2.map((v) => Number(v.price))) : 0, priceMax: variants2.length ? Math.max(...variants2.map((v) => Number(v.price))) : 0, colors: colors2, media: (mediaByProduct.get(product.id) ?? []).map((media) => ({ id: media.id, url: media.optimizedUrl, altText: media.altText, isPrimary: media.isPrimary, variantId: media.variantId, colorTag: media.colorTag })) };
     })
   };
 }
@@ -1223,9 +1226,9 @@ function groupReviewChangesByImport(imports2, changes) {
     const importGroup = importsById.get(row.import_id);
     const change = row.after_json;
     const cleanedCode = change?.code?.trim();
-    if (!importGroup || !change || !cleanedCode || !change.priceChanged && !change.stockChanged) continue;
+    if (!importGroup || !change || !cleanedCode || !change.priceChanged && !change.stockChanged && !change.missingFromImport) continue;
     const item = importGroup.itemMap.get(cleanedCode) ?? { cleanedCode, changes: [], pendingChangeCount: 0 };
-    const groupedChange = { id: row.id, priceChanged: Boolean(change.priceChanged), stockChanged: Boolean(change.stockChanged), previousPrice: change.previousPrice ?? null, price: change.price ?? null, previousStock: change.previousStock ?? null, stock: change.stock ?? null, reviewStatus: row.review_status };
+    const groupedChange = { id: row.id, priceChanged: Boolean(change.priceChanged), stockChanged: Boolean(change.stockChanged), missingFromImport: Boolean(change.missingFromImport), missingPosCodes: change.missingPosCodes ?? [], previousPrice: change.previousPrice ?? null, price: change.price ?? null, previousStock: change.previousStock ?? null, stock: change.stock ?? null, reviewStatus: row.review_status };
     item.changes.push(groupedChange);
     if (groupedChange.reviewStatus === "pending") item.pendingChangeCount += 1;
     importGroup.itemMap.set(cleanedCode, item);
@@ -1238,7 +1241,7 @@ function groupReviewChangesByImport(imports2, changes) {
 async function createPreview(input) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
   if (parsed.validation.duplicatePosCodes.length) throw new TRPCError4({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
-  const [existingVariants, existingProducts] = await Promise.all([supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest("products?select=id,cleaned_code,slug,category_source")]);
+  const [existingVariants, existingProducts, appliedImports] = await Promise.all([supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest("products?select=id,cleaned_code,slug,category_source"), supabaseRequest(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&limit=1`)]);
   const variantsByCode = new Map(existingVariants.map((row) => [row.pos_code, row]));
   const productsByCode = new Set(existingProducts.map((row) => row.cleaned_code));
   const previewed = /* @__PURE__ */ new Set();
@@ -1256,8 +1259,10 @@ async function createPreview(input) {
   }).filter(Boolean);
   const missing = existingVariants.filter((row) => !incoming.has(row.pos_code)).map((row) => ({ type: "missing", posCode: row.pos_code }));
   const summary = { rows: parsed.items.length, newProducts: changes.filter((change) => change?.type === "new_product").length, newVariants: changes.filter((change) => change?.type === "new_variant").length, updatedVariants: changes.filter((change) => change?.type === "updated").length, missingVariants: missing.length, invalidRows: parsed.validation.invalidRows.length };
+  const alreadyApplied = appliedImports[0];
+  if (alreadyApplied) return { importId: alreadyApplied.id, summary, validation: parsed.validation, changes: [], alreadyApplied: true };
   const [importRow] = await supabaseRequest("imports", { method: "POST", body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, summary_json: summary, validation_json: parsed.validation }) });
-  return { importId: importRow.id, summary, validation: parsed.validation, changes: [...changes.slice(0, 40), ...missing.slice(0, 40)] };
+  return { importId: importRow.id, summary, validation: parsed.validation, changes: [...changes.slice(0, 40), ...missing.slice(0, 40)], alreadyApplied: false };
 }
 async function applyImport(input) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
@@ -1266,6 +1271,8 @@ async function applyImport(input) {
   const importRow = imports2[0];
   if (!importRow || importRow.status !== "preview") throw new TRPCError4({ code: "NOT_FOUND", message: "The requested import preview is unavailable." });
   if (importRow.digest !== parsed.digest) throw new TRPCError4({ code: "BAD_REQUEST", message: "The file differs from the saved import preview. Create a new preview." });
+  const appliedWithSameDigest = await supabaseRequest(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&id=neq.${input.importId}&limit=1`);
+  if (appliedWithSameDigest.length) throw new TRPCError4({ code: "CONFLICT", message: "This POS workbook was already applied. Upload a newer export instead." });
   const [categoryRows, productRows, variantRows, colorRows] = await Promise.all([supabaseRequest("categories?select=id,slug"), supabaseRequest("products?select=id,cleaned_code,slug,category_source"), supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest("colors?select=id,normalized_key")]);
   const categories2 = new Map(categoryRows.map((row) => [row.slug, row]));
   const products2 = new Map(productRows.map((row) => [row.cleaned_code, row]));
@@ -1307,11 +1314,43 @@ async function applyImport(input) {
     }
   }
   const missing = variantRows.filter((row) => !incoming.has(row.pos_code));
-  const productIds = Array.from(new Set(missing.map((row) => row.product_id)));
+  const productsById = new Map(productRows.map((row) => [row.id, row]));
+  const missingByProduct = /* @__PURE__ */ new Map();
+  for (const row of missing) missingByProduct.set(row.product_id, [...missingByProduct.get(row.product_id) ?? [], row]);
+  for (const [productId, rows] of Array.from(missingByProduct.entries())) {
+    const product = productsById.get(productId);
+    if (!product) continue;
+    reviewRows.push({ import_id: input.importId, product_id: productId, variant_id: null, pos_code: rows[0]?.pos_code ?? null, change_type: "missing_from_import", after_json: { code: product.cleaned_code, missingFromImport: true, missingPosCodes: rows.map((row) => row.pos_code) } });
+  }
+  const productIds = Array.from(missingByProduct.keys());
   if (productIds.length) await supabaseRequest(`products?id=in.(${productIds.join(",")})`, { method: "PATCH", body: JSON.stringify({ is_removed_from_latest_import: true, review_status: "needs_review" }) });
   if (reviewRows.length) await supabaseRequest("import_changes", { method: "POST", body: JSON.stringify(reviewRows) });
   await supabaseRequest(`imports?${supabaseEq("id", input.importId)}`, { method: "PATCH", body: JSON.stringify({ status: "applied", applied_at: (/* @__PURE__ */ new Date()).toISOString(), summary_json: { newProducts, newVariants, updatedVariants, missingVariants: missing.length } }) });
   return { newProducts, newVariants, updatedVariants, missingVariants: missing.length };
+}
+async function copyArchivedWebsiteContent(sourceProductId, targetProductId) {
+  if (sourceProductId === targetProductId) throw new TRPCError4({ code: "BAD_REQUEST", message: "Choose a different archived item to reuse its website content." });
+  const [sourceRows, targetRows] = await Promise.all([
+    supabaseRequest(`products?select=id,display_name,category_id,category_source,is_just_in,lifecycle_status&${supabaseEq("id", sourceProductId)}&limit=1`),
+    supabaseRequest(`products?select=id,display_name,category_id,category_source,is_just_in,lifecycle_status&${supabaseEq("id", targetProductId)}&limit=1`)
+  ]);
+  const source = sourceRows[0];
+  const target = targetRows[0];
+  if (!source || !target) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected source or target item no longer exists." });
+  if (source.lifecycle_status !== "discontinued") throw new TRPCError4({ code: "BAD_REQUEST", message: "Website content can be reused only from a discontinued item." });
+  if (target.lifecycle_status === "discontinued") throw new TRPCError4({ code: "BAD_REQUEST", message: "Restore the target item before reusing archived content." });
+  await supabaseRequest(`products?${supabaseEq("id", target.id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ display_name: source.display_name, category_id: source.category_id, category_source: source.category_source, is_just_in: source.is_just_in })
+  });
+  const [sourceMedia, targetMedia] = await Promise.all([
+    supabaseRequest(`product_media?select=product_id,variant_id,cloudinary_public_id,optimized_url,alt_text,color_tag,sort_order,is_primary&${supabaseEq("product_id", source.id)}&order=sort_order.asc`),
+    supabaseRequest(`product_media?select=product_id,variant_id,cloudinary_public_id,optimized_url,alt_text,color_tag,sort_order,is_primary&${supabaseEq("product_id", target.id)}&order=sort_order.asc`)
+  ]);
+  const existingMedia = new Set(targetMedia.map((media) => `${media.cloudinary_public_id}:${media.color_tag ?? ""}`));
+  const copiedRows = sourceMedia.filter((media) => !existingMedia.has(`${media.cloudinary_public_id}:${media.color_tag ?? ""}`)).map((media, index2) => ({ product_id: target.id, variant_id: null, cloudinary_public_id: media.cloudinary_public_id, optimized_url: media.optimized_url, alt_text: media.alt_text, color_tag: media.color_tag, sort_order: targetMedia.length + index2, is_primary: targetMedia.length === 0 && index2 === 0 }));
+  if (copiedRows.length) await supabaseRequest("product_media", { method: "POST", body: JSON.stringify(copiedRows) });
+  return { copiedMediaCount: copiedRows.length };
 }
 var storeRouter = router({
   catalogue: router({ list: publicProcedure.query(() => fetchStorefrontCards()), getBySlug: publicProcedure.input(z2.object({ slug: z2.string().min(1) })).query(async ({ input }) => {
@@ -1356,10 +1395,14 @@ var storeRouter = router({
       await requireAdmin(ctx);
       return cataloguePayload(true, true);
     }),
-    updateProduct: publicProcedure.input(z2.object({ id: z2.number().int(), displayName: z2.string().max(255).nullable(), categoryId: z2.number().int().nullable(), isJustIn: z2.boolean().optional() })).mutation(async ({ ctx, input }) => {
+    updateProduct: publicProcedure.input(z2.object({ id: z2.number().int(), displayName: z2.string().max(255).nullable(), categoryId: z2.number().int().nullable(), isJustIn: z2.boolean().optional(), lifecycleStatus: z2.enum(["active", "out_of_stock", "discontinued"]).optional() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
-      await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...input.isJustIn === void 0 ? {} : { is_just_in: input.isJustIn } }) });
+      await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...input.isJustIn === void 0 ? {} : { is_just_in: input.isJustIn }, ...input.lifecycleStatus === void 0 ? {} : { lifecycle_status: input.lifecycleStatus } }) });
       return { success: true };
+    }),
+    reuseArchivedContent: publicProcedure.input(z2.object({ sourceProductId: z2.number().int().positive(), targetProductId: z2.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requireAdmin(ctx);
+      return copyArchivedWebsiteContent(input.sourceProductId, input.targetProductId);
     }),
     previewImport: publicProcedure.input(importInput).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
@@ -1376,7 +1419,7 @@ var storeRouter = router({
     }),
     reviewQueue: publicProcedure.query(async ({ ctx }) => {
       await requireAdmin(ctx);
-      const [imports2, changes] = await Promise.all([supabaseRequest("imports?select=id,original_filename,status,created_at&status=eq.applied&order=created_at.desc&limit=100"), supabaseRequest("import_changes?select=id,import_id,after_json,review_status&change_type=eq.stock_price_update&order=created_at.desc&limit=1000")]);
+      const [imports2, changes] = await Promise.all([supabaseRequest("imports?select=id,original_filename,status,created_at&status=eq.applied&order=created_at.desc&limit=100"), supabaseRequest("import_changes?select=id,import_id,after_json,review_status&change_type=in.(stock_price_update,missing_from_import)&order=created_at.desc&limit=1000")]);
       return groupReviewChangesByImport(imports2, changes);
     }),
     resolveImportChange: publicProcedure.input(z2.object({ id: z2.number().int(), reviewStatus: z2.enum(["accepted", "ignored"]) })).mutation(async ({ ctx, input }) => {
@@ -1410,14 +1453,17 @@ var storeRouter = router({
       const mediaRows = await supabaseRequest(`product_media?select=id,cloudinary_public_id&${supabaseEq("id", input.mediaId)}&limit=1`);
       const media = mediaRows[0];
       if (!media) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected photo record was not found." });
-      const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-      const apiKey = process.env.CLOUDINARY_API_KEY;
-      const apiSecret = process.env.CLOUDINARY_API_SECRET;
-      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
-      try {
-        await destroyCloudinaryProductImage(media.cloudinary_public_id, { cloudName, apiKey, apiSecret });
-      } catch (error) {
-        throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
+      const otherAssociations = await supabaseRequest(`product_media?select=id&${supabaseEq("cloudinary_public_id", media.cloudinary_public_id)}&id=neq.${media.id}&limit=1`);
+      if (!otherAssociations.length) {
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+        const apiKey = process.env.CLOUDINARY_API_KEY;
+        const apiSecret = process.env.CLOUDINARY_API_SECRET;
+        if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+        try {
+          await destroyCloudinaryProductImage(media.cloudinary_public_id, { cloudName, apiKey, apiSecret });
+        } catch (error) {
+          throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
+        }
       }
       await supabaseRequest(`product_media?${supabaseEq("id", media.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
       return { success: true };

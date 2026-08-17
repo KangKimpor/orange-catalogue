@@ -170,3 +170,11 @@
 - [x] Prune dependencies made obsolete by the verified removals without altering the public, admin, POS, media, authentication, or deployment contracts.
 - [x] Add concise architecture guidance describing the active execution flow, invariants, and validation commands.
 - [x] Validate the architecture cleanup with tests, TypeScript, production build, generated serverless bundle, diff check, and a current-tree secret scan; 46 tests passed, while 9 integration tests remain blocked locally by intentionally unavailable Supabase/session variables.
+
+- [x] Treat each POS workbook as a full weekly snapshot: record server-side import ordering and file digest, preview changes by immutable POS Code, and make a repeated successful upload safe to abandon rather than apply twice.
+- [x] Preserve website-managed names, categories, Just In membership, and Cloudinary media during POS imports while updating only POS-owned variant inventory, price, size, and Attribute-color data.
+- [x] Add model lifecycle controls for Active, Out of stock, and Discontinued; archive storefront visibility without deleting product, POS variant, audit, or media records.
+- [x] Route POS codes absent from a newer snapshot into a non-destructive review queue, allowing staff to keep the current status, mark Out of stock, or Discontinue them explicitly.
+- [x] Add a secure archive-content reuse action that copies selected website-managed content from an archived model to a new POS-imported model without changing either immutable POS Code, and without duplicating Cloudinary assets.
+- [x] Extend the unified admin Import, Catalogue, and Review queue interfaces for lifecycle visibility, safe explicit archival, import warnings, and content reuse.
+- [x] Add regression tests for snapshot idempotency, no-auto-delete behavior, and lifecycle visibility; validate focused tests, TypeScript, build, and whitespace checks. The full suite remains locally environment-gated by unavailable Supabase/session variables.
