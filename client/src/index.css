@@ -2203,3 +2203,24 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .photo-upload-feedback, .import-feedback, .import-feedback.is-reading, .import-feedback.is-previewing, .import-feedback.is-applying, .import-feedback.is-preview_ready, .import-feedback.is-success, .import-feedback.is-error, .photo-upload-feedback.is-success, .photo-upload-feedback.is-error, .upload-progress-bar::after { animation: none; }
 }
+
+/* Grouped POS change review and safe import removal */
+.import-change-group-list { display: grid; gap: 12px; }
+.import-change-group { border: 1px solid #efd9e3; background: #fffdfd; }
+.import-change-group > header { display: flex; justify-content: space-between; gap: 16px; align-items: start; padding: 14px 16px; border-bottom: 1px solid #f2e1e7; background: #fff7fa; }
+.import-change-group > header h4 { margin: 1px 0 0; color: #2b2125; font: 600 15px "DM Mono", monospace; }
+.import-change-group > header > span { flex: 0 0 auto; color: #896775; font: 600 9px "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+.import-variant-change-list { display: grid; }
+.import-variant-change-row { padding: 12px 16px; border-top: 1px solid #f5e8ed; border-left: 3px solid #dca3b6; }
+.import-variant-change-row:first-child { border-top: 0; }
+.import-variant-change-row.is-new_product { border-left-color: #4d946a; }
+.import-variant-change-row.is-new_variant { border-left-color: #6d7cc4; }
+.import-variant-change-row.is-updated { border-left-color: #c47e39; }
+.import-variant-change-row.is-missing { border-left-color: #af5d70; background: #fff8fa; }
+.import-variant-change-row .eyebrow { margin-bottom: 4px; }
+.import-variant-change-row p:last-child { margin: 0; color: #62545b; font-size: 12px; line-height: 1.5; }
+.import-removal-panel { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin: 0 0 16px; padding: 14px 16px; border: 1px solid #efc5c3; background: #fff7f6; }
+.import-removal-panel p:last-child { max-width: 620px; margin: 4px 0 0; color: #6e4a4c; font-size: 12px; line-height: 1.5; }
+.danger-action { flex: 0 0 auto; border-color: #d58482; color: #8e302d; }
+.danger-action:hover, .danger-action:focus-visible { border-color: #8e302d; background: #fff0ef; outline: none; }
+@media (max-width: 540px) { .import-change-group > header, .import-removal-panel { flex-direction: column; }.import-removal-panel .danger-action { width: 100%; } }

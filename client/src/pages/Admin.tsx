@@ -41,7 +41,8 @@ const initialImportFeedback: ImportFeedback = {
   message: "Choose the newest POS XLSX file. You will see every catalogue change before anything is applied.",
 };
 
-type ImportChangeView = { type: "new_product" | "new_variant" | "updated" | "missing"; code: string; posCode: string | null; priceChanged: boolean; stockChanged: boolean; previousPrice: number | null; price: number | null; previousStock: number | null; stock: number | null; missingPosCodes: string[] };
+type ImportChangeView = { id: number; type: "new_product" | "new_variant" | "updated" | "missing"; code: string; posCode: string | null; color: string | null; previousColor: string | null; size: string | null; previousSize: string | null; colorChanged: boolean; sizeChanged: boolean; priceChanged: boolean; stockChanged: boolean; previousPrice: number | null; price: number | null; previousStock: number | null; stock: number | null; missingPosCodes: string[] };
+type ImportChangeGroupView = { code: string; changes: ImportChangeView[] };
 
 function importChangeTitle(change: ImportChangeView) {
   if (change.type === "new_product") return "New item";
@@ -52,9 +53,14 @@ function importChangeTitle(change: ImportChangeView) {
 
 function importChangeDescription(change: ImportChangeView) {
   if (change.type === "missing") return `POS code${change.missingPosCodes.length === 1 ? "" : "s"}: ${change.missingPosCodes.join(", ")}. This item is kept; nothing is deleted.`;
-  if (change.type === "new_product" || change.type === "new_variant") return `${change.posCode ?? "POS code unavailable"} · Price ${change.price ?? "—"} · Quantity ${change.stock ?? "—"}`;
-  const details = [change.priceChanged ? `Price ${change.previousPrice ?? "—"} → ${change.price ?? "—"}` : "", change.stockChanged ? `Quantity ${change.previousStock ?? "—"} → ${change.stock ?? "—"}` : ""].filter(Boolean);
-  return `${change.posCode ?? "POS code unavailable"} · ${details.join(" · ")}`;
+  const identity = [`POS ${change.posCode ?? "unavailable"}`, change.color ? `Color ${change.color}` : "", change.size ? `Size ${change.size}` : ""].filter(Boolean);
+  if (change.type === "new_product" || change.type === "new_variant") return `${identity.join(" · ")} · Price ${change.price ?? "—"} · Quantity ${change.stock ?? "—"}`;
+  const details = [change.colorChanged ? `Color ${change.previousColor ?? "—"} → ${change.color ?? "—"}` : "", change.sizeChanged ? `Size ${change.previousSize ?? "—"} → ${change.size ?? "—"}` : "", change.priceChanged ? `Price ${change.previousPrice ?? "—"} → ${change.price ?? "—"}` : "", change.stockChanged ? `Quantity ${change.previousStock ?? "—"} → ${change.stock ?? "—"}` : ""].filter(Boolean);
+  return `${identity.join(" · ")} · ${details.join(" · ")}`;
+}
+
+function ImportChangeGroups({ groups }: { groups: ImportChangeGroupView[] }) {
+  return <div className="import-change-group-list">{groups.length ? groups.map(group => <article className="import-change-group" key={group.code}><header><div><p className="eyebrow">CLEANED-CODE ITEM</p><h4>{group.code}</h4></div><span>{group.changes.length} POS change{group.changes.length === 1 ? "" : "s"}</span></header><div className="import-variant-change-list">{group.changes.map(change => <div className={"import-variant-change-row is-" + change.type} key={change.id}><p className="eyebrow">{importChangeTitle(change)}</p><p>{importChangeDescription(change)}</p></div>)}</div></article>) : <p className="empty-workspace">No new, changed, or not-seen items were found in this file.</p>}</div>;
 }
 
 function fileToBase64(file: File) {
@@ -104,6 +110,7 @@ export default function Admin() {
   const reuseArchivedContent = trpc.store.admin.reuseArchivedContent.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
   const previewImport = trpc.store.admin.previewImport.useMutation();
   const applyImport = trpc.store.admin.applyImport.useMutation({ onSuccess: () => { utils.store.admin.overview.invalidate(); utils.store.admin.importHistory.invalidate(); utils.store.admin.importDetails.invalidate(); } });
+  const removeImport = trpc.store.admin.removeImport.useMutation({ onSuccess: () => { utils.store.admin.overview.invalidate(); utils.store.admin.importHistory.invalidate(); utils.store.admin.importDetails.invalidate(); } });
   const changePassword = trpc.store.admin.changePassword.useMutation();
   const signUpload = trpc.store.admin.signMediaUpload.useMutation();
   const registerMedia = trpc.store.admin.registerMedia.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
@@ -128,6 +135,7 @@ export default function Admin() {
   const [importBase64, setImportBase64] = useState("");
   const [preview, setPreview] = useState<any>(null);
   const [importFeedback, setImportFeedback] = useState<ImportFeedback>(initialImportFeedback);
+  const [importRemovalFeedback, setImportRemovalFeedback] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
@@ -249,6 +257,19 @@ export default function Admin() {
       setImportFeedback({ status: "success", message: `Import complete: ${result.newProducts} new item${result.newProducts === 1 ? "" : "s"}, ${result.newVariants} new color or size${result.newVariants === 1 ? "" : "s"}, and ${result.updatedVariants} updated POS row${result.updatedVariants === 1 ? "" : "s"}.` });
     } catch (error) {
       setImportFeedback({ status: "error", message: error instanceof Error ? error.message : "The POS import could not be applied. Your existing catalogue is unchanged." });
+    }
+  }
+  async function removeSelectedImport() {
+    if (!importDetails.data?.canRemove) return;
+    const selected = importDetails.data;
+    if (!window.confirm(`Remove the newest applied import “${selected.originalFilename}”? This restores its recorded price, quantity, color, and size changes, then removes only products or variants created by that import. Imports with attached photos cannot be removed until those associations are cleared.`)) return;
+    try {
+      setImportRemovalFeedback("Removing this import and restoring the previous catalogue state…");
+      const result = await removeImport.mutateAsync({ importId: selected.id });
+      setSelectedImportId(null);
+      setImportRemovalFeedback(`Import removed. Restored ${result.restoredVariants} existing POS row${result.restoredVariants === 1 ? "" : "s"}; removed ${result.removedProducts} new item${result.removedProducts === 1 ? "" : "s"} and ${result.removedVariants} new variant${result.removedVariants === 1 ? "" : "s"}.`);
+    } catch (error) {
+      setImportRemovalFeedback(error instanceof Error ? error.message : "The import could not be removed. No catalogue changes were made.");
     }
   }
   function selectPhotoFile(file: File | null) {
@@ -431,17 +452,15 @@ export default function Admin() {
               {preview && <section className="preview-card import-detail-card">
                 <div className="import-summary"><span><b>{preview.summary.rows}</b> POS rows</span><span><b>{preview.summary.newProducts}</b> new items</span><span><b>{preview.summary.newVariants}</b> new colors or sizes</span><span><b>{preview.summary.updatedVariants}</b> price or quantity updates</span><span><b>{preview.summary.missingVariants}</b> POS rows not seen</span></div>
                 <p>{preview.alreadyApplied ? "This exact POS file was already applied. Upload a newer export when it is available." : preview.validation.invalidRows.length ? (preview.validation.invalidRows.length + " invalid row(s) must be corrected before this import can be applied.") : "Preview only — no catalogue changes have been made. Review every row below before applying."}</p>
-                {!preview.alreadyApplied && <div className="import-change-list" aria-label="All POS changes before confirmation">
-                  {preview.changes.length ? preview.changes.map((change: ImportChangeView, index: number) => <article className={"import-change-row is-" + change.type} key={change.type + "-" + change.code + "-" + (change.posCode ?? index)}><div><p className="eyebrow">{importChangeTitle(change)}</p><h4>{change.code}</h4><p>{importChangeDescription(change)}</p></div></article>) : <p className="empty-workspace">No new, changed, or not-seen items were found in this file.</p>}
-                </div>}
+                {!preview.alreadyApplied && <div className="import-change-list" aria-label="All POS changes grouped by cleaned-code item"><ImportChangeGroups groups={preview.changeGroups as ImportChangeGroupView[]} /></div>}
                 <div className="form-actions"><button type="button" className="secondary-action" onClick={applyPosImport} disabled={importFeedback.status === "applying" || preview.validation.invalidRows.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : importFeedback.status === "applying" ? "Applying verified changes…" : "Confirm and apply this import"}</button></div>
               </section>}
             </section>
             <section className="history-card import-history-card">
-              <div><p className="eyebrow">IMPORT HISTORY</p><h3>Open an import to see every recorded change</h3><p>New imports record every new item, new color or size, price or quantity update, and POS row not seen in that file.</p></div>
+              <div><p className="eyebrow">IMPORT HISTORY</p><h3>Open an import to see every cleaned-code change group</h3><p>Each imported model brings its color, size, price, and quantity changes together. Only the newest applied import can be safely removed.</p></div>
               {history.data?.length ? <div className="import-history-layout">
                 <section className="import-history-list" aria-label="POS import history">{history.data.map(item => <button type="button" key={item.id} className={item.id === selectedImportId ? "is-selected" : ""} onClick={() => setSelectedImportId(item.id)}><span><b>{item.originalFilename}</b><small>{new Date(item.createdAt).toLocaleString()} · {item.parsedRows} POS row{item.parsedRows === 1 ? "" : "s"}</small></span><strong>{item.status}</strong></button>)}</section>
-                <section className="import-history-detail">{importDetails.isLoading ? <div className="empty-workspace">Loading this import’s changes…</div> : importDetails.error ? <p className="form-error">{importDetails.error.message}</p> : importDetails.data ? <><div className="import-detail-heading"><div><p className="eyebrow">SELECTED IMPORT</p><h3>{importDetails.data.originalFilename}</h3><p>{new Date(importDetails.data.createdAt).toLocaleString()} · {importDetails.data.changes.length} recorded change{importDetails.data.changes.length === 1 ? "" : "s"}</p></div><span>{importDetails.data.status}</span></div><div className="import-change-list">{importDetails.data.changes.length ? importDetails.data.changes.map(change => <article className={"import-change-row is-" + change.type} key={change.id}><div><p className="eyebrow">{importChangeTitle(change)}</p><h4>{change.code}</h4><p>{importChangeDescription(change)}</p></div></article>) : <p className="empty-workspace">No detailed change rows were recorded for this older import.</p>}</div></> : <div className="empty-workspace">Choose an import to see its changes.</div>}</section>
+                <section className="import-history-detail">{importDetails.isLoading ? <div className="empty-workspace">Loading this import’s changes…</div> : importDetails.error ? <p className="form-error">{importDetails.error.message}</p> : importDetails.data ? <><div className="import-detail-heading"><div><p className="eyebrow">SELECTED IMPORT</p><h3>{importDetails.data.originalFilename}</h3><p>{new Date(importDetails.data.createdAt).toLocaleString()} · {importDetails.data.changeGroups.length} cleaned-code item{importDetails.data.changeGroups.length === 1 ? "" : "s"} changed</p></div><span>{importDetails.data.status}</span></div>{importDetails.data.canRemove && <div className="import-removal-panel"><div><p className="eyebrow">REMOVE THIS IMPORT</p><p>Use this only when this newest import was applied by mistake. It restores its recorded changes and removes only items it created. Attached photos block removal for safety.</p></div><button type="button" className="quiet-action danger-action" onClick={removeSelectedImport} disabled={removeImport.isPending}>{removeImport.isPending ? "Removing import…" : "Remove newest import"}</button></div>}{importRemovalFeedback && <p className={removeImport.error ? "form-error" : "form-success"}>{importRemovalFeedback}</p>}<div className="import-change-list"><ImportChangeGroups groups={importDetails.data.changeGroups as ImportChangeGroupView[]} /></div></> : <div className="empty-workspace">Choose an import to see its changes.</div>}</section>
               </div> : <p className="empty-media">No import history yet.</p>}
             </section>
           </section>
