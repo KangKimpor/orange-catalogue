@@ -143,6 +143,20 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(detail).toContain("gallery-slides");
   });
 
+  it("uses an accessible premium admin shell with functional overview actions", () => {
+    expect(admin).toContain("title={item.label}");
+    expect(admin).toContain("aria-label={`${item.label}: ${item.hint}`}");
+    expect(admin).toContain("admin-page-context");
+    expect(admin).toContain("admin-session-status");
+    expect(admin).toContain("overview-hero");
+    expect(admin).toContain("overview-actions");
+    expect(admin).toContain("Manage catalogue");
+    expect(admin).toContain("Upload POS file");
+    expect(stylesheet).toContain("grid-template-columns: 84px minmax(0, 1fr)");
+    expect(stylesheet).toContain("backdrop-filter: blur(16px)");
+    expect(stylesheet).toContain(".overview-actions");
+  });
+
   it("keeps the unified admin navigation usable at mobile breakpoints", () => {
     expect(stylesheet).toContain("@media (max-width: 820px)");
     expect(stylesheet).toContain(".admin-app { display: block;");
@@ -151,6 +165,8 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".catalogue-photo-heading {");
     expect(stylesheet).toContain("@media (max-width: 1220px)");
     expect(stylesheet).toContain(".catalogue-editor-details .attribute-list");
+    expect(stylesheet).toContain(".admin-rail nav { display: flex;");
+    expect(stylesheet).toContain(".admin-workspace { padding: 0 18px");
   });
 
   it("moves a selected color gallery predictably for desktop controls and iPhone swipe gestures", () => {
