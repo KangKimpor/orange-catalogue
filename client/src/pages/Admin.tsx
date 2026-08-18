@@ -398,7 +398,7 @@ export default function Admin() {
         <nav aria-label="Admin workspaces">
           {workspaceMeta.map(item => {
             const Icon = item.icon;
-            return <button type="button" key={item.id} className={workspace === item.id ? "is-active" : ""} onClick={() => openWorkspace(item.id)}><Icon aria-hidden="true" /><span>{item.label}</span></button>;
+            return <button type="button" key={item.id} className={workspace === item.id ? "is-active" : ""} onClick={() => openWorkspace(item.id)} title={item.label} aria-label={`${item.label}: ${item.hint}`}><Icon aria-hidden="true" /><span>{item.label}</span></button>;
           })}
         </nav>
         <button type="button" onClick={() => logout.mutate()} className="admin-logout"><LogOut aria-hidden="true" />Sign out</button>
@@ -406,18 +406,20 @@ export default function Admin() {
 
       <main className="admin-workspace">
         <header className="admin-topbar">
-          <h1>{workspaceMeta.find(item => item.id === workspace)?.label}</h1>
-          <div className="admin-session"><ShieldCheck aria-hidden="true" /><span>Admin session active</span><button type="button" className="admin-topbar-logout" onClick={() => logout.mutate()}><LogOut aria-hidden="true" />Sign out</button></div>
+          <div className="admin-page-context"><p className="eyebrow">ORANGE CATALOGUE</p><h1>{workspaceMeta.find(item => item.id === workspace)?.label}</h1></div>
+          <div className="admin-session"><span className="admin-session-status"><ShieldCheck aria-hidden="true" />Secure session</span><button type="button" className="admin-topbar-logout" onClick={() => logout.mutate()}><LogOut aria-hidden="true" />Sign out</button></div>
         </header>
 
         {workspace === "overview" && (
           <section className="admin-view overview-view">
+            <div className="overview-hero"><div><p className="eyebrow">WORKSPACE OVERVIEW</p><h2>{products.length ? "Your catalogue is ready to manage." : "Start with your first POS import."}</h2><p>{products.length ? "Review model details, keep photos current, and preview the latest POS export before applying it." : "Import the newest POS spreadsheet first. You can name models and attach color-specific photos afterward."}</p></div><span className={products.length ? "overview-status is-ready" : "overview-status"}>{products.length ? "Catalogue active" : "Awaiting POS data"}</span></div>
             <div className="metric-grid">
-              <article><span>Live items</span><strong>{products.length}</strong><small>Cleaned-code groups</small></article>
-              <article><span>Photo-ready</span><strong>{photoReadyCount}</strong><small>Items with photos</small></article>
-              <article><span>Applied imports</span><strong>{appliedImportCount}</strong><small>Open POS Imports to see every change</small></article>
-              <article><span>Colors ready</span><strong>{products.reduce((total, product) => total + product.colors.length, 0)}</strong><small>POS Attribute colors</small></article>
+              <article><span>Models</span><strong>{products.length}</strong><small>Cleaned-code groups</small></article>
+              <article><span>Photos ready</span><strong>{photoReadyCount}</strong><small>Models with media</small></article>
+              <article><span>Applied imports</span><strong>{appliedImportCount}</strong><small>Snapshot history</small></article>
+              <article><span>Attribute colors</span><strong>{products.reduce((total, product) => total + product.colors.length, 0)}</strong><small>Imported color groups</small></article>
             </div>
+            <section className="overview-actions" aria-label="Quick admin actions"><div><p className="eyebrow">NEXT STEPS</p><h3>Keep the catalogue current</h3><p>Move from POS update to model setup and color-specific photos without losing your place.</p></div><div className="quick-actions"><button type="button" onClick={() => openWorkspace("catalogue")}><PackageSearch aria-hidden="true" /><span><b>Manage catalogue</b><small>Name models, set status, and manage color photos.</small></span></button><button type="button" onClick={() => openWorkspace("imports")}><FileSpreadsheet aria-hidden="true" /><span><b>Upload POS file</b><small>Validate and review every change before applying.</small></span></button></div></section>
           </section>
         )}
 
@@ -466,7 +468,7 @@ export default function Admin() {
               <span className="helper-chip">Preview every change · apply once</span>
             </div>
             <section className="import-workbench pos-import-workbench">
-              <div className="import-card-heading"><p className="eyebrow">WEEKLY INVENTORY</p><h3>Upload and preview</h3><p>The POS filename is reference only. The file content is compared with your current catalogue by immutable POS Code.</p></div>
+              <div className="import-card-heading"><p className="eyebrow">WEEKLY INVENTORY</p><h3>Upload and preview</h3><p>The POS filename is reference only. The file is compared with your current catalogue before any inventory changes are applied.</p></div>
               <label className={`import-file is-${importFeedback.status}`}><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose latest POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input type="file" accept=".xlsx,.xls" onChange={chooseImport} disabled={importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"} /></label>
               <button type="button" className="primary-action" onClick={previewPosImport} disabled={!importBase64 || importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"}>{importFeedback.status === "previewing" ? "Comparing catalogue…" : "Preview all POS changes"}</button>
               <div className={`import-feedback is-${importFeedback.status}`} role="status" aria-live="polite"><div className="feedback-icon">{importFeedback.status === "success" || importFeedback.status === "preview_ready" ? <CheckCircle2 aria-hidden="true" /> : importFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : ["reading", "previewing", "applying"].includes(importFeedback.status) ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <FileSpreadsheet aria-hidden="true" />}</div><div><small>{importFeedback.status === "applying" ? "APPLYING IMPORT" : importFeedback.status === "previewing" ? "BUILDING PREVIEW" : importFeedback.status === "preview_ready" ? "READY TO CONFIRM" : "POS IMPORT"}</small><p>{importFeedback.message}</p></div></div>
