@@ -207,3 +207,7 @@
 - [x] Compare existing and incoming preview rows by cleaned code plus parsed POS Attribute color and size, rather than displaying or relying on raw POS Code for staff-facing change review.
 - [x] Show matched dataset changes as old-versus-new price and quantity values only; hide raw POS Code, and do not create a review row when those values are unchanged.
 - [x] Add regressions for a changed raw POS Code with the same cleaned-code and Attribute identity, then validate and update pull request #4. Focused POS tests, TypeScript, production build, whitespace, and credential checks passed; the full suite remains locally environment-gated by unavailable Supabase, Cloudinary, and session credentials.
+
+- [x] Make each matched POS preview row state the changed values explicitly as `Quantity old → new` and/or `Price old → new`, with no empty comparison labels.
+- [x] Restructure the Catalogue editor as a desktop-first selection-and-details workspace with a dedicated settings panel, Attribute color panel, and photo studio while retaining stacked, touch-friendly mobile behavior.
+- [x] Add regression coverage for explicit preview comparison copy and the desktop/mobile editor selectors, then validate and deliver the work through a pull request. Focused workflow tests, TypeScript, production build, whitespace, and credential checks passed; the full suite remains locally environment-gated by unavailable Supabase, Cloudinary, and session credentials.
