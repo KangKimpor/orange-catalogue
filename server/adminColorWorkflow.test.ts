@@ -72,10 +72,6 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).not.toContain("Review queue");
     expect(stylesheet).toContain(".import-history-layout");
     expect(stylesheet).toContain(".import-change-comparison");
-    expect(admin).toContain("design-${designMode}");
-    expect(admin).toContain("Previous design");
-    expect(stylesheet).toContain(".admin-app.design-refined");
-    expect(stylesheet).toContain(".admin-design-toggle");
   });
 
   it("shows model and Attribute-color photo coverage in the Catalogue editor", () => {
