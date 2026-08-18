@@ -213,11 +213,22 @@ export async function applyImport(input: z.infer<typeof importInput> & { importI
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
   if (parsed.validation.invalidRows.length || parsed.validation.duplicatePosCodes.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Resolve invalid or duplicate POS rows before applying the import." });
   try {
-    const summary = await supabaseRequest<{ newProducts: number; newVariants: number; updatedVariants: number; missingVariants: number }>("rpc/apply_pos_import", {
+    const summary = await supabaseRequest<{
+      newProducts: number;
+      newColors: number;
+      newSizes: number;
+      newVariants: number;
+      priceChanges: number;
+      stockChanges: number;
+      priceAndStockChanges: number;
+      updatedVariants: number;
+      missingVariants: number;
+    }>("rpc/apply_pos_import", {
       method: "POST",
       body: JSON.stringify({ p_import_id: input.importId, p_digest: parsed.digest, p_items: parsed.items }),
     });
-    if (!summary || !Number.isInteger(summary.newProducts) || !Number.isInteger(summary.newVariants) || !Number.isInteger(summary.updatedVariants) || !Number.isInteger(summary.missingVariants)) {
+    const requiredSummaryFields = ["newProducts", "newColors", "newSizes", "newVariants", "priceChanges", "stockChanges", "priceAndStockChanges", "updatedVariants", "missingVariants"] as const;
+    if (!summary || requiredSummaryFields.some(field => !Number.isInteger(summary[field]))) {
       throw new Error("The transactional POS import did not return a complete summary.");
     }
     return summary;

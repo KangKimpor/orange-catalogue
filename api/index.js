@@ -1345,7 +1345,8 @@ async function applyImport(input) {
       method: "POST",
       body: JSON.stringify({ p_import_id: input.importId, p_digest: parsed.digest, p_items: parsed.items })
     });
-    if (!summary || !Number.isInteger(summary.newProducts) || !Number.isInteger(summary.newVariants) || !Number.isInteger(summary.updatedVariants) || !Number.isInteger(summary.missingVariants)) {
+    const requiredSummaryFields = ["newProducts", "newColors", "newSizes", "newVariants", "priceChanges", "stockChanges", "priceAndStockChanges", "updatedVariants", "missingVariants"];
+    if (!summary || requiredSummaryFields.some((field) => !Number.isInteger(summary[field]))) {
       throw new Error("The transactional POS import did not return a complete summary.");
     }
     return summary;
