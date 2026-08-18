@@ -104,8 +104,16 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("Comparing this POS file with the current catalogue");
     expect(admin).toContain("Complete preview ready");
     expect(admin).toContain("Applying verified changes");
-    expect(admin).toContain("Import complete:");
-    expect(admin).toContain("import-feedback");
+    expect(admin).toContain("priceChanged");
+    expect(admin).toContain("stockChanged");
+    expect(admin).toContain('"new_color"');
+    expect(admin).toContain('"new_size"');
+    expect(admin).toContain("import-color-change-group");
+    expect(admin).toContain("import-source-details");
+    expect(admin).toContain("POS rows analyzed");
+    expect(admin).toContain("items found");
+    expect(stylesheet).toContain(".import-color-change-group");
+    expect(stylesheet).toContain(".import-source-details");
     expect(stylesheet).toContain(".import-feedback.is-preview_ready");
     expect(stylesheet).toContain("@keyframes admin-feedback-shimmer");
     expect(stylesheet).toContain("prefers-reduced-motion");

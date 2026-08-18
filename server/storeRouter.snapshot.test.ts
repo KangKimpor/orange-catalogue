@@ -88,26 +88,32 @@ describe("weekly POS snapshot idempotency", () => {
     expect(result.changeGroups.flatMap(group => group.changes).some(change => change.type === "missing")).toBe(false);
   });
 
-  it("shows price-only, quantity-only, and combined comparisons while omitting unchanged variants", async () => {
+  it("classifies meaningful immutable-POS changes while omitting unchanged variants", async () => {
     parseWorkbook.mockReturnValue({
       digest: "comparison-preview-digest",
+      exportDate: "2026-08-18",
+      productCount: 1,
       items: [
-        { posCode: "NEW-UNCHANGED", cleanedCode: "STYLE 300", colorKey: "black", colorEnglish: "Black", size: "XS", price: 10, stockQuantity: 3 },
-        { posCode: "NEW-PRICE", cleanedCode: "STYLE 300", colorKey: "black", colorEnglish: "Black", size: "S", price: 12, stockQuantity: 3 },
-        { posCode: "NEW-QUANTITY", cleanedCode: "STYLE 300", colorKey: "black", colorEnglish: "Black", size: "M", price: 10, stockQuantity: 7 },
-        { posCode: "NEW-BOTH", cleanedCode: "STYLE 300", colorKey: "black", colorEnglish: "Black", size: "L", price: 15, stockQuantity: 9 },
+        { posCode: "P-UNCHANGED", cleanedCode: "STYLE 300", colorKey: "black", colorKhmer: "ខ្មៅ", colorEnglish: "Black", size: "XS", price: 10, stockQuantity: 3, rawName: "STYLE 300", rawAttribute: "-ខ្មៅ -XS" },
+        { posCode: "P-PRICE", cleanedCode: "STYLE 300", colorKey: "black", colorKhmer: "ខ្មៅ", colorEnglish: "Black", size: "S", price: 12, stockQuantity: 3, rawName: "STYLE 300", rawAttribute: "-ខ្មៅ -S" },
+        { posCode: "P-QUANTITY", cleanedCode: "STYLE 300", colorKey: "black", colorKhmer: "ខ្មៅ", colorEnglish: "Black", size: "M", price: 10, stockQuantity: 7, rawName: "STYLE 300", rawAttribute: "-ខ្មៅ -M" },
+        { posCode: "P-BOTH", cleanedCode: "STYLE 300", colorKey: "black", colorKhmer: "ខ្មៅ", colorEnglish: "Black", size: "L", price: 15, stockQuantity: 9, rawName: "STYLE 300", rawAttribute: "-ខ្មៅ -L" },
+        { posCode: "P-NEW-COLOR", cleanedCode: "STYLE 300", colorKey: "blue", colorKhmer: "ខៀវ", colorEnglish: "Blue", size: "S", price: 10, stockQuantity: 2, rawName: "STYLE 300", rawAttribute: "-ខៀវ -S" },
+        { posCode: "P-NEW-SIZE", cleanedCode: "STYLE 300", colorKey: "black", colorKhmer: "ខ្មៅ", colorEnglish: "Black", size: "XL", price: 10, stockQuantity: 2, rawName: "STYLE 300", rawAttribute: "-ខ្មៅ -XL" },
+        { posCode: "P-DUPLICATE-SIZE", cleanedCode: "STYLE 300", colorKey: "black", colorKhmer: "ខ្មៅ", colorEnglish: "Black", size: "S", price: 10, stockQuantity: 2, rawName: "STYLE 300", rawAttribute: "-ខ្មៅ -S" },
       ],
-      validation: { headerRow: 5, duplicatePosCodes: [], invalidRows: [], missingNameRows: 0 },
+      validation: { headerRow: 5, requiredColumns: ["Code", "Name", "Attributes", "Price", "Stock Qty."], duplicatePosCodes: [], invalidRows: [], missingNameRows: 0 },
     });
     request.mockImplementation((path: string) => {
       if (path.startsWith("variants?")) return Promise.resolve([
-        { id: 1, product_id: 20, color_id: 1, pos_code: "OLD-UNCHANGED", size: "XS", price: "10.00", stock_quantity: 3 },
-        { id: 2, product_id: 20, color_id: 1, pos_code: "OLD-PRICE", size: "S", price: "10.00", stock_quantity: 3 },
-        { id: 3, product_id: 20, color_id: 1, pos_code: "OLD-QUANTITY", size: "M", price: "10.00", stock_quantity: 3 },
-        { id: 4, product_id: 20, color_id: 1, pos_code: "OLD-BOTH", size: "L", price: "10.00", stock_quantity: 3 },
+        { id: 1, product_id: 20, color_id: 1, pos_code: "P-UNCHANGED", size: "XS", price: "10.00", stock_quantity: 3, raw_name: "STYLE 300", raw_attribute: "-ខ្មៅ -XS" },
+        { id: 2, product_id: 20, color_id: 1, pos_code: "P-PRICE", size: "S", price: "10.00", stock_quantity: 3, raw_name: "STYLE 300", raw_attribute: "-ខ្មៅ -S" },
+        { id: 3, product_id: 20, color_id: 1, pos_code: "P-QUANTITY", size: "M", price: "10.00", stock_quantity: 3, raw_name: "STYLE 300", raw_attribute: "-ខ្មៅ -M" },
+        { id: 4, product_id: 20, color_id: 1, pos_code: "P-BOTH", size: "L", price: "10.00", stock_quantity: 3, raw_name: "STYLE 300", raw_attribute: "-ខ្មៅ -L" },
+        { id: 5, product_id: 20, color_id: 1, pos_code: "P-OLD-MISSING", size: "XXL", price: "10.00", stock_quantity: 3, raw_name: "STYLE 300", raw_attribute: "-ខ្មៅ -XXL" },
       ]);
       if (path.startsWith("products?")) return Promise.resolve([{ id: 20, cleaned_code: "STYLE 300", slug: "style-300", category_source: "manual" }]);
-      if (path.startsWith("colors?")) return Promise.resolve([{ id: 1, normalized_key: "black", english_name: "Black" }]);
+      if (path.startsWith("colors?")) return Promise.resolve([{ id: 1, normalized_key: "black", english_name: "Black", khmer_name: "ខ្មៅ" }]);
       if (path.startsWith("imports?")) return Promise.resolve([]);
       if (path === "imports") return Promise.resolve([{ id: 44 }]);
       throw new Error(`Unexpected request: ${path}`);
@@ -115,12 +121,15 @@ describe("weekly POS snapshot idempotency", () => {
 
     const result = await createPreview({ filename: "comparison.xlsx", base64: "QUJDREVGR0hJSktMTU5PUA==" });
 
-    expect(result.summary).toMatchObject({ newProducts: 0, newVariants: 0, updatedVariants: 3 });
-    expect(result.changes).toHaveLength(3);
-    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: null, size: "S", priceChanged: true, stockChanged: false, previousPrice: 10, price: 12, previousStock: 3, stock: 3 }));
-    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: null, size: "M", priceChanged: false, stockChanged: true, previousPrice: 10, price: 10, previousStock: 3, stock: 7 }));
-    expect(result.changes).toContainEqual(expect.objectContaining({ posCode: null, size: "L", priceChanged: true, stockChanged: true, previousPrice: 10, price: 15, previousStock: 3, stock: 9 }));
-    expect(result.changes).not.toContainEqual(expect.objectContaining({ size: "XS" }));
-    expect(previewVariantIdentity("STYLE 300", "black", "M")).toBe(previewVariantIdentity("STYLE 300", "black", "M"));
+    expect(result.summary).toMatchObject({ rows: 7, products: 1, newProducts: 0, newColors: 1, newSizes: 1, newVariants: 1, priceChanges: 1, stockChanges: 1, priceAndStockChanges: 1, updatedVariants: 3, missingVariants: 1 });
+    expect(result.changes).toHaveLength(6);
+    expect(result.changes).toContainEqual(expect.objectContaining({ type: "price_changed", posCode: "P-PRICE", color: "ខ្មៅ", size: "S", priceChanged: true, stockChanged: false, previousPrice: 10, price: 12 }));
+    expect(result.changes).toContainEqual(expect.objectContaining({ type: "stock_changed", posCode: "P-QUANTITY", size: "M", priceChanged: false, stockChanged: true, previousStock: 3, stock: 7 }));
+    expect(result.changes).toContainEqual(expect.objectContaining({ type: "price_and_stock_changed", posCode: "P-BOTH", size: "L", priceChanged: true, stockChanged: true }));
+    expect(result.changes).toContainEqual(expect.objectContaining({ type: "new_color", posCode: "P-NEW-COLOR", color: "ខៀវ" }));
+    expect(result.changes).toContainEqual(expect.objectContaining({ type: "new_size", posCode: "P-NEW-SIZE", size: "XL" }));
+    expect(result.changes).toContainEqual(expect.objectContaining({ type: "new_variant", posCode: "P-DUPLICATE-SIZE", size: "S" }));
+    expect(result.changes).not.toContainEqual(expect.objectContaining({ posCode: "P-UNCHANGED" }));
+    expect(previewVariantIdentity("P-DUPLICATE-SIZE")).not.toBe(previewVariantIdentity("P-PRICE"));
   });
 });

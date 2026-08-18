@@ -3039,3 +3039,13 @@ html {
 .overview-actions { align-items: center; }
 .quick-actions { align-content: center; }
 .quick-actions button { align-items: center; }
+
+/* POS synchronization diff: color sub-groups and optional source traceability. */
+.import-color-change-list { display: grid; }
+.import-color-change-group + .import-color-change-group { border-top: 1px solid #f3e6ea; }
+.import-color-change-group > h5 { margin: 0; padding: 11px 16px; border-bottom: 1px solid #f5e8ed; background: #fffafa; color: #30282b; font: 600 13px/1.3 "DM Sans", sans-serif; }
+.import-color-change-group .import-variant-change-row { border-left-color: #f7c4d3; }
+.import-source-details { margin-top: 10px; color: #7a6b72; font-size: 11px; line-height: 1.5; }
+.import-source-details summary { width: fit-content; cursor: pointer; color: #5c5055; font-weight: 600; }
+.import-source-details p { margin: 7px 0 0; padding: 9px 10px; border-left: 2px solid #f7dbe5; background: #fffafa; }
+.import-validation-summary { margin: 10px 0 0; color: #6f6267; font-size: 12px; line-height: 1.45; }

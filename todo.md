@@ -219,3 +219,8 @@
 
 - [x] Remove the empty-state Overview hero/status block, relabel the cleaned-code group metric as Items, and center the Overview action buttons without changing their functional destinations.
 - [x] Add a regression assertion for the streamlined overview, validate the client build and targeted workflow tests, and deliver the adjustment through a pull request. Admin workflow tests, TypeScript, production build, whitespace, and credential checks passed.
+
+- [x] Preserve raw POS Name and raw Attributes alongside cleaned-code, parsed color, and parsed size values; extract an export date when the supplied workbook contains one, without guessing when absent.
+- [x] Change meaningful-diff detection to retain immutable POS Code as the variant key while classifying new products, colors, sizes, variants, price changes, stock changes, combined price-and-stock changes, and non-destructive missing variants separately.
+- [x] Expand preview/import summaries and grouped change details to present only actual change categories and human-readable old-to-new values, with Khmer Attribute values preserved and traceability details available without cluttering normal review.
+- [x] Add workbook and synthetic-update regressions for cleaned badge removal, raw values, Khmer Attribute parsing, export-date detection, immutable variant identity, group/change classification, unchanged-row exclusion, and missing-row safety; validate and deliver in a pull request. Focused POS workflow tests, TypeScript, production build, whitespace, and credential checks passed; the full suite remains locally environment-gated by unavailable Supabase, Cloudinary, and session credentials.

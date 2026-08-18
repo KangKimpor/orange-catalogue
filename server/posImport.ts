@@ -20,20 +20,25 @@ export type ImportedVariant = {
   size: string | null;
   price: number;
   stockQuantity: number;
+  rawName: string;
+  rawAttribute: string;
 };
 
 export type ParsedImport = {
   digest: string;
+  exportDate: string | null;
+  productCount: number;
   items: ImportedVariant[];
   validation: {
     headerRow: number;
+    requiredColumns: readonly string[];
     duplicatePosCodes: string[];
     invalidRows: Array<{ row: number; reason: string }>;
     missingNameRows: number;
   };
 };
 
-const REQUIRED_COLUMNS = ["Code", "Name", "Price", "Stock Qty."] as const;
+const REQUIRED_COLUMNS = ["Code", "Name", "Attributes", "Price", "Stock Qty."] as const;
 export const MAX_POS_IMPORT_BYTES = 5 * 1024 * 1024;
 export const MAX_POS_IMPORT_BASE64_LENGTH = Math.ceil((MAX_POS_IMPORT_BYTES * 4) / 3) + 4;
 export const MAX_POS_IMPORT_SHEETS = 3;
@@ -47,6 +52,20 @@ function valueAsString(value: unknown): string {
 function asNumber(value: unknown): number | null {
   const parsed = Number(String(value).replace(/,/g, "").trim());
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function extractExportDate(rawRows: unknown[][]): string | null {
+  for (const row of rawRows) {
+    for (const cell of Array.isArray(row) ? row : []) {
+      const match = valueAsString(cell).match(/^export\s*date\s*:\s*(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/i);
+      if (!match) continue;
+      const [, day, month, year] = match;
+      const parsed = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+      if (parsed.getUTCFullYear() !== Number(year) || parsed.getUTCMonth() !== Number(month) - 1 || parsed.getUTCDate() !== Number(day)) continue;
+      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    }
+  }
+  return null;
 }
 
 export function parsePosWorkbook(buffer: Buffer): ParsedImport {
@@ -76,11 +95,13 @@ export function parsePosWorkbook(buffer: Buffer): ParsedImport {
   });
   const invalidRows: Array<{ row: number; reason: string }> = [];
   const items: ImportedVariant[] = [];
+  const exportDate = extractExportDate(rawRows);
   let missingNameRows = 0;
 
   rows.forEach((row, index) => {
     const posCode = valueAsString(row.Code);
     const sourceName = valueAsString(row.Name);
+    const rawAttribute = valueAsString(row.Attributes);
     const price = asNumber(row.Price);
     const stockQuantity = asNumber(row["Stock Qty."]);
     const sourceRow = headerIndex + index + 2;
@@ -101,7 +122,7 @@ export function parsePosWorkbook(buffer: Buffer): ParsedImport {
     }
 
     const cleanedCode = cleanProductCode(sourceName);
-    const attributes = parseAttributes(row.Attributes);
+    const attributes = parseAttributes(rawAttribute);
     items.push({
       posCode,
       cleanedCode,
@@ -114,6 +135,8 @@ export function parsePosWorkbook(buffer: Buffer): ParsedImport {
       size: attributes.size,
       price,
       stockQuantity: Math.trunc(stockQuantity),
+      rawName: sourceName,
+      rawAttribute,
     });
   });
 
@@ -126,9 +149,12 @@ export function parsePosWorkbook(buffer: Buffer): ParsedImport {
 
   return {
     digest: crypto.createHash("sha256").update(buffer).digest("hex"),
+    exportDate,
+    productCount: new Set(items.map(item => item.cleanedCode)).size,
     items,
     validation: {
       headerRow: headerIndex + 1,
+      requiredColumns: REQUIRED_COLUMNS,
       duplicatePosCodes: Array.from(duplicatePosCodes),
       invalidRows,
       missingNameRows,
