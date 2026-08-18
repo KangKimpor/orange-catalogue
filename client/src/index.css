@@ -3034,3 +3034,8 @@ html {
   .import-history-list { max-height: 280px; }
   .workspace-intro { gap: 12px; margin-bottom: 20px; }
 }
+
+/* Streamlined overview follow-up: keep the next-step controls centered in their panel. */
+.overview-actions { align-items: center; }
+.quick-actions { align-content: center; }
+.quick-actions button { align-items: center; }

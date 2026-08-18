@@ -216,3 +216,6 @@
 - [x] Rework Overview, Catalogue editor, photo workflow, POS import/history, and Security surfaces into spacious Apple-like operational panels while preserving existing data queries, actions, POS safeguards, Cloudinary behavior, and authentication.
 - [x] Maintain the staff-facing cleaned-code and POS Attribute color model, keep raw POS codes immutable and secondary, and preserve Messenger-only storefront behavior without adding checkout features.
 - [x] Add regression coverage for the new shared layout and responsive selectors, validate behavior and the production build, then submit the redesign through a pull request. Focused admin/POS workflow tests, TypeScript, production build, whitespace, and credential checks passed; the full suite remains locally environment-gated by unavailable Supabase, Cloudinary, and session credentials.
+
+- [x] Remove the empty-state Overview hero/status block, relabel the cleaned-code group metric as Items, and center the Overview action buttons without changing their functional destinations.
+- [x] Add a regression assertion for the streamlined overview, validate the client build and targeted workflow tests, and deliver the adjustment through a pull request. Admin workflow tests, TypeScript, production build, whitespace, and credential checks passed.
