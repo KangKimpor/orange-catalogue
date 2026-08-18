@@ -227,3 +227,7 @@
 
 - [x] Correct repeated POS snapshot classification so unchanged immutable POS variants are not counted as new variants, colors, or sizes when only stock or price changes exist.
 - [x] Replace the stale completion message with an explicit breakdown of real new items/variants and price or quantity updates, then add regression coverage and deliver the fix through a pull request.
+
+- [x] Persist each confirmed POS snapshot as structured source data so the catalogue can be rebuilt chronologically without a removed dataset.
+- [x] Allow staff to delete any selected POS import, including the first, by rebuilding inventory from the remaining retained snapshots while preserving website-managed content and remote Cloudinary assets.
+- [x] Add replay/deletion regressions, validate the workflow, and deliver it through a pull request.

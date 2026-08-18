@@ -57,7 +57,8 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("Open an import to see every cleaned-code change group");
     expect(admin).toContain("import-history-list");
     expect(admin).toContain("import-change-group-list");
-    expect(admin).toContain("Remove newest import");
+    expect(admin).toContain("Remove this POS dataset");
+    expect(admin).toContain("rebuilt from every remaining POS snapshot in chronological order");
     expect(admin).toContain("The import server returned an interrupted response before confirming completion.");
     expect(admin).toContain("function ImportChangeValues");
     expect(admin).toContain("formatImportPrice");

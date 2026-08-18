@@ -1333,7 +1333,7 @@ async function createPreview(input) {
   if (alreadyApplied) return { importId: alreadyApplied.id, summary, validation: parsed.validation, changes: [], changeGroups: [], alreadyApplied: true };
   const [importRow] = await supabaseRequest("imports", {
     method: "POST",
-    body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, source_export_date: parsed.exportDate, summary_json: summary, validation_json: { ...parsed.validation, productCount: parsed.productCount, exportDate: parsed.exportDate } })
+    body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, source_export_date: parsed.exportDate, source_items_json: parsed.items, summary_json: summary, validation_json: { ...parsed.validation, productCount: parsed.productCount, exportDate: parsed.exportDate } })
   });
   return { importId: importRow.id, summary, validation: parsed.validation, changes, changeGroups: groupImportChanges(changes.map((change, index2) => ({ id: -(index2 + 1), ...change }))), alreadyApplied: false };
 }
@@ -1355,13 +1355,13 @@ async function applyImport(input) {
     throw new TRPCError4({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The POS import could not be applied. No catalogue changes were saved." });
   }
 }
-async function removeLatestAppliedImport(importId) {
+async function removeImportAndRebuild(importId) {
   try {
-    const summary = await supabaseRequest("rpc/rollback_pos_import", { method: "POST", body: JSON.stringify({ p_import_id: importId }) });
-    if (!summary) throw new Error("The import removal did not return a result.");
+    const summary = await supabaseRequest("rpc/remove_pos_import_and_rebuild", { method: "POST", body: JSON.stringify({ p_import_id: importId }) });
+    if (!summary) throw new Error("The import rebuild did not return a result.");
     return summary;
   } catch (error) {
-    throw new TRPCError4({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The selected POS import could not be removed." });
+    throw new TRPCError4({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The selected POS import could not be removed and rebuilt safely." });
   }
 }
 async function copyArchivedWebsiteContent(sourceProductId, targetProductId) {
@@ -1450,20 +1450,20 @@ var storeRouter = router({
     }),
     removeImport: publicProcedure.input(z2.object({ importId: z2.number().int().positive() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
-      return removeLatestAppliedImport(input.importId);
+      return removeImportAndRebuild(input.importId);
     }),
     importHistory: publicProcedure.query(async ({ ctx }) => {
       await requireAdmin(ctx);
       const rows = await supabaseRequest("imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&status=eq.applied&order=applied_at.desc,id.desc&limit=100");
-      return rows.map((row, index2) => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, sourceExportDate: row.source_export_date ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {}, canRemove: index2 === 0 }));
+      return rows.map((row) => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, sourceExportDate: row.source_export_date ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {}, canRemove: true }));
     }),
     importDetails: publicProcedure.input(z2.object({ importId: z2.number().int().positive() })).query(async ({ ctx, input }) => {
       await requireAdmin(ctx);
-      const [imports2, changes, latestApplied] = await Promise.all([supabaseRequest(`imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`), supabaseRequest("imports?select=id&status=eq.applied&order=applied_at.desc,id.desc&limit=1")]);
+      const [imports2, changes] = await Promise.all([supabaseRequest(`imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`)]);
       const importRow = imports2[0];
       if (!importRow) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected import was not found." });
       const detailChanges = reviewableImportChanges(changes.map(importDetailChange));
-      return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, sourceExportDate: importRow.source_export_date ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), canRemove: latestApplied[0]?.id === importRow.id };
+      return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, sourceExportDate: importRow.source_export_date ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), canRemove: importRow.status === "applied" };
     }),
     signMediaUpload: publicProcedure.input(z2.object({ productCode: z2.string().min(1), categorySlug: z2.string().min(1), colorTag: z2.string().min(1) })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
