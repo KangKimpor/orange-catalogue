@@ -86,6 +86,9 @@ describe("weekly POS snapshot idempotency", () => {
     expect(result.changes).toContainEqual(expect.objectContaining({ type: "new_product", code: "STYLE 40", posCode: "P40" }));
     expect(result.changes).not.toContainEqual(expect.objectContaining({ type: "missing" }));
     expect(result.changeGroups.flatMap(group => group.changes).some(change => change.type === "missing")).toBe(false);
+    const persistedPreview = request.mock.calls.find(([path, init]) => path === "imports" && (init as RequestInit).method === "POST");
+    expect(persistedPreview).toBeDefined();
+    expect(JSON.parse(String((persistedPreview?.[1] as RequestInit).body))).toMatchObject({ source_items_json: expect.arrayContaining([expect.objectContaining({ posCode: "P40", cleanedCode: "STYLE 40" })]) });
   });
 
   it("classifies meaningful immutable-POS changes while omitting unchanged variants", async () => {
