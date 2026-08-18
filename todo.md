@@ -231,3 +231,6 @@
 - [x] Persist each confirmed POS snapshot as structured source data so the catalogue can be rebuilt chronologically without a removed dataset.
 - [x] Allow staff to delete any selected POS import, including the first, by rebuilding inventory from the remaining retained snapshots while preserving website-managed content and remote Cloudinary assets.
 - [x] Add replay/deletion regressions, validate the workflow, and deliver it through a pull request.
+- [x] Apply the supplied neutral, Apple-inspired, desktop-first admin presentation while preserving all existing workflows, routes, APIs, and data behavior.
+- [x] Add an owner-visible refined/classic presentation switch so the existing admin design can be restored without a data migration or logic change.
+- [x] Validate responsive presentation, workflow preservation, and the reversible design preference before delivering the redesign through a pull request.

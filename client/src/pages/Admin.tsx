@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { type AdminWorkspace as Workspace, workspaceFromPath } from "@/lib/adminWorkspace";
+import { ADMIN_DESIGN_MODE_STORAGE_KEY, alternateAdminDesignMode, designModeFromStoredValue } from "@/lib/adminDesignMode";
 import { formatAppliedPosImportSummary } from "@/lib/posImportSummary";
 import { trpc } from "@/lib/trpc";
 
@@ -141,6 +142,7 @@ export default function Admin() {
   const deleteMedia = trpc.store.admin.deleteMedia.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
 
   const [workspace, setWorkspace] = useState<Workspace>(() => workspaceFromPath(location, window.location.search));
+  const [designMode, setDesignMode] = useState(() => designModeFromStoredValue(window.localStorage.getItem(ADMIN_DESIGN_MODE_STORAGE_KEY)));
   const [itemSearch, setItemSearch] = useState("");
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
@@ -207,6 +209,11 @@ export default function Admin() {
     const target = workspaceMeta.find(item => item.id === next)?.path ?? "/admin";
     setWorkspace(next);
     setLocation(target);
+  }
+  function toggleDesignMode() {
+    const nextMode = alternateAdminDesignMode(designMode);
+    window.localStorage.setItem(ADMIN_DESIGN_MODE_STORAGE_KEY, nextMode);
+    setDesignMode(nextMode);
   }
   function chooseItem(id: number) {
     setSelectedProductId(id);
@@ -402,7 +409,7 @@ export default function Admin() {
   );
 
   return (
-    <div className="admin-app">
+    <div className={`admin-app design-${designMode}`}>
       <aside className="admin-rail">
         <Link href="/" className="admin-wordmark" aria-label="Orange storefront home"><img src={LOGO_URL} alt="Orange" /><span>Admin</span></Link>
         <nav aria-label="Admin workspaces">
@@ -417,7 +424,7 @@ export default function Admin() {
       <main className="admin-workspace">
         <header className="admin-topbar">
           <div className="admin-page-context"><p className="eyebrow">ORANGE CATALOGUE</p><h1>{workspaceMeta.find(item => item.id === workspace)?.label}</h1></div>
-          <div className="admin-session"><span className="admin-session-status"><ShieldCheck aria-hidden="true" />Secure session</span><button type="button" className="admin-topbar-logout" onClick={() => logout.mutate()}><LogOut aria-hidden="true" />Sign out</button></div>
+          <div className="admin-session"><span className="admin-session-status"><ShieldCheck aria-hidden="true" />Secure session</span><button type="button" className="admin-design-toggle" onClick={toggleDesignMode} aria-label={designMode === "refined" ? "Return to the previous admin design" : "Try the refined admin design"} title={designMode === "refined" ? "Return to the previous admin design" : "Try the refined admin design"}>{designMode === "refined" ? "Previous design" : "Refined design"}</button><button type="button" className="admin-topbar-logout" onClick={() => logout.mutate()}><LogOut aria-hidden="true" />Sign out</button></div>
         </header>
 
         {workspace === "overview" && (
