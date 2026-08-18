@@ -89,32 +89,36 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
 const importInput = z.object({ filename: z.string().min(1).max(255), base64: z.string().min(16).max(MAX_POS_IMPORT_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/, "The POS workbook payload is not valid base64.") });
 type LifecycleStatus = "active" | "out_of_stock" | "discontinued";
 type DbProduct = { id: number; cleaned_code: string; slug: string; category_source: string; lifecycle_status?: LifecycleStatus; is_removed_from_latest_import?: boolean };
-type DbVariant = { id: number; product_id: number; color_id: number | null; pos_code: string; size: string | null; price: string | number; stock_quantity: number };
-type DbColor = { id: number; normalized_key: string; english_name?: string | null };
+type DbVariant = { id: number; product_id: number; color_id: number | null; pos_code: string; size: string | null; price: string | number; stock_quantity: number; raw_name?: string | null; raw_attribute?: string | null };
+type DbColor = { id: number; normalized_key: string; english_name?: string | null; khmer_name?: string | null };
 type DbProductMedia = { id: number; cloudinary_public_id: string };
 type DbReusableProduct = { id: number; display_name: string | null; category_id: number | null; category_source: string; is_just_in: boolean; lifecycle_status: LifecycleStatus };
 type DbReusableMedia = { product_id: number; variant_id: number | null; cloudinary_public_id: string; optimized_url: string; alt_text: string | null; color_tag: string | null; sort_order: number; is_primary: boolean };
-type ImportChangeMetadata = { code?: string; posCode?: string; changeType?: "new_product" | "new_variant" | "updated" | "missing"; color?: string | null; previousColor?: string | null; colorId?: number | null; previousColorId?: number | null; size?: string | null; previousSize?: string | null; colorChanged?: boolean; sizeChanged?: boolean; priceChanged?: boolean; stockChanged?: boolean; previousPrice?: number; price?: number; previousStock?: number; stock?: number; missingPosCodes?: string[]; wasRemovedFromLatestImport?: boolean };
-type DbImport = { id: number; original_filename: string; status: string; created_at: string; applied_at?: string | null; parsed_rows?: number; summary_json?: Record<string, unknown> | null };
+type ImportChangeKind = "new_product" | "new_color" | "new_size" | "new_variant" | "price_changed" | "stock_changed" | "price_and_stock_changed" | "variant_updated" | "updated" | "missing";
+type ImportChangeMetadata = { code?: string; posCode?: string; changeType?: ImportChangeKind; color?: string | null; previousColor?: string | null; colorId?: number | null; previousColorId?: number | null; size?: string | null; previousSize?: string | null; colorChanged?: boolean; sizeChanged?: boolean; priceChanged?: boolean; stockChanged?: boolean; rawName?: string | null; rawAttribute?: string | null; previousRawName?: string | null; previousRawAttribute?: string | null; previousPrice?: number; price?: number; previousStock?: number; stock?: number; missingPosCodes?: string[]; wasRemovedFromLatestImport?: boolean };
+type DbImport = { id: number; original_filename: string; status: string; created_at: string; applied_at?: string | null; source_export_date?: string | null; parsed_rows?: number; summary_json?: Record<string, unknown> | null };
 type DbImportChange = { id: number; import_id: number; product_id: number | null; variant_id: number | null; pos_code: string | null; change_type: string; before_json: ImportChangeMetadata | null; after_json: ImportChangeMetadata | null; created_at: string };
-export type ImportDetailChange = { id: number; type: "new_product" | "new_variant" | "updated" | "missing"; code: string; posCode: string | null; color: string | null; previousColor: string | null; size: string | null; previousSize: string | null; colorChanged: boolean; sizeChanged: boolean; priceChanged: boolean; stockChanged: boolean; previousPrice: number | null; price: number | null; previousStock: number | null; stock: number | null; missingPosCodes: string[] };
+export type ImportDetailChange = { id: number; type: ImportChangeKind; code: string; posCode: string | null; color: string | null; previousColor: string | null; size: string | null; previousSize: string | null; colorChanged: boolean; sizeChanged: boolean; priceChanged: boolean; stockChanged: boolean; rawName: string | null; rawAttribute: string | null; previousRawName: string | null; previousRawAttribute: string | null; previousPrice: number | null; price: number | null; previousStock: number | null; stock: number | null; missingPosCodes: string[] };
 export type ImportChangeGroup = { code: string; changes: ImportDetailChange[] };
 
 export function importDetailChange(row: DbImportChange): ImportDetailChange {
   const after = row.after_json ?? {};
   const before = row.before_json ?? {};
-  const type = after.changeType === "new_product" || after.changeType === "new_variant" || after.changeType === "updated" || after.changeType === "missing"
-    ? after.changeType
-    : row.change_type === "new_product" || row.change_type === "new_variant" || row.change_type === "missing_from_import" ? (row.change_type === "missing_from_import" ? "missing" : row.change_type) : "updated";
-  return { id: row.id, type, code: after.code ?? before.code ?? "Unknown item", posCode: after.posCode ?? before.posCode ?? row.pos_code, color: after.color ?? before.color ?? null, previousColor: after.previousColor ?? before.previousColor ?? null, size: after.size ?? before.size ?? null, previousSize: after.previousSize ?? before.previousSize ?? null, colorChanged: Boolean(after.colorChanged), sizeChanged: Boolean(after.sizeChanged), priceChanged: Boolean(after.priceChanged), stockChanged: Boolean(after.stockChanged), previousPrice: after.previousPrice ?? before.previousPrice ?? null, price: after.price ?? null, previousStock: after.previousStock ?? before.previousStock ?? null, stock: after.stock ?? null, missingPosCodes: after.missingPosCodes ?? [] };
+  const supported = new Set<ImportChangeKind>(["new_product", "new_color", "new_size", "new_variant", "price_changed", "stock_changed", "price_and_stock_changed", "variant_updated", "updated", "missing"]);
+  const type = supported.has(after.changeType as ImportChangeKind)
+    ? after.changeType as ImportChangeKind
+    : row.change_type === "missing_from_import" ? "missing"
+      : row.change_type === "stock_price_update" ? "updated"
+        : supported.has(row.change_type as ImportChangeKind) ? row.change_type as ImportChangeKind : "updated";
+  return { id: row.id, type, code: after.code ?? before.code ?? "Unknown item", posCode: after.posCode ?? before.posCode ?? row.pos_code, color: after.color ?? before.color ?? null, previousColor: after.previousColor ?? before.previousColor ?? null, size: after.size ?? before.size ?? null, previousSize: after.previousSize ?? before.previousSize ?? null, colorChanged: Boolean(after.colorChanged), sizeChanged: Boolean(after.sizeChanged), priceChanged: Boolean(after.priceChanged), stockChanged: Boolean(after.stockChanged), rawName: after.rawName ?? before.rawName ?? null, rawAttribute: after.rawAttribute ?? before.rawAttribute ?? null, previousRawName: after.previousRawName ?? before.rawName ?? null, previousRawAttribute: after.previousRawAttribute ?? before.rawAttribute ?? null, previousPrice: after.previousPrice ?? before.previousPrice ?? null, price: after.price ?? null, previousStock: after.previousStock ?? before.previousStock ?? null, stock: after.stock ?? null, missingPosCodes: after.missingPosCodes ?? [] };
 }
 
 export function reviewableImportChanges(changes: ImportDetailChange[]): ImportDetailChange[] {
-  return changes.filter(change => change.type !== "missing" && (change.type !== "updated" || change.priceChanged || change.stockChanged));
+  return changes.filter(change => change.type !== "missing" && (change.type !== "updated" && change.type !== "variant_updated" || change.priceChanged || change.stockChanged));
 }
 
-export function previewVariantIdentity(cleanedCode: string, colorKey: string, size: string | null) {
-  return `${cleanedCode}\u0000${colorKey}\u0000${size ?? ""}`;
+export function previewVariantIdentity(posCode: string) {
+  return posCode;
 }
 
 export function groupImportChanges(changes: ImportDetailChange[]): ImportChangeGroup[] {
@@ -126,37 +130,82 @@ export function groupImportChanges(changes: ImportDetailChange[]): ImportChangeG
 export async function createPreview(input: z.infer<typeof importInput>) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
   if (parsed.validation.duplicatePosCodes.length) throw new TRPCError({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
-  const [existingVariants, existingProducts, existingColors, appliedImports] = await Promise.all([supabaseRequest<DbVariant[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest<DbProduct[]>("products?select=id,cleaned_code,slug,category_source"), supabaseRequest<DbColor[]>("colors?select=id,normalized_key,english_name"), supabaseRequest<Array<{ id: number }>>(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&limit=1`)]);
+  const [existingVariants, existingProducts, existingColors, appliedImports] = await Promise.all([
+    supabaseRequest<DbVariant[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,raw_name,raw_attribute"),
+    supabaseRequest<DbProduct[]>("products?select=id,cleaned_code,slug,category_source"),
+    supabaseRequest<DbColor[]>("colors?select=id,normalized_key,english_name,khmer_name"),
+    supabaseRequest<Array<{ id: number }>>(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&limit=1`),
+  ]);
   const productsByCode = new Set(existingProducts.map(row => row.cleaned_code));
   const productsById = new Map(existingProducts.map(row => [row.id, row]));
   const colorsById = new Map(existingColors.map(row => [row.id, row]));
-  const variantsByIdentity = new Map<string, DbVariant>();
+  const variantsByPosCode = new Map(existingVariants.map(row => [previewVariantIdentity(row.pos_code), row]));
+  const productColorKeys = new Set<string>();
+  const productColorSizeKeys = new Set<string>();
   for (const row of existingVariants) {
     const product = productsById.get(row.product_id);
     const color = row.color_id ? colorsById.get(row.color_id) : undefined;
     if (!product || !color) continue;
-    variantsByIdentity.set(previewVariantIdentity(product.cleaned_code, color.normalized_key, row.size), row);
+    productColorKeys.add(`${product.cleaned_code}\u0000${color.normalized_key}`);
+    productColorSizeKeys.add(`${product.cleaned_code}\u0000${color.normalized_key}\u0000${row.size ?? ""}`);
   }
-  const previewed = new Set<string>();
-  const incoming = new Set(parsed.items.map(item => item.posCode));
+  const newProductCodes = new Set<string>();
+  const newColorKeys = new Set<string>();
+  const newSizeKeys = new Set<string>();
+  const incomingCodes = new Set(parsed.items.map(item => item.posCode));
   const changes: Array<Omit<ImportDetailChange, "id">> = [];
   for (const item of parsed.items) {
-    const current = variantsByIdentity.get(previewVariantIdentity(item.cleanedCode, item.colorKey, item.size));
+    const current = variantsByPosCode.get(previewVariantIdentity(item.posCode));
+    const color = item.colorKhmer || item.colorEnglish;
     if (!current) {
-      const type = !productsByCode.has(item.cleanedCode) && !previewed.has(item.cleanedCode) ? "new_product" : "new_variant";
-      if (type === "new_product") previewed.add(item.cleanedCode);
-      changes.push({ type, code: item.cleanedCode, posCode: item.posCode, color: item.colorEnglish, previousColor: null, size: item.size, previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, previousPrice: null, price: item.price, previousStock: null, stock: item.stockQuantity, missingPosCodes: [] });
+      const modelIsNew = !productsByCode.has(item.cleanedCode);
+      const productColorKey = `${item.cleanedCode}\u0000${item.colorKey}`;
+      const productColorSizeKey = `${productColorKey}\u0000${item.size ?? ""}`;
+      const type: ImportChangeKind = modelIsNew
+        ? "new_product"
+        : !productColorKeys.has(productColorKey) ? "new_color"
+          : !productColorSizeKeys.has(productColorSizeKey) ? "new_size" : "new_variant";
+      if (modelIsNew) newProductCodes.add(item.cleanedCode);
+      if (type === "new_color") newColorKeys.add(productColorKey);
+      if (type === "new_size") newSizeKeys.add(productColorSizeKey);
+      changes.push({ type, code: item.cleanedCode, posCode: item.posCode, color, previousColor: null, size: item.size, previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, rawName: item.rawName, rawAttribute: item.rawAttribute, previousRawName: null, previousRawAttribute: null, previousPrice: null, price: item.price, previousStock: null, stock: item.stockQuantity, missingPosCodes: [] });
       continue;
     }
+    const previousColor = current.color_id ? colorsById.get(current.color_id) : undefined;
     const priceChanged = Number(current.price) !== item.price;
     const stockChanged = current.stock_quantity !== item.stockQuantity;
-    if (priceChanged || stockChanged) changes.push({ type: "updated", code: item.cleanedCode, posCode: null, color: item.colorEnglish, previousColor: item.colorEnglish, size: item.size, previousSize: item.size, colorChanged: false, sizeChanged: false, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity, missingPosCodes: [] });
+    const colorChanged = current.color_id ? previousColor?.normalized_key !== item.colorKey : Boolean(item.colorKey);
+    const sizeChanged = current.size !== item.size;
+    const rawNameChanged = (current.raw_name ?? null) !== (item.rawName ?? null);
+    const rawAttributeChanged = (current.raw_attribute ?? null) !== (item.rawAttribute ?? null);
+    if (!priceChanged && !stockChanged && !colorChanged && !sizeChanged && !rawNameChanged && !rawAttributeChanged) continue;
+    const type: ImportChangeKind = priceChanged && stockChanged ? "price_and_stock_changed" : priceChanged ? "price_changed" : stockChanged ? "stock_changed" : "variant_updated";
+    changes.push({ type, code: item.cleanedCode, posCode: item.posCode, color, previousColor: previousColor?.khmer_name || previousColor?.english_name || null, size: item.size, previousSize: current.size, colorChanged, sizeChanged, priceChanged, stockChanged, rawName: item.rawName, rawAttribute: item.rawAttribute, previousRawName: current.raw_name ?? null, previousRawAttribute: current.raw_attribute ?? null, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity, missingPosCodes: [] });
   }
-  const missingVariants = existingVariants.filter(row => !incoming.has(row.pos_code)).length;
-  const summary = { rows: parsed.items.length, newProducts: changes.filter(change => change.type === "new_product").length, newVariants: changes.filter(change => change.type === "new_variant").length, updatedVariants: changes.filter(change => change.type === "updated").length, missingVariants, invalidRows: parsed.validation.invalidRows.length };
+  const missingVariants = existingVariants.filter(row => !incomingCodes.has(row.pos_code)).length;
+  const summary = {
+    rows: parsed.items.length,
+    products: parsed.productCount,
+    exportDate: parsed.exportDate,
+    changedProducts: new Set(changes.map(change => change.code)).size,
+    changedVariants: changes.length,
+    newProducts: newProductCodes.size,
+    newColors: newColorKeys.size,
+    newSizes: newSizeKeys.size,
+    newVariants: changes.filter(change => change.type === "new_variant").length,
+    priceChanges: changes.filter(change => change.type === "price_changed").length,
+    stockChanges: changes.filter(change => change.type === "stock_changed").length,
+    priceAndStockChanges: changes.filter(change => change.type === "price_and_stock_changed").length,
+    updatedVariants: changes.filter(change => ["price_changed", "stock_changed", "price_and_stock_changed", "variant_updated"].includes(change.type)).length,
+    missingVariants,
+    invalidRows: parsed.validation.invalidRows.length,
+  };
   const alreadyApplied = appliedImports[0];
   if (alreadyApplied) return { importId: alreadyApplied.id, summary, validation: parsed.validation, changes: [], changeGroups: [], alreadyApplied: true };
-  const [importRow] = await supabaseRequest<Array<{ id: number }>>("imports", { method: "POST", body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, summary_json: summary, validation_json: parsed.validation }) });
+  const [importRow] = await supabaseRequest<Array<{ id: number }>>("imports", {
+    method: "POST",
+    body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, source_export_date: parsed.exportDate, summary_json: summary, validation_json: { ...parsed.validation, productCount: parsed.productCount, exportDate: parsed.exportDate } }),
+  });
   return { importId: importRow.id, summary, validation: parsed.validation, changes, changeGroups: groupImportChanges(changes.map((change, index) => ({ id: -(index + 1), ...change }))), alreadyApplied: false };
 }
 
@@ -229,8 +278,8 @@ export const storeRouter = router({
     reuseArchivedContent: publicProcedure.input(z.object({ sourceProductId: z.number().int().positive(), targetProductId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return copyArchivedWebsiteContent(input.sourceProductId, input.targetProductId); }),
     previewImport: publicProcedure.input(importInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return createPreview(input); }), applyImport: publicProcedure.input(importInput.extend({ importId: z.number().int() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return applyImport(input); }),
     removeImport: publicProcedure.input(z.object({ importId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return removeLatestAppliedImport(input.importId); }),
-    importHistory: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const rows = await supabaseRequest<DbImport[]>("imports?select=id,original_filename,status,created_at,applied_at,parsed_rows,summary_json&status=eq.applied&order=applied_at.desc,id.desc&limit=100"); return rows.map((row, index) => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {}, canRemove: index === 0 })); }),
-    importDetails: publicProcedure.input(z.object({ importId: z.number().int().positive() })).query(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const [imports, changes, latestApplied] = await Promise.all([supabaseRequest<DbImport[]>(`imports?select=id,original_filename,status,created_at,applied_at,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest<DbImportChange[]>(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`), supabaseRequest<Array<{ id: number }>>("imports?select=id&status=eq.applied&order=applied_at.desc,id.desc&limit=1")]); const importRow = imports[0]; if (!importRow) throw new TRPCError({ code: "NOT_FOUND", message: "The selected import was not found." }); const detailChanges = reviewableImportChanges(changes.map(importDetailChange)); return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), canRemove: latestApplied[0]?.id === importRow.id }; }),
+    importHistory: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const rows = await supabaseRequest<DbImport[]>("imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&status=eq.applied&order=applied_at.desc,id.desc&limit=100"); return rows.map((row, index) => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, sourceExportDate: row.source_export_date ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {}, canRemove: index === 0 })); }),
+    importDetails: publicProcedure.input(z.object({ importId: z.number().int().positive() })).query(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const [imports, changes, latestApplied] = await Promise.all([supabaseRequest<DbImport[]>(`imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest<DbImportChange[]>(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`), supabaseRequest<Array<{ id: number }>>("imports?select=id&status=eq.applied&order=applied_at.desc,id.desc&limit=1")]); const importRow = imports[0]; if (!importRow) throw new TRPCError({ code: "NOT_FOUND", message: "The selected import was not found." }); const detailChanges = reviewableImportChanges(changes.map(importDetailChange)); return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, sourceExportDate: importRow.source_export_date ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), canRemove: latestApplied[0]?.id === importRow.id }; }),
     signMediaUpload: publicProcedure.input(z.object({ productCode: z.string().min(1), categorySlug: z.string().min(1), colorTag: z.string().min(1) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const cloudName = process.env.CLOUDINARY_CLOUD_NAME; const apiKey = process.env.CLOUDINARY_API_KEY; const apiSecret = process.env.CLOUDINARY_API_SECRET; if (!cloudName || !apiKey || !apiSecret) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." }); const normalized = input.productCode.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); const timestamp = Math.floor(Date.now() / 1000); const folder = `orange/products/${normalized}`; const tags = `orange,product:${normalized},category:${input.categorySlug},color:${input.colorTag}`; const signature = crypto.createHash("sha1").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp}${apiSecret}`).digest("hex"); return { uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp, folder, tags, signature }; }),
     registerMedia: publicProcedure.input(z.object({ productId: z.number().int(), variantId: z.number().int().nullable().optional(), publicId: z.string().min(1), secureUrl: z.string().url(), altText: z.string().max(255).nullable().optional(), colorTag: z.string().max(128).nullable().optional(), isPrimary: z.boolean().default(false) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); if (!input.publicId.startsWith("orange/products/")) throw new TRPCError({ code: "BAD_REQUEST", message: "The uploaded media is not in an approved Orange product folder." }); const cloudName = process.env.CLOUDINARY_CLOUD_NAME; if (input.isPrimary) await supabaseRequest(`product_media?${supabaseEq("product_id", input.productId)}`, { method: "PATCH", body: JSON.stringify({ is_primary: false }) }); await supabaseRequest("product_media", { method: "POST", body: JSON.stringify({ product_id: input.productId, variant_id: input.variantId ?? null, cloudinary_public_id: input.publicId, optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${input.publicId}`, alt_text: input.altText ?? null, color_tag: input.colorTag ?? null, is_primary: input.isPrimary }) }); return { success: true }; }),
     deleteMedia: publicProcedure.input(z.object({ mediaId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {

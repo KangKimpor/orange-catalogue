@@ -88,14 +88,20 @@ export function parseAttributes(value: unknown): {
     .filter(Boolean);
 
   const size = tokens.find(token => /^(XS|S|M|L|XL|XXL|FREE|ONE SIZE)$/i.test(token)) ?? null;
-  const colorKhmer = tokens.find(token => Boolean(COLOR_MAP[token])) ?? null;
+  // The first non-size token is the POS source color. Preserve it even when the
+  // colour map does not yet know an English label; dropping Khmer text would make
+  // future import comparison and staff photo association ambiguous.
+  const colorKhmer = tokens.find(token => token !== size) ?? null;
   const known = colorKhmer ? COLOR_MAP[colorKhmer] : undefined;
+  const unicodeKey = colorKhmer
+    ? Array.from(colorKhmer.normalize("NFC")).map(character => character.codePointAt(0)?.toString(16)).join("-")
+    : "one-color";
 
   return {
     colorKhmer,
-    colorEnglish: known?.english ?? (compact || "One Color"),
+    colorEnglish: known?.english ?? (colorKhmer || "One Color"),
     colorHex: known?.hex ?? "#9A9A94",
-    colorKey: known?.key ?? `unknown-${compact.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "one-color"}`,
+    colorKey: known?.key ?? `attribute-${unicodeKey}`,
     size,
   };
 }

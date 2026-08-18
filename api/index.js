@@ -777,13 +777,14 @@ function parseAttributes(value) {
   const compact = normalizeAttribute(value);
   const tokens = compact.split("-").map((token) => token.trim()).filter(Boolean);
   const size = tokens.find((token) => /^(XS|S|M|L|XL|XXL|FREE|ONE SIZE)$/i.test(token)) ?? null;
-  const colorKhmer = tokens.find((token) => Boolean(COLOR_MAP[token])) ?? null;
+  const colorKhmer = tokens.find((token) => token !== size) ?? null;
   const known = colorKhmer ? COLOR_MAP[colorKhmer] : void 0;
+  const unicodeKey = colorKhmer ? Array.from(colorKhmer.normalize("NFC")).map((character) => character.codePointAt(0)?.toString(16)).join("-") : "one-color";
   return {
     colorKhmer,
-    colorEnglish: known?.english ?? (compact || "One Color"),
+    colorEnglish: known?.english ?? (colorKhmer || "One Color"),
     colorHex: known?.hex ?? "#9A9A94",
-    colorKey: known?.key ?? `unknown-${compact.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "one-color"}`,
+    colorKey: known?.key ?? `attribute-${unicodeKey}`,
     size
   };
 }
@@ -998,7 +999,7 @@ async function fetchStorefrontProduct(slug) {
 // server/posImport.ts
 import crypto from "node:crypto";
 import * as XLSX from "xlsx";
-var REQUIRED_COLUMNS = ["Code", "Name", "Price", "Stock Qty."];
+var REQUIRED_COLUMNS = ["Code", "Name", "Attributes", "Price", "Stock Qty."];
 var MAX_POS_IMPORT_BYTES = 5 * 1024 * 1024;
 var MAX_POS_IMPORT_BASE64_LENGTH = Math.ceil(MAX_POS_IMPORT_BYTES * 4 / 3) + 4;
 var MAX_POS_IMPORT_SHEETS = 3;
@@ -1010,6 +1011,19 @@ function valueAsString(value) {
 function asNumber(value) {
   const parsed = Number(String(value).replace(/,/g, "").trim());
   return Number.isFinite(parsed) ? parsed : null;
+}
+function extractExportDate(rawRows) {
+  for (const row of rawRows) {
+    for (const cell of Array.isArray(row) ? row : []) {
+      const match = valueAsString(cell).match(/^export\s*date\s*:\s*(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/i);
+      if (!match) continue;
+      const [, day, month, year] = match;
+      const parsed = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+      if (parsed.getUTCFullYear() !== Number(year) || parsed.getUTCMonth() !== Number(month) - 1 || parsed.getUTCDate() !== Number(day)) continue;
+      return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    }
+  }
+  return null;
 }
 function parsePosWorkbook(buffer) {
   if (!buffer.length) throw new Error("The POS workbook is empty.");
@@ -1035,10 +1049,12 @@ function parsePosWorkbook(buffer) {
   });
   const invalidRows = [];
   const items = [];
+  const exportDate = extractExportDate(rawRows);
   let missingNameRows = 0;
   rows.forEach((row, index2) => {
     const posCode = valueAsString(row.Code);
     const sourceName = valueAsString(row.Name);
+    const rawAttribute = valueAsString(row.Attributes);
     const price = asNumber(row.Price);
     const stockQuantity = asNumber(row["Stock Qty."]);
     const sourceRow = headerIndex + index2 + 2;
@@ -1057,7 +1073,7 @@ function parsePosWorkbook(buffer) {
       return;
     }
     const cleanedCode = cleanProductCode(sourceName);
-    const attributes = parseAttributes(row.Attributes);
+    const attributes = parseAttributes(rawAttribute);
     items.push({
       posCode,
       cleanedCode,
@@ -1069,7 +1085,9 @@ function parsePosWorkbook(buffer) {
       colorKey: attributes.colorKey,
       size: attributes.size,
       price,
-      stockQuantity: Math.trunc(stockQuantity)
+      stockQuantity: Math.trunc(stockQuantity),
+      rawName: sourceName,
+      rawAttribute
     });
   });
   const seen = /* @__PURE__ */ new Set();
@@ -1080,9 +1098,12 @@ function parsePosWorkbook(buffer) {
   }
   return {
     digest: crypto.createHash("sha256").update(buffer).digest("hex"),
+    exportDate,
+    productCount: new Set(items.map((item) => item.cleanedCode)).size,
     items,
     validation: {
       headerRow: headerIndex + 1,
+      requiredColumns: REQUIRED_COLUMNS,
       duplicatePosCodes: Array.from(duplicatePosCodes),
       invalidRows,
       missingNameRows
@@ -1223,14 +1244,15 @@ var importInput = z2.object({ filename: z2.string().min(1).max(255), base64: z2.
 function importDetailChange(row) {
   const after = row.after_json ?? {};
   const before = row.before_json ?? {};
-  const type = after.changeType === "new_product" || after.changeType === "new_variant" || after.changeType === "updated" || after.changeType === "missing" ? after.changeType : row.change_type === "new_product" || row.change_type === "new_variant" || row.change_type === "missing_from_import" ? row.change_type === "missing_from_import" ? "missing" : row.change_type : "updated";
-  return { id: row.id, type, code: after.code ?? before.code ?? "Unknown item", posCode: after.posCode ?? before.posCode ?? row.pos_code, color: after.color ?? before.color ?? null, previousColor: after.previousColor ?? before.previousColor ?? null, size: after.size ?? before.size ?? null, previousSize: after.previousSize ?? before.previousSize ?? null, colorChanged: Boolean(after.colorChanged), sizeChanged: Boolean(after.sizeChanged), priceChanged: Boolean(after.priceChanged), stockChanged: Boolean(after.stockChanged), previousPrice: after.previousPrice ?? before.previousPrice ?? null, price: after.price ?? null, previousStock: after.previousStock ?? before.previousStock ?? null, stock: after.stock ?? null, missingPosCodes: after.missingPosCodes ?? [] };
+  const supported = /* @__PURE__ */ new Set(["new_product", "new_color", "new_size", "new_variant", "price_changed", "stock_changed", "price_and_stock_changed", "variant_updated", "updated", "missing"]);
+  const type = supported.has(after.changeType) ? after.changeType : row.change_type === "missing_from_import" ? "missing" : row.change_type === "stock_price_update" ? "updated" : supported.has(row.change_type) ? row.change_type : "updated";
+  return { id: row.id, type, code: after.code ?? before.code ?? "Unknown item", posCode: after.posCode ?? before.posCode ?? row.pos_code, color: after.color ?? before.color ?? null, previousColor: after.previousColor ?? before.previousColor ?? null, size: after.size ?? before.size ?? null, previousSize: after.previousSize ?? before.previousSize ?? null, colorChanged: Boolean(after.colorChanged), sizeChanged: Boolean(after.sizeChanged), priceChanged: Boolean(after.priceChanged), stockChanged: Boolean(after.stockChanged), rawName: after.rawName ?? before.rawName ?? null, rawAttribute: after.rawAttribute ?? before.rawAttribute ?? null, previousRawName: after.previousRawName ?? before.rawName ?? null, previousRawAttribute: after.previousRawAttribute ?? before.rawAttribute ?? null, previousPrice: after.previousPrice ?? before.previousPrice ?? null, price: after.price ?? null, previousStock: after.previousStock ?? before.previousStock ?? null, stock: after.stock ?? null, missingPosCodes: after.missingPosCodes ?? [] };
 }
 function reviewableImportChanges(changes) {
-  return changes.filter((change) => change.type !== "missing" && (change.type !== "updated" || change.priceChanged || change.stockChanged));
+  return changes.filter((change) => change.type !== "missing" && (change.type !== "updated" && change.type !== "variant_updated" || change.priceChanged || change.stockChanged));
 }
-function previewVariantIdentity(cleanedCode, colorKey, size) {
-  return `${cleanedCode}\0${colorKey}\0${size ?? ""}`;
+function previewVariantIdentity(posCode) {
+  return posCode;
 }
 function groupImportChanges(changes) {
   const groups = /* @__PURE__ */ new Map();
@@ -1240,37 +1262,79 @@ function groupImportChanges(changes) {
 async function createPreview(input) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
   if (parsed.validation.duplicatePosCodes.length) throw new TRPCError4({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
-  const [existingVariants, existingProducts, existingColors, appliedImports] = await Promise.all([supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity"), supabaseRequest("products?select=id,cleaned_code,slug,category_source"), supabaseRequest("colors?select=id,normalized_key,english_name"), supabaseRequest(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&limit=1`)]);
+  const [existingVariants, existingProducts, existingColors, appliedImports] = await Promise.all([
+    supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,raw_name,raw_attribute"),
+    supabaseRequest("products?select=id,cleaned_code,slug,category_source"),
+    supabaseRequest("colors?select=id,normalized_key,english_name,khmer_name"),
+    supabaseRequest(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&limit=1`)
+  ]);
   const productsByCode = new Set(existingProducts.map((row) => row.cleaned_code));
   const productsById = new Map(existingProducts.map((row) => [row.id, row]));
   const colorsById = new Map(existingColors.map((row) => [row.id, row]));
-  const variantsByIdentity = /* @__PURE__ */ new Map();
+  const variantsByPosCode = new Map(existingVariants.map((row) => [previewVariantIdentity(row.pos_code), row]));
+  const productColorKeys = /* @__PURE__ */ new Set();
+  const productColorSizeKeys = /* @__PURE__ */ new Set();
   for (const row of existingVariants) {
     const product = productsById.get(row.product_id);
     const color = row.color_id ? colorsById.get(row.color_id) : void 0;
     if (!product || !color) continue;
-    variantsByIdentity.set(previewVariantIdentity(product.cleaned_code, color.normalized_key, row.size), row);
+    productColorKeys.add(`${product.cleaned_code}\0${color.normalized_key}`);
+    productColorSizeKeys.add(`${product.cleaned_code}\0${color.normalized_key}\0${row.size ?? ""}`);
   }
-  const previewed = /* @__PURE__ */ new Set();
-  const incoming = new Set(parsed.items.map((item) => item.posCode));
+  const newProductCodes = /* @__PURE__ */ new Set();
+  const newColorKeys = /* @__PURE__ */ new Set();
+  const newSizeKeys = /* @__PURE__ */ new Set();
+  const incomingCodes = new Set(parsed.items.map((item) => item.posCode));
   const changes = [];
   for (const item of parsed.items) {
-    const current = variantsByIdentity.get(previewVariantIdentity(item.cleanedCode, item.colorKey, item.size));
+    const current = variantsByPosCode.get(previewVariantIdentity(item.posCode));
+    const color = item.colorKhmer || item.colorEnglish;
     if (!current) {
-      const type = !productsByCode.has(item.cleanedCode) && !previewed.has(item.cleanedCode) ? "new_product" : "new_variant";
-      if (type === "new_product") previewed.add(item.cleanedCode);
-      changes.push({ type, code: item.cleanedCode, posCode: item.posCode, color: item.colorEnglish, previousColor: null, size: item.size, previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, previousPrice: null, price: item.price, previousStock: null, stock: item.stockQuantity, missingPosCodes: [] });
+      const modelIsNew = !productsByCode.has(item.cleanedCode);
+      const productColorKey = `${item.cleanedCode}\0${item.colorKey}`;
+      const productColorSizeKey = `${productColorKey}\0${item.size ?? ""}`;
+      const type2 = modelIsNew ? "new_product" : !productColorKeys.has(productColorKey) ? "new_color" : !productColorSizeKeys.has(productColorSizeKey) ? "new_size" : "new_variant";
+      if (modelIsNew) newProductCodes.add(item.cleanedCode);
+      if (type2 === "new_color") newColorKeys.add(productColorKey);
+      if (type2 === "new_size") newSizeKeys.add(productColorSizeKey);
+      changes.push({ type: type2, code: item.cleanedCode, posCode: item.posCode, color, previousColor: null, size: item.size, previousSize: null, colorChanged: false, sizeChanged: false, priceChanged: false, stockChanged: false, rawName: item.rawName, rawAttribute: item.rawAttribute, previousRawName: null, previousRawAttribute: null, previousPrice: null, price: item.price, previousStock: null, stock: item.stockQuantity, missingPosCodes: [] });
       continue;
     }
+    const previousColor = current.color_id ? colorsById.get(current.color_id) : void 0;
     const priceChanged = Number(current.price) !== item.price;
     const stockChanged = current.stock_quantity !== item.stockQuantity;
-    if (priceChanged || stockChanged) changes.push({ type: "updated", code: item.cleanedCode, posCode: null, color: item.colorEnglish, previousColor: item.colorEnglish, size: item.size, previousSize: item.size, colorChanged: false, sizeChanged: false, priceChanged, stockChanged, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity, missingPosCodes: [] });
+    const colorChanged = current.color_id ? previousColor?.normalized_key !== item.colorKey : Boolean(item.colorKey);
+    const sizeChanged = current.size !== item.size;
+    const rawNameChanged = (current.raw_name ?? null) !== (item.rawName ?? null);
+    const rawAttributeChanged = (current.raw_attribute ?? null) !== (item.rawAttribute ?? null);
+    if (!priceChanged && !stockChanged && !colorChanged && !sizeChanged && !rawNameChanged && !rawAttributeChanged) continue;
+    const type = priceChanged && stockChanged ? "price_and_stock_changed" : priceChanged ? "price_changed" : stockChanged ? "stock_changed" : "variant_updated";
+    changes.push({ type, code: item.cleanedCode, posCode: item.posCode, color, previousColor: previousColor?.khmer_name || previousColor?.english_name || null, size: item.size, previousSize: current.size, colorChanged, sizeChanged, priceChanged, stockChanged, rawName: item.rawName, rawAttribute: item.rawAttribute, previousRawName: current.raw_name ?? null, previousRawAttribute: current.raw_attribute ?? null, previousPrice: Number(current.price), price: item.price, previousStock: current.stock_quantity, stock: item.stockQuantity, missingPosCodes: [] });
   }
-  const missingVariants = existingVariants.filter((row) => !incoming.has(row.pos_code)).length;
-  const summary = { rows: parsed.items.length, newProducts: changes.filter((change) => change.type === "new_product").length, newVariants: changes.filter((change) => change.type === "new_variant").length, updatedVariants: changes.filter((change) => change.type === "updated").length, missingVariants, invalidRows: parsed.validation.invalidRows.length };
+  const missingVariants = existingVariants.filter((row) => !incomingCodes.has(row.pos_code)).length;
+  const summary = {
+    rows: parsed.items.length,
+    products: parsed.productCount,
+    exportDate: parsed.exportDate,
+    changedProducts: new Set(changes.map((change) => change.code)).size,
+    changedVariants: changes.length,
+    newProducts: newProductCodes.size,
+    newColors: newColorKeys.size,
+    newSizes: newSizeKeys.size,
+    newVariants: changes.filter((change) => change.type === "new_variant").length,
+    priceChanges: changes.filter((change) => change.type === "price_changed").length,
+    stockChanges: changes.filter((change) => change.type === "stock_changed").length,
+    priceAndStockChanges: changes.filter((change) => change.type === "price_and_stock_changed").length,
+    updatedVariants: changes.filter((change) => ["price_changed", "stock_changed", "price_and_stock_changed", "variant_updated"].includes(change.type)).length,
+    missingVariants,
+    invalidRows: parsed.validation.invalidRows.length
+  };
   const alreadyApplied = appliedImports[0];
   if (alreadyApplied) return { importId: alreadyApplied.id, summary, validation: parsed.validation, changes: [], changeGroups: [], alreadyApplied: true };
-  const [importRow] = await supabaseRequest("imports", { method: "POST", body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, summary_json: summary, validation_json: parsed.validation }) });
+  const [importRow] = await supabaseRequest("imports", {
+    method: "POST",
+    body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, source_export_date: parsed.exportDate, summary_json: summary, validation_json: { ...parsed.validation, productCount: parsed.productCount, exportDate: parsed.exportDate } })
+  });
   return { importId: importRow.id, summary, validation: parsed.validation, changes, changeGroups: groupImportChanges(changes.map((change, index2) => ({ id: -(index2 + 1), ...change }))), alreadyApplied: false };
 }
 async function applyImport(input) {
@@ -1389,16 +1453,16 @@ var storeRouter = router({
     }),
     importHistory: publicProcedure.query(async ({ ctx }) => {
       await requireAdmin(ctx);
-      const rows = await supabaseRequest("imports?select=id,original_filename,status,created_at,applied_at,parsed_rows,summary_json&status=eq.applied&order=applied_at.desc,id.desc&limit=100");
-      return rows.map((row, index2) => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {}, canRemove: index2 === 0 }));
+      const rows = await supabaseRequest("imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&status=eq.applied&order=applied_at.desc,id.desc&limit=100");
+      return rows.map((row, index2) => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, sourceExportDate: row.source_export_date ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {}, canRemove: index2 === 0 }));
     }),
     importDetails: publicProcedure.input(z2.object({ importId: z2.number().int().positive() })).query(async ({ ctx, input }) => {
       await requireAdmin(ctx);
-      const [imports2, changes, latestApplied] = await Promise.all([supabaseRequest(`imports?select=id,original_filename,status,created_at,applied_at,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`), supabaseRequest("imports?select=id&status=eq.applied&order=applied_at.desc,id.desc&limit=1")]);
+      const [imports2, changes, latestApplied] = await Promise.all([supabaseRequest(`imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`), supabaseRequest("imports?select=id&status=eq.applied&order=applied_at.desc,id.desc&limit=1")]);
       const importRow = imports2[0];
       if (!importRow) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected import was not found." });
       const detailChanges = reviewableImportChanges(changes.map(importDetailChange));
-      return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), canRemove: latestApplied[0]?.id === importRow.id };
+      return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, sourceExportDate: importRow.source_export_date ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), canRemove: latestApplied[0]?.id === importRow.id };
     }),
     signMediaUpload: publicProcedure.input(z2.object({ productCode: z2.string().min(1), categorySlug: z2.string().min(1), colorTag: z2.string().min(1) })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
