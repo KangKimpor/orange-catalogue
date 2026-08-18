@@ -412,14 +412,13 @@ export default function Admin() {
 
         {workspace === "overview" && (
           <section className="admin-view overview-view">
-            <div className="overview-hero"><div><p className="eyebrow">WORKSPACE OVERVIEW</p><h2>{products.length ? "Your catalogue is ready to manage." : "Start with your first POS import."}</h2><p>{products.length ? "Review model details, keep photos current, and preview the latest POS export before applying it." : "Import the newest POS spreadsheet first. You can name models and attach color-specific photos afterward."}</p></div><span className={products.length ? "overview-status is-ready" : "overview-status"}>{products.length ? "Catalogue active" : "Awaiting POS data"}</span></div>
             <div className="metric-grid">
-              <article><span>Models</span><strong>{products.length}</strong><small>Cleaned-code groups</small></article>
-              <article><span>Photos ready</span><strong>{photoReadyCount}</strong><small>Models with media</small></article>
+              <article><span>Items</span><strong>{products.length}</strong><small>Cleaned-code groups</small></article>
+              <article><span>Photos ready</span><strong>{photoReadyCount}</strong><small>Items with media</small></article>
               <article><span>Applied imports</span><strong>{appliedImportCount}</strong><small>Snapshot history</small></article>
               <article><span>Attribute colors</span><strong>{products.reduce((total, product) => total + product.colors.length, 0)}</strong><small>Imported color groups</small></article>
             </div>
-            <section className="overview-actions" aria-label="Quick admin actions"><div><p className="eyebrow">NEXT STEPS</p><h3>Keep the catalogue current</h3><p>Move from POS update to model setup and color-specific photos without losing your place.</p></div><div className="quick-actions"><button type="button" onClick={() => openWorkspace("catalogue")}><PackageSearch aria-hidden="true" /><span><b>Manage catalogue</b><small>Name models, set status, and manage color photos.</small></span></button><button type="button" onClick={() => openWorkspace("imports")}><FileSpreadsheet aria-hidden="true" /><span><b>Upload POS file</b><small>Validate and review every change before applying.</small></span></button></div></section>
+            <section className="overview-actions" aria-label="Quick admin actions"><div><p className="eyebrow">NEXT STEPS</p><h3>Keep the catalogue current</h3><p>Move from POS update to item setup and color-specific photos without losing your place.</p></div><div className="quick-actions"><button type="button" onClick={() => openWorkspace("catalogue")}><PackageSearch aria-hidden="true" /><span><b>Manage items</b><small>Name items, set status, and manage color photos.</small></span></button><button type="button" onClick={() => openWorkspace("imports")}><FileSpreadsheet aria-hidden="true" /><span><b>Upload POS file</b><small>Validate and review every change before applying.</small></span></button></div></section>
           </section>
         )}
 

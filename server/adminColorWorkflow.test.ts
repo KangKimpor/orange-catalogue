@@ -143,18 +143,20 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(detail).toContain("gallery-slides");
   });
 
-  it("uses an accessible premium admin shell with functional overview actions", () => {
+  it("uses an accessible premium admin shell with a streamlined functional overview", () => {
     expect(admin).toContain("title={item.label}");
     expect(admin).toContain("aria-label={`${item.label}: ${item.hint}`}");
     expect(admin).toContain("admin-page-context");
     expect(admin).toContain("admin-session-status");
-    expect(admin).toContain("overview-hero");
-    expect(admin).toContain("overview-actions");
-    expect(admin).toContain("Manage catalogue");
+    expect(admin).not.toContain("overview-hero");
+    expect(admin).not.toContain("Start with your first POS import.");
+    expect(admin).toContain("<article><span>Items</span>");
+    expect(admin).toContain("Manage items");
     expect(admin).toContain("Upload POS file");
     expect(stylesheet).toContain("grid-template-columns: 84px minmax(0, 1fr)");
     expect(stylesheet).toContain("backdrop-filter: blur(16px)");
-    expect(stylesheet).toContain(".overview-actions");
+    expect(stylesheet).toContain(".overview-actions { align-items: center; }");
+    expect(stylesheet).toContain(".quick-actions button { align-items: center; }");
   });
 
   it("keeps the unified admin navigation usable at mobile breakpoints", () => {
