@@ -59,14 +59,18 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("import-change-group-list");
     expect(admin).toContain("Remove newest import");
     expect(admin).toContain("The import server returned an interrupted response before confirming completion.");
-    expect(admin).toContain("Price ${change.previousPrice ?? \"—\"} → ${change.price ?? \"—\"}");
-    expect(admin).toContain("Quantity ${change.previousStock ?? \"—\"} → ${change.stock ?? \"—\"}");
+    expect(admin).toContain("function ImportChangeValues");
+    expect(admin).toContain("formatImportPrice");
+    expect(admin).toContain("<span>Quantity</span>");
+    expect(admin).toContain("<span>Price</span>");
     expect(admin).toContain("Attribute ${change.color}");
+    expect(admin).toContain("className=\"import-change-comparison\"");
     expect(admin).not.toContain("POS ${change.posCode");
     expect(admin).not.toContain("POS rows not seen");
     expect(router).toContain("removeImport:");
     expect(admin).not.toContain("Review queue");
     expect(stylesheet).toContain(".import-history-layout");
+    expect(stylesheet).toContain(".import-change-comparison");
   });
 
   it("shows model and Attribute-color photo coverage in the Catalogue editor", () => {
@@ -76,6 +80,12 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("No photo yet");
     expect(admin).toContain("color-photo-status is-ready");
     expect(stylesheet).toContain(".color-photo-status.is-ready");
+    expect(admin).toContain("catalogue-editor-workspace");
+    expect(admin).toContain("catalogue-settings-panel");
+    expect(admin).toContain("catalogue-editor-details");
+    expect(admin).toContain("Storefront details");
+    expect(stylesheet).toContain(".catalogue-editor-workspace");
+    expect(stylesheet).toContain(".catalogue-settings-panel");
   });
 
   it("guides a photo upload through validation, Cloudinary transfer, saving, and confirmation", () => {
@@ -139,6 +149,8 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".admin-rail nav { display: flex;");
     expect(stylesheet).toContain(".model-layout, .photo-association, .security-card { grid-template-columns: 1fr;");
     expect(stylesheet).toContain(".catalogue-photo-heading {");
+    expect(stylesheet).toContain("@media (max-width: 1220px)");
+    expect(stylesheet).toContain(".catalogue-editor-details .attribute-list");
   });
 
   it("moves a selected color gallery predictably for desktop controls and iPhone swipe gestures", () => {
