@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const atomicMigration = readFileSync(new URL("../supabase/migrations/0006_atomic_pos_import.sql", import.meta.url), "utf8");
 const traceabilityMigration = readFileSync(new URL("../supabase/migrations/0007_pos_traceability_and_meaningful_diff.sql", import.meta.url), "utf8");
 const nullCharacterHotfix = readFileSync(new URL("../supabase/migrations/0008_fix_pos_diff_count_separator.sql", import.meta.url), "utf8");
+const summaryClassificationFix = readFileSync(new URL("../supabase/migrations/0009_correct_pos_import_summary_classification.sql", import.meta.url), "utf8");
 const router = readFileSync(new URL("./storeRouter.ts", import.meta.url), "utf8");
 
 describe("atomic POS import workflow", () => {
@@ -36,6 +37,12 @@ describe("atomic POS import workflow", () => {
     expect(nullCharacterHotfix).toContain("count(distinct (cleaned_code, color_key))");
     expect(nullCharacterHotfix).toContain("count(distinct (cleaned_code, color_key, coalesce(size, '')))");
     expect(nullCharacterHotfix).not.toContain("|| chr(0) ||");
+  });
+
+  it("classifies an existing unchanged POS variant outside every new-variant summary category", () => {
+    expect(summaryClassificationFix).toContain("when variant_id is not null then 'unchanged'");
+    expect(summaryClassificationFix).toContain("count(*) filter (where stored_change_type = 'new_variant')");
+    expect(summaryClassificationFix).toContain("stored_change_type in ('price_changed', 'stock_changed', 'price_and_stock_changed', 'variant_updated')");
   });
 
   it("has the server call only the transactional RPC after workbook validation", () => {

@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { type AdminWorkspace as Workspace, workspaceFromPath } from "@/lib/adminWorkspace";
+import { formatAppliedPosImportSummary } from "@/lib/posImportSummary";
 import { trpc } from "@/lib/trpc";
 
 const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
@@ -277,7 +278,7 @@ export default function Admin() {
       const result = await applyImport.mutateAsync({ importId: preview.importId, filename: importFile.name, base64: importBase64 });
       setSelectedImportId(preview.importId);
       setPreview(null);
-      setImportFeedback({ status: "success", message: `Import complete: ${result.newProducts} new item${result.newProducts === 1 ? "" : "s"}, ${result.newVariants} new color or size${result.newVariants === 1 ? "" : "s"}, and ${result.updatedVariants} updated POS row${result.updatedVariants === 1 ? "" : "s"}.` });
+      setImportFeedback({ status: "success", message: formatAppliedPosImportSummary(result) });
     } catch (error) {
       setImportFeedback({ status: "error", message: posImportErrorMessage(error, "apply") });
     }

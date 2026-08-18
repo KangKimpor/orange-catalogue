@@ -45,16 +45,27 @@ describe("transactional POS import application", () => {
       items,
       validation: { headerRow: 5, duplicatePosCodes: [], invalidRows: [], missingNameRows: 0 },
     });
-    request.mockResolvedValue({ newProducts: 534, newVariants: 1330, updatedVariants: 0, missingVariants: 0 });
+    request.mockResolvedValue({ newProducts: 534, newColors: 0, newSizes: 0, newVariants: 796, priceChanges: 0, stockChanges: 0, priceAndStockChanges: 0, updatedVariants: 0, missingVariants: 0 });
 
     const result = await applyImport({ importId: 71, filename: "weekly-large.xlsx", base64: "QUJDREVGR0hJSktMTU5PUA==" });
 
-    expect(result).toEqual({ newProducts: 534, newVariants: 1330, updatedVariants: 0, missingVariants: 0 });
+    expect(result).toEqual({ newProducts: 534, newColors: 0, newSizes: 0, newVariants: 796, priceChanges: 0, stockChanges: 0, priceAndStockChanges: 0, updatedVariants: 0, missingVariants: 0 });
     expect(request).toHaveBeenCalledTimes(1);
     expect(request).toHaveBeenCalledWith("rpc/apply_pos_import", expect.objectContaining({ method: "POST" }));
     const [, init] = request.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(String(init.body))).toMatchObject({ p_import_id: 71, p_digest: "large-import-digest" });
     expect((JSON.parse(String(init.body)) as { p_items: unknown[] }).p_items).toHaveLength(1330);
+  });
+
+  it("returns a stock-only repeated-snapshot result without inventing new variants", async () => {
+    parseWorkbook.mockReturnValue({
+      digest: "weekly-stock-only-digest",
+      items: [importItem(1)],
+      validation: { headerRow: 5, duplicatePosCodes: [], invalidRows: [], missingNameRows: 0 },
+    });
+    request.mockResolvedValue({ newProducts: 0, newColors: 0, newSizes: 0, newVariants: 0, priceChanges: 0, stockChanges: 12, priceAndStockChanges: 0, updatedVariants: 12, missingVariants: 0 });
+
+    await expect(applyImport({ importId: 74, filename: "weekly-stock-only.xlsx", base64: "QUJDREVGR0hJSktMTU5PUA==" })).resolves.toMatchObject({ newProducts: 0, newVariants: 0, stockChanges: 12, updatedVariants: 12 });
   });
 
   it("does not call the database procedure when server-side workbook validation finds invalid rows", async () => {
