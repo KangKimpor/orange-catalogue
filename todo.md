@@ -352,3 +352,7 @@
 - [x] Add a packaged same-origin logo fallback and ensure all logo images switch to it on any primary-asset loading error.
 - [x] Add logo-hosting regression coverage and validate public delivery, application rendering, type safety, and the production build.
 - [x] Submit the Supabase-hosted brand-logo reliability improvement through pull request #45.
+
+- [x] Increase the inline separation between the Admin login Password label and its password input, preserving the approved responsive layout.
+- [x] Add a login-layout regression contract and validate the focused adjustment with a production-preview visual check, targeted tests, type safety, and a production build.
+- [ ] Submit the Admin login-spacing refinement through a new pull request.

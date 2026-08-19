@@ -148,7 +148,7 @@ function AdminLogin() {
         <h1>Store workspace</h1>
         <p>Manage item names, POS colors, photos, and weekly POS imports in one place.</p>
         <form onSubmit={async (event: FormEvent) => { event.preventDefault(); await login.mutateAsync({ password }); setPassword(""); }}>
-          <label>
+          <label className="login-password-label">
             Password
             <input type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Admin password" autoComplete="current-password" />
           </label>
