@@ -337,3 +337,8 @@
 - [x] Apply the light-pink Admin design language to the Feature in Just In control without changing Just In persistence behavior.
 - [x] Add regression coverage and validate 1980×1200 and MacBook-class responsive behavior.
 - [x] Submit the complete refinement through pull request #42.
+
+- [x] Rebalance the Color Photo Studio association grid at wide 16:10 and 1980×1200 sizes so upload context remains readable beside the upload zone.
+- [x] Prefetch public product-detail code and data from storefront item cards to remove avoidable navigation and query delay while preserving gallery and Messenger behavior.
+- [x] Add regression coverage and validate both workflows and responsive behavior.
+- [x] Submit the focused correction through pull request #43.

@@ -7,6 +7,7 @@ import { nextGalleryPhotoIndex, photoSwipeDirection } from "../client/src/lib/ga
 const root = resolve(import.meta.dirname, "..");
 const admin = readFileSync(resolve(root, "client/src/pages/Admin.tsx"), "utf8");
 const detail = readFileSync(resolve(root, "client/src/pages/ProductDetail.tsx"), "utf8");
+const storefront = readFileSync(resolve(root, "client/src/pages/Storefront.tsx"), "utf8");
 const router = readFileSync(resolve(root, "server/storeRouter.ts"), "utf8");
 const stylesheet = readFileSync(resolve(root, "client/src/index.css"), "utf8");
 
@@ -272,6 +273,15 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("grid-template-columns: minmax(0, 1fr) auto;");
   });
 
+  it("prewarms product-detail code and data from storefront cards without changing the public product-detail flow", () => {
+    expect(storefront).toContain("const utils = trpc.useUtils();");
+    expect(storefront).toContain('void import("./ProductDetail");');
+    expect(storefront).toContain("utils.store.catalogue.getBySlug.prefetch({ slug })");
+    expect(storefront).toContain("onPointerEnter={() => preloadProductDetail(product.slug)}");
+    expect(storefront).toContain("onTouchStart={() => preloadProductDetail(product.slug)}");
+    expect(detail).toContain("trpc.store.catalogue.getBySlug.useQuery");
+  });
+
   it("keeps selected POS import details in the current neutral workspace rather than the legacy nested-card treatment", () => {
     expect(stylesheet).toContain("POS import detail — current neutral workspace");
     expect(stylesheet).toContain("grid-template-columns: minmax(0, 1fr) auto;");
@@ -287,6 +297,10 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("background: var(--inventory-pink);");
     expect(stylesheet).toContain("@media (min-width: 1880px) and (min-height: 1000px)");
     expect(stylesheet).toContain(".import-variant-change-row .import-change-comparisons");
+    expect(stylesheet).toContain("Color Photo Studio — wide-screen association balance");
+    expect(stylesheet).toContain("container-type: inline-size;");
+    expect(stylesheet).toContain("grid-template-columns: minmax(220px, .9fr) minmax(300px, 1.1fr);");
+    expect(stylesheet).toContain("@container (max-width: 680px)");
   });
 
   it("keeps the unified admin navigation usable at mobile breakpoints", () => {
