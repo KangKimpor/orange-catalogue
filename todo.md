@@ -336,4 +336,4 @@
 - [x] Make expanded import preview rows summary-first and compact while retaining explicit old-to-new comparison values and source details.
 - [x] Apply the light-pink Admin design language to the Feature in Just In control without changing Just In persistence behavior.
 - [x] Add regression coverage and validate 1980×1200 and MacBook-class responsive behavior.
-- [ ] Submit the complete refinement through a pull request.
+- [x] Submit the complete refinement through pull request #42.
