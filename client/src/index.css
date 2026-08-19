@@ -4803,13 +4803,6 @@ html {
 .catalogue-layout .photo-association { gap: 14px; }
 .catalogue-layout .photo-library { margin-top: 18px; }
 
-.setup-status-tag.is-missing {
-  border-color: #b52a39;
-  background: #b52a39;
-  color: #ffffff;
-  box-shadow: none;
-}
-
 .model-result-tags .setup-status-tag.is-missing {
   min-height: 20px;
   padding: 4px 6px;
