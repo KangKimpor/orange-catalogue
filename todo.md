@@ -283,3 +283,7 @@
 
 - [x] Sort all Catalogue picker search results by cleaned code in descending natural order, from Z to A and higher numeric portions to lower ones.
 - [x] Add regression coverage, validate the complete picker behavior, and deliver the sorting refinement through a new pull request.
+
+- [x] Remove the Password-protected, Preview every change · apply once, and Simple item setup decorative helper chips from the Admin workspace.
+- [x] Simplify the upper-left Admin rail brand area to the Orange logo only, retaining the storefront-home link and all navigation controls.
+- [x] Update presentation coverage, validate retained Admin workflows, and deliver the cleanup through a new pull request.

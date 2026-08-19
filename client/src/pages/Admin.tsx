@@ -435,7 +435,7 @@ export default function Admin() {
   return (
     <div className="admin-app">
       <aside className="admin-rail">
-        <Link href="/" className="admin-wordmark" aria-label="Orange storefront home"><img src={LOGO_URL} alt="Orange" /><span><b>Orange</b><small>Inventory</small></span></Link>
+        <Link href="/" className="admin-wordmark" aria-label="Orange storefront home"><img src={LOGO_URL} alt="Orange" /></Link>
         <nav aria-label="Admin workspaces">
           <p className="admin-rail-label">Workspace</p>
           {workspaceMeta.map(item => {
@@ -466,7 +466,7 @@ export default function Admin() {
 
         {workspace === "catalogue" && (
           <section className="admin-view model-view">
-            <div className="workspace-intro"><div><p>Choose an item, give it a website name, choose its POS color, and add photos. Everything else is handled by your POS import.</p></div><span className="helper-chip">Simple item setup</span></div>
+            <div className="workspace-intro"><div><p>Choose an item, give it a website name, choose its POS color, and add photos. Everything else is handled by your POS import.</p></div></div>
             <div className="model-layout catalogue-layout">
               {itemPicker}
               <section className="model-editor catalogue-editor">
@@ -506,7 +506,6 @@ export default function Admin() {
           <section className="admin-view import-view">
             <div className="workspace-intro">
               <div><p>Upload the latest POS export, inspect every change, then apply it only when the complete preview looks right.</p></div>
-              <span className="helper-chip">Preview every change · apply once</span>
             </div>
             <section className="import-workbench pos-import-workbench">
               <div className="import-card-heading"><p className="eyebrow">WEEKLY INVENTORY</p><h3>Upload and preview</h3><p>The POS filename is reference only. The file is compared with your current catalogue before any inventory changes are applied.</p></div>
@@ -530,7 +529,7 @@ export default function Admin() {
           </section>
         )}
 
-        {workspace === "settings" && <section className="admin-view settings-view"><div className="workspace-intro"><div><p>Update the shared admin password when store staff or access requirements change.</p></div><span className="helper-chip">Password-protected</span></div><section className="security-card"><div><p className="eyebrow">ADMIN PASSWORD</p><h3>Change workspace password</h3><p>The active session will be renewed after a successful update.</p></div><form onSubmit={async event => { event.preventDefault(); await changePassword.mutateAsync({ currentPassword, newPassword }); setCurrentPassword(""); setNewPassword(""); }}><label>Current password<input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} autoComplete="current-password" /></label><label>New password<input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} minLength={4} autoComplete="new-password" /></label><button type="submit" className="primary-action" disabled={changePassword.isPending}>{changePassword.isPending ? "Updating…" : "Update password"}</button>{changePassword.error && <p className="form-error">{changePassword.error.message}</p>}</form></section></section>}
+        {workspace === "settings" && <section className="admin-view settings-view"><div className="workspace-intro"><div><p>Update the shared admin password when store staff or access requirements change.</p></div></div><section className="security-card"><div><p className="eyebrow">ADMIN PASSWORD</p><h3>Change workspace password</h3><p>The active session will be renewed after a successful update.</p></div><form onSubmit={async event => { event.preventDefault(); await changePassword.mutateAsync({ currentPassword, newPassword }); setCurrentPassword(""); setNewPassword(""); }}><label>Current password<input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} autoComplete="current-password" /></label><label>New password<input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} minLength={4} autoComplete="new-password" /></label><button type="submit" className="primary-action" disabled={changePassword.isPending}>{changePassword.isPending ? "Updating…" : "Update password"}</button>{changePassword.error && <p className="form-error">{changePassword.error.message}</p>}</form></section></section>}
       </main>
     </div>
   );
