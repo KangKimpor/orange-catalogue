@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { belongsInStorefrontCategory } from "@/lib/storefrontCategories";
 import { responsiveCatalogueMedia } from "@/lib/catalogueMedia";
+import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
 
-const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
-const BRAND_IMAGE = responsiveCatalogueMedia(LOGO_URL, "brand");
+const BRAND_IMAGE = responsiveCatalogueMedia(SUPABASE_BRAND_LOGO_URL, "brand");
 const FALLBACK_CATEGORIES = [
   { slug: "just-in", label: "Just In" },
   { slug: "tops", label: "Tops" },
@@ -44,7 +44,7 @@ export default function Storefront() {
     <div className="store-shell">
       <header className="store-header">
         <Link href="/" className="brand-mark" aria-label="Orange home">
-          <img {...BRAND_IMAGE} alt="Orange" decoding="async" fetchPriority="high" />
+          <img {...BRAND_IMAGE} alt="Orange" decoding="async" fetchPriority="high" onError={fallbackToLocalBrandLogo} />
         </Link>
       </header>
 

@@ -8,6 +8,8 @@ const root = resolve(import.meta.dirname, "..");
 const admin = readFileSync(resolve(root, "client/src/pages/Admin.tsx"), "utf8");
 const detail = readFileSync(resolve(root, "client/src/pages/ProductDetail.tsx"), "utf8");
 const storefront = readFileSync(resolve(root, "client/src/pages/Storefront.tsx"), "utf8");
+const brandLogo = readFileSync(resolve(root, "client/src/lib/brandLogo.ts"), "utf8");
+const indexHtml = readFileSync(resolve(root, "client/index.html"), "utf8");
 const router = readFileSync(resolve(root, "server/storeRouter.ts"), "utf8");
 const stylesheet = readFileSync(resolve(root, "client/src/index.css"), "utf8");
 
@@ -29,7 +31,7 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).not.toContain('className="admin-rail-primary"');
     expect(admin).not.toContain("New POS import");
     expect(admin).toContain('className="admin-rail-label"');
-    expect(admin).toContain('className="admin-wordmark" aria-label="Orange storefront home"><img src={LOGO_URL} alt="Orange" /></Link>');
+    expect(admin).toContain('className="admin-wordmark" aria-label="Orange storefront home"><img src={SUPABASE_BRAND_LOGO_URL} alt="Orange"');
     expect(admin).not.toContain('<span><b>Orange</b><small>Inventory</small></span>');
     expect(admin).toContain("Orange admin");
     expect(admin).toContain('className="admin-page-description"');
@@ -47,6 +49,19 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("grid-template-columns: 224px minmax(0, 1fr)");
     expect(stylesheet).toContain("--inventory-pink: #fff0f5");
     expect(stylesheet).toContain(".admin-rail-footer");
+  });
+
+  it("loads the versioned Supabase logo before application rendering and falls back to the packaged same-origin asset", () => {
+    expect(brandLogo).toContain('https://ccaavswuaeqdkgvetlai.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png');
+    expect(brandLogo).toContain('export const LOCAL_BRAND_LOGO_URL = "/orange-logo.png"');
+    expect(brandLogo).toContain('image.dataset.logoFallbackApplied');
+    expect(brandLogo).toContain('image.removeAttribute("srcset")');
+    expect(indexHtml).toContain('rel="preconnect" href="https://ccaavswuaeqdkgvetlai.supabase.co"');
+    expect(indexHtml).toContain('rel="preload" as="image" href="https://ccaavswuaeqdkgvetlai.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png"');
+    for (const page of [admin, storefront, detail]) {
+      expect(page).toContain("SUPABASE_BRAND_LOGO_URL");
+      expect(page).toContain("onError={fallbackToLocalBrandLogo}");
+    }
   });
 
   it("combines item editing and color photo management in the Catalogue workspace", () => {

@@ -18,8 +18,7 @@ import { type AdminWorkspace as Workspace, workspaceFromPath } from "@/lib/admin
 import { formatAppliedPosImportSummary } from "@/lib/posImportSummary";
 import { trpc } from "@/lib/trpc";
 import { vercelAnalyticsSnapshot } from "@/lib/vercelAnalyticsSnapshot";
-
-const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
+import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
 
 const workspaceMeta: Array<{ id: Workspace; label: string; path: string; icon: typeof LayoutDashboard; hint: string }> = [
   { id: "overview", label: "Overview", path: "/admin", icon: LayoutDashboard, hint: "Today’s catalogue health" },
@@ -449,7 +448,7 @@ export default function Admin() {
   return (
     <div className="admin-app">
       <aside className="admin-rail">
-        <Link href="/" className="admin-wordmark" aria-label="Orange storefront home"><img src={LOGO_URL} alt="Orange" /></Link>
+        <Link href="/" className="admin-wordmark" aria-label="Orange storefront home"><img src={SUPABASE_BRAND_LOGO_URL} alt="Orange" decoding="async" fetchPriority="high" onError={fallbackToLocalBrandLogo} /></Link>
         <nav aria-label="Admin workspaces">
           <p className="admin-rail-label">Workspace</p>
           {workspaceMeta.map(item => {
