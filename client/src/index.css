@@ -4833,3 +4833,40 @@ html {
   .catalogue-layout .catalogue-editor-details .catalogue-photo-studio { padding: 15px; }
   .catalogue-layout .selected-item-setup-tags { gap: 4px; }
 }
+
+
+/* Catalogue item picker — keep setup tags on the right-hand code baseline. */
+.model-results button {
+  grid-template-columns: minmax(72px, 1fr) max-content;
+  grid-template-areas:
+    "code tags"
+    "name name"
+    "meta meta";
+  align-items: start;
+  gap: 5px 10px;
+}
+
+.model-results button strong {
+  align-self: start;
+  padding-top: 3px;
+}
+
+.model-results button .model-result-tags {
+  justify-self: end;
+  align-self: start;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.model-results button .model-result-name {
+  min-height: 14px;
+}
+
+@media (max-width: 540px) {
+  .model-results button {
+    grid-template-columns: minmax(64px, 1fr) max-content;
+    gap: 5px 8px;
+  }
+  .model-results button .model-result-tags { gap: 3px; }
+}

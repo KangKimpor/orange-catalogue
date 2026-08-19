@@ -274,3 +274,6 @@
 - [x] Align the Catalogue editor’s page shell, item picker, selected-item summary, panels, controls, color cards, and photo workspace to a consistent desktop grid with balanced spacing.
 - [x] Use solid red backgrounds and white lettering for all incomplete setup tags while retaining the existing green setup-complete treatment.
 - [x] Add presentation coverage, validate the catalogue workflow, and deliver this alignment polish through a new pull request.
+
+- [x] Align each Catalogue item-row setup-tag group to the right on the same top baseline as the cleaned-code label, while keeping website-name and lifecycle details on lower lines.
+- [x] Add coverage, validate the unchanged completion-tag behavior, and deliver the item-row alignment refinement through a new pull request.
