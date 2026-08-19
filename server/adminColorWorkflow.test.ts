@@ -42,7 +42,7 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("Orange Admin — compact inventory dashboard");
     expect(stylesheet).toContain("Orange Admin — aligned logo mark and responsive workspace switching");
     expect(stylesheet).toContain("Orange Admin — prominent destructive action and oversized rail logo");
-    expect(stylesheet).toContain("width: 76px;");
+    expect(stylesheet).toContain("width: 148px;");
     expect(stylesheet).toContain("background: #c52f47;");
     expect(stylesheet).toContain("color: #ffffff;");
     expect(stylesheet).toContain("margin: 0 14px 25px;");
@@ -290,7 +290,7 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("Orange Admin — solid surfaces, full-height picker, and Analytics overview");
     expect(stylesheet).toContain("backdrop-filter: none;");
     expect(stylesheet).toContain("height: calc(100svh - 132px);");
-    expect(stylesheet).toContain("width: 100px;");
+    expect(stylesheet).toContain("width: 148px;");
     expect(stylesheet).toContain("Header baseline, import identity tags, and dense Catalogue picker rows");
     expect(stylesheet).toContain("grid-template-columns: minmax(0, 1fr) auto;");
   });
