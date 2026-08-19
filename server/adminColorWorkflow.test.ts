@@ -123,6 +123,10 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("grid-template-columns: minmax(300px, 326px) minmax(0, 1fr)");
     expect(stylesheet).toContain("background: #b52a39;");
     expect(stylesheet).toContain("color: #ffffff;");
+    expect(stylesheet).toContain("Catalogue item picker — keep setup tags on the right-hand code baseline.");
+    expect(stylesheet).toContain('"code tags"');
+    expect(stylesheet).toContain("justify-self: end;");
+    expect(stylesheet).toContain("align-items: flex-end;");
   });
 
   it("guides a photo upload through validation, Cloudinary transfer, saving, and confirmation", () => {
