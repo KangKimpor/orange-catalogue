@@ -15,7 +15,9 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("Find an item by cleaned code or website name");
     expect(admin).toContain("Website item name");
     expect(admin).toContain("CHOOSE A COLOR");
-    expect(admin).toContain("Simple item setup");
+    expect(admin).not.toContain("Simple item setup");
+    expect(admin).not.toContain("Preview every change · apply once");
+    expect(admin).not.toContain("Password-protected");
     expect(admin).not.toContain("Review status");
     expect(admin).not.toContain("POS Code is immutable");
     expect(admin).not.toContain("POS ATTRIBUTE COLORS");
@@ -26,6 +28,8 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).not.toContain('className="admin-rail-primary"');
     expect(admin).not.toContain("New POS import");
     expect(admin).toContain('className="admin-rail-label"');
+    expect(admin).toContain('className="admin-wordmark" aria-label="Orange storefront home"><img src={LOGO_URL} alt="Orange" /></Link>');
+    expect(admin).not.toContain('<span><b>Orange</b><small>Inventory</small></span>');
     expect(admin).toContain("Orange admin");
     expect(admin).toContain('className="admin-page-description"');
     expect(admin).toContain("ORANGE INVENTORY");
