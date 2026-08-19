@@ -355,4 +355,4 @@
 
 - [x] Increase the inline separation between the Admin login Password label and its password input, preserving the approved responsive layout.
 - [x] Add a login-layout regression contract and validate the focused adjustment with a production-preview visual check, targeted tests, type safety, and a production build.
-- [ ] Submit the Admin login-spacing refinement through a new pull request.
+- [x] Submit the Admin login-spacing refinement through pull request #46.
