@@ -5139,7 +5139,7 @@ html {
   min-height: 19px;
   padding: 4px 6px;
   border-radius: 3px;
-  background: var(--inventory-ink);
+  background: #276b3c;
   color: #ffffff;
   font: 700 8px/1 "DM Mono", monospace;
   letter-spacing: .12em;
