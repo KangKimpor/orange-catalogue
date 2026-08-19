@@ -302,4 +302,4 @@
 - [x] Make the Catalogue picker and scrollable result list fill the available panel height without a lower blank area.
 - [x] Replace the Overview quick-action block with a clearly dated Vercel Analytics snapshot: 30 visitors, 115 pageviews, and the leading routes for the 15–20 August 2026 reporting period.
 - [x] Add presentation coverage and validate all preserved workflows for the full Admin refinement.
-- [ ] Submit the full Admin refinement through a new pull request.
+- [x] Submit the full Admin refinement through pull request #36.
