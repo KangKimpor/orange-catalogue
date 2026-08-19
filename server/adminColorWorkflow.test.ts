@@ -144,6 +144,8 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain('"code tags"');
     expect(stylesheet).toContain("justify-self: end;");
     expect(stylesheet).toContain("align-items: flex-end;");
+    expect(stylesheet).toContain("dense Catalogue picker rows");
+    expect(stylesheet).toContain("min-height: 64px;");
   });
 
   it("guides a photo upload through validation, Cloudinary transfer, saving, and confirmation", () => {
@@ -182,6 +184,11 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".import-variant-change-row {\n  border: 1px solid");
     expect(stylesheet).toContain("letter-spacing: .11em;");
     expect(stylesheet).toContain("color: #000000;");
+    expect(admin).toContain("function hasNewProductChange");
+    expect(admin).toContain("const hasNewItem = group.changes.some(hasNewProductChange);");
+    expect(admin).toContain('className="import-new-item-tag"');
+    expect(admin).toContain('change.type !== "new_product"');
+    expect(stylesheet).toContain(".import-new-item-tag");
   });
 
   it("shows staged POS import feedback before reading, previewing, applying, succeeding, or failing", () => {
@@ -235,6 +242,7 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(detail).toContain("onPointerUp");
     expect(detail).toContain("gallery-arrow-next");
     expect(detail).toContain("gallery-slides");
+    expect(detail).not.toContain("Messenger opens with your selected product details ready to send.");
   });
 
   it("uses an accessible premium admin shell with a streamlined functional overview", () => {
@@ -254,6 +262,8 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("backdrop-filter: none;");
     expect(stylesheet).toContain("height: calc(100svh - 132px);");
     expect(stylesheet).toContain("width: 100px;");
+    expect(stylesheet).toContain("Header baseline, import identity tags, and dense Catalogue picker rows");
+    expect(stylesheet).toContain("grid-template-columns: minmax(0, 1fr) auto;");
   });
 
   it("keeps the unified admin navigation usable at mobile breakpoints", () => {
