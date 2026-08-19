@@ -4425,3 +4425,179 @@ html {
   .import-color-inline-change-list,
   .import-variant-change-list { padding: 6px; }
 }
+
+
+/* --------------------------------------------------------------------------
+   POS import review — summary-first disclosure design
+   The primary review surface is now the cleaned-code summary. Attribute-color
+   rows, value changes, and source records remain available on demand rather
+   than repeating as expanded cards throughout the preview.
+   -------------------------------------------------------------------------- */
+.import-change-group-list {
+  display: grid;
+  gap: 10px;
+}
+
+.import-change-group {
+  overflow: hidden;
+  border: 1px solid var(--inventory-line);
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.import-change-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+  background: #ffffff;
+}
+
+.import-change-summary::-webkit-details-marker { display: none; }
+.import-change-summary::marker { content: ""; }
+.import-change-summary:focus-visible {
+  outline: 2px solid #171417;
+  outline-offset: -3px;
+}
+
+.import-change-summary .eyebrow {
+  margin: 0 0 4px;
+  color: #000000;
+  font-weight: 700;
+  letter-spacing: .1em;
+}
+
+.import-change-summary h4 {
+  margin: 0;
+  color: var(--inventory-ink);
+  font-family: "DM Mono", monospace;
+  font-size: 15px;
+}
+
+.import-change-summary-text {
+  margin: 6px 0 0;
+  color: var(--inventory-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.import-change-summary-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  color: var(--inventory-muted);
+}
+
+.import-change-summary-action > span {
+  padding: 5px 8px;
+  border: 1px solid var(--inventory-line);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--inventory-ink);
+  font: 700 9px/1 "DM Mono", monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.import-change-summary-action > i {
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--inventory-ink);
+  border-bottom: 1.5px solid var(--inventory-ink);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform .16s ease;
+}
+
+.import-change-group[open] .import-change-summary {
+  border-bottom: 1px solid var(--inventory-line);
+}
+.import-change-group[open] .import-change-summary-action > i {
+  transform: rotate(225deg) translate(-2px, -1px);
+}
+
+.import-change-group-body { background: #ffffff; }
+.import-color-change-group + .import-color-change-group { border-top: 1px solid var(--inventory-line); }
+
+.import-color-change-heading {
+  min-height: 44px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--inventory-line);
+}
+
+.import-color-inline-change-list,
+.import-variant-change-list {
+  gap: 6px;
+  padding: 8px 16px;
+  background: #fafafa;
+}
+
+.import-color-inline-change-list .import-color-inline-change,
+.import-color-inline-change-list .import-color-inline-change:first-child,
+.import-variant-change-row {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--inventory-line);
+  border-left-width: 3px;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.import-color-inline-change {
+  gap: 9px;
+}
+
+.import-color-inline-change > b,
+.import-variant-change-row .eyebrow {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: fit-content;
+  margin: 0;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font: 700 8px/1 "DM Mono", monospace;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.import-color-inline-change > span {
+  color: var(--inventory-ink);
+  font-size: 11px;
+}
+
+.import-color-inline-change .import-source-details {
+  margin-left: auto;
+}
+
+.import-variant-change-row {
+  display: block;
+  min-height: 0;
+}
+.import-variant-change-row .eyebrow { margin-bottom: 8px; }
+.import-variant-change-row .import-change-values { gap: 8px; }
+.import-variant-change-row .import-change-comparisons { gap: 8px; }
+.import-variant-change-row .import-change-comparison {
+  margin: 0;
+  background: #ffffff;
+}
+
+@media (max-width: 540px) {
+  .import-change-summary { align-items: flex-start; padding: 12px; }
+  .import-change-summary-action { gap: 7px; }
+  .import-change-summary-action > span { font-size: 8px; }
+  .import-color-change-heading,
+  .import-color-inline-change-list,
+  .import-variant-change-list { padding-inline: 12px; }
+  .import-color-inline-change-list .import-color-inline-change,
+  .import-color-inline-change-list .import-color-inline-change:first-child,
+  .import-variant-change-row { padding: 9px; }
+  .import-color-inline-change { align-items: flex-start; }
+  .import-color-inline-change .import-source-details { width: 100%; margin-left: 0; }
+}

@@ -78,11 +78,26 @@ function ImportChangeValues({ change }: { change: ImportChangeView }) {
   return <div className="import-change-values">{isNew ? <p className="import-change-new-values">{importChangeIdentity(change)} · Price {formatImportPrice(change.price)} · Quantity {change.stock ?? "—"}</p> : <div className="import-change-comparisons"><p className="import-change-identity">{importChangeIdentity(change)}</p>{change.stockChanged && <p className="import-change-comparison"><span>Quantity</span><b>{change.previousStock ?? "—"}</b><i aria-label="changes to">→</i><b>{change.stock ?? "—"}</b></p>}{change.priceChanged && <p className="import-change-comparison"><span>Price</span><b>{formatImportPrice(change.previousPrice)}</b><i aria-label="changes to">→</i><b>{formatImportPrice(change.price)}</b></p>}</div>}<ImportSourceDetails change={change} /></div>;
 }
 
+function pluralizeImportCount(count: number, label: string) {
+  return `${count} ${label}${count === 1 ? "" : "s"}`;
+}
+
+function importGroupSummary(changes: ImportChangeView[]) {
+  const quantityUpdates = changes.filter(change => change.stockChanged).length;
+  const priceUpdates = changes.filter(change => change.priceChanged).length;
+  const newItems = changes.filter(isNewImportChange).length;
+  const parts = [pluralizeImportCount(changes.length, "change")];
+  if (quantityUpdates) parts.push(pluralizeImportCount(quantityUpdates, "quantity update"));
+  if (priceUpdates) parts.push(pluralizeImportCount(priceUpdates, "price update"));
+  if (!quantityUpdates && !priceUpdates && newItems) parts.push(pluralizeImportCount(newItems, "new item"));
+  return parts.join(" · ");
+}
+
 function ImportChangeGroups({ groups }: { groups: ImportChangeGroupView[] }) {
   return <div className="import-change-group-list">{groups.length ? groups.map(group => {
     const colorGroups = new Map<string, ImportChangeView[]>();
     for (const change of group.changes) { const color = change.color || "No Attribute color"; colorGroups.set(color, [...(colorGroups.get(color) ?? []), change]); }
-    return <article className="import-change-group" key={group.code}><header><div><p className="eyebrow">CLEANED-CODE ITEM</p><h4>{group.code}</h4></div><span>{group.changes.length} change{group.changes.length === 1 ? "" : "s"}</span></header><div className="import-color-change-list">{Array.from(colorGroups, ([color, changes]) => { const compactNewChanges = changes.filter(isNewImportChange); const remainingChanges = changes.filter(change => !isNewImportChange(change)); return <section className="import-color-change-group" key={color}><div className="import-color-change-heading"><span>Attribute color</span><h5>{color}</h5></div>{compactNewChanges.length > 0 && <div className="import-color-inline-change-list">{compactNewChanges.map(change => <div className="import-color-inline-change" key={change.id}><b>{importChangeTitle(change)}</b><span>{change.size ? `Size ${change.size} · ` : ""}Price {formatImportPrice(change.price)} · Quantity {change.stock ?? "—"}</span><ImportSourceDetails change={change} /></div>)}</div>}{remainingChanges.length > 0 && <div className="import-variant-change-list">{remainingChanges.map(change => <div className={"import-variant-change-row is-" + change.type} key={change.id}><p className="eyebrow">{importChangeTitle(change)}</p><ImportChangeValues change={change} /></div>)}</div>}</section>; })}</div></article>;
+    return <details className="import-change-group" key={group.code}><summary className="import-change-summary"><div><p className="eyebrow">CLEANED-CODE ITEM</p><h4>{group.code}</h4><p className="import-change-summary-text">{importGroupSummary(group.changes)}</p></div><div className="import-change-summary-action"><span>{group.changes.length} change{group.changes.length === 1 ? "" : "s"}</span><i aria-hidden="true" /></div></summary><div className="import-change-group-body"><div className="import-color-change-list">{Array.from(colorGroups, ([color, changes]) => { const compactNewChanges = changes.filter(isNewImportChange); const remainingChanges = changes.filter(change => !isNewImportChange(change)); return <section className="import-color-change-group" key={color}><div className="import-color-change-heading"><span>Attribute color</span><h5>{color}</h5></div>{compactNewChanges.length > 0 && <div className="import-color-inline-change-list">{compactNewChanges.map(change => <div className="import-color-inline-change" key={change.id}><b>{importChangeTitle(change)}</b><span>{change.size ? `Size ${change.size} · ` : ""}Price {formatImportPrice(change.price)} · Quantity {change.stock ?? "—"}</span><ImportSourceDetails change={change} /></div>)}</div>}{remainingChanges.length > 0 && <div className="import-variant-change-list">{remainingChanges.map(change => <div className={"import-variant-change-row is-" + change.type} key={change.id}><p className="eyebrow">{importChangeTitle(change)}</p><ImportChangeValues change={change} /></div>)}</div>}</section>; })}</div></div></details>;
   }) : <p className="empty-workspace">No meaningful price, quantity, color, or size changes were found in this file.</p>}</div>;
 }
 
