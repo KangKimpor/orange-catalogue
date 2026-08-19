@@ -100,6 +100,8 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("itemSetupStatus");
     expect(admin).toContain("hasCompletePhotoCoverage: colorCount > 0 && colorsWithPhotos === colorCount");
     expect(admin).toContain("Name not set");
+    expect(admin).toContain('{product.displayName && <span className="model-result-name">{product.displayName}</span>}');
+    expect(admin).not.toContain('model-result-name">{product.displayName || "Name not set"}');
     expect(admin).toContain("Pictures not set ·");
     expect(admin).toContain("Setup complete");
     expect(admin).toContain("with photo");

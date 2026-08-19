@@ -267,3 +267,6 @@
 - [x] Refine the Catalogue editor’s item picker, selected-item header, setup panels, color controls, and photo studio into a consistently aligned desktop-first layout with responsive spacing.
 - [x] Show Name not set and Pictures not set tags for each model, treating photo setup as complete only when every POS Attribute color has at least one color-specific photo.
 - [x] Add regression coverage, validate the existing naming and color-photo workflow, and deliver the refinement through a new pull request.
+
+- [x] Remove the duplicate Name not set fallback from the Catalogue item-list name column while retaining the existing compact missing-name setup tag.
+- [x] Validate the tag-only missing-name presentation and deliver the cleanup through a new pull request.
