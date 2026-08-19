@@ -185,10 +185,13 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("letter-spacing: .11em;");
     expect(stylesheet).toContain("color: #000000;");
     expect(admin).toContain("function hasNewProductChange");
+    expect(admin).toContain("function importInlineChangeTitle");
+    expect(admin).toContain('change.type === "new_product" ? "New variant"');
     expect(admin).toContain("const hasNewItem = group.changes.some(hasNewProductChange);");
     expect(admin).toContain('className="import-new-item-tag"');
-    expect(admin).toContain('change.type !== "new_product"');
+    expect(admin).toContain("<b>{importInlineChangeTitle(change)}</b>");
     expect(stylesheet).toContain(".import-new-item-tag");
+    expect(stylesheet).toContain("background: #276b3c;");
   });
 
   it("shows staged POS import feedback before reading, previewing, applying, succeeding, or failing", () => {
