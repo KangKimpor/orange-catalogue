@@ -309,4 +309,4 @@
 - [x] Make Catalogue picker rows more compact without hiding cleaned codes, setup status, color count, lifecycle status, or mobile usability.
 - [x] Remove the explanatory Messenger helper sentence below the product-detail Message to Order action without changing the Messenger handoff.
 - [x] Add regression coverage and validate the Admin and storefront refinement.
-- [ ] Submit the refinement through a new pull request.
+- [x] Submit the refinement through pull request #37.
