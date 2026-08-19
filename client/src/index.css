@@ -5346,3 +5346,240 @@ html {
   .import-color-change-heading,
   .import-variant-change-row { padding-inline: 12px; }
 }
+
+
+/* --------------------------------------------------------------------------
+   Orange Admin — overview, workspace, preview, and Just In refinement
+   Keep the approved solid/pink dashboard language while simplifying the
+   overview signal and making wide 16:10 workspaces scan cleanly.
+   -------------------------------------------------------------------------- */
+.admin-app .admin-topbar {
+  min-height: 0;
+  margin: 18px 0 0;
+  padding: 18px 26px;
+  border: 1px solid var(--inventory-line);
+  border-radius: 6px;
+  background: var(--inventory-surface);
+}
+
+.admin-app .admin-page-context {
+  padding-left: 2px;
+}
+
+.admin-app .admin-page-context .eyebrow,
+.admin-app .admin-topbar h1,
+.admin-app .admin-page-description {
+  margin-left: 0;
+}
+
+.analytics-visitors-only {
+  grid-template-columns: minmax(250px, 340px);
+}
+
+.analytics-visitors-only article {
+  min-height: 106px;
+}
+
+.analytics-visitors-only strong {
+  font-size: 34px;
+}
+
+/* The Feature in Just In control remains a normal checkbox, with a clear
+   light-pink container and switch treatment instead of the retired beige UI. */
+.simple-item-form .just-in-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 7px 12px;
+  align-items: center;
+  padding: 13px 14px;
+  border: 1px solid var(--inventory-pink-line);
+  border-radius: 5px;
+  background: var(--inventory-pink);
+}
+
+.simple-item-form .just-in-toggle > span {
+  color: var(--inventory-ink);
+  font: 700 11px/1.2 "DM Mono", monospace;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.simple-item-form .just-in-toggle > small {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--inventory-muted);
+}
+
+.simple-item-form .just-in-toggle input[type="checkbox"] {
+  appearance: none;
+  position: relative;
+  width: 42px;
+  height: 24px;
+  margin: 0;
+  border: 1px solid var(--inventory-pink-line);
+  border-radius: 999px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease;
+}
+
+.simple-item-form .just-in-toggle input[type="checkbox"]::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #d6d0d2;
+  content: "";
+  transition: transform .16s ease, background .16s ease;
+}
+
+.simple-item-form .just-in-toggle input[type="checkbox"]:checked {
+  border-color: #e2aebb;
+  background: #f7c4d3;
+}
+
+.simple-item-form .just-in-toggle input[type="checkbox"]:checked::after {
+  transform: translateX(18px);
+  background: #ffffff;
+}
+
+.simple-item-form .just-in-toggle input[type="checkbox"]:focus-visible {
+  outline: 2px solid #dcaabb;
+  outline-offset: 2px;
+}
+
+/* Keep an opened change group summary-first: the line now contains the type,
+   identity, old-to-new values, and source disclosure without a tall inner card. */
+.import-change-summary {
+  min-height: 60px;
+  padding: 11px 16px;
+}
+
+.import-change-summary-text {
+  margin-top: 3px;
+}
+
+.import-color-change-heading {
+  min-height: 36px;
+  padding: 8px 16px;
+}
+
+.import-variant-change-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: center;
+  padding: 10px 14px;
+}
+
+.import-variant-change-row .eyebrow {
+  align-self: center;
+  margin: 0;
+}
+
+.import-variant-change-row .import-change-values {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.import-variant-change-row .import-change-comparisons {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.import-variant-change-row .import-change-identity {
+  flex: 0 1 auto;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.import-variant-change-row .import-change-comparison {
+  display: inline-grid;
+  grid-template-columns: auto auto auto auto;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  white-space: nowrap;
+}
+
+.import-variant-change-row .import-source-details {
+  flex: 0 0 auto;
+  margin: 0 0 0 auto;
+}
+
+.import-variant-change-row .import-source-details[open] {
+  grid-column: 2;
+  margin-top: 7px;
+  padding-top: 7px;
+}
+
+@media (min-width: 1440px) and (min-height: 900px) {
+  .admin-app .admin-workspace {
+    padding-right: clamp(34px, 3vw, 58px);
+    padding-left: clamp(34px, 3vw, 58px);
+  }
+
+  .admin-app .admin-topbar,
+  .admin-app .admin-view {
+    max-width: 1540px;
+  }
+
+  .metric-grid { gap: 12px; }
+  .metric-grid article { min-height: 126px; }
+  .catalogue-layout .model-picker { height: calc(100svh - 156px); }
+}
+
+@media (min-width: 1880px) and (min-height: 1000px) {
+  .admin-app { grid-template-columns: 244px minmax(0, 1fr); }
+  .admin-app .admin-topbar,
+  .admin-app .admin-view { max-width: 1680px; }
+  .admin-app .admin-topbar { padding-inline: 30px; }
+  .metric-grid { gap: 14px; }
+  .metric-grid article { min-height: 134px; padding: 20px; }
+  .vercel-analytics-panel { max-width: 920px; }
+  .catalogue-layout .model-picker { min-height: 690px; }
+}
+
+@media (max-width: 820px) {
+  .admin-app .admin-topbar {
+    margin-top: 0;
+    padding: 18px 0;
+    border-width: 0 0 1px;
+    border-radius: 0;
+  }
+
+  .analytics-visitors-only { grid-template-columns: 1fr; }
+  .analytics-visitors-only article { min-height: 94px; }
+}
+
+@media (max-width: 640px) {
+  .import-variant-change-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .import-variant-change-row .import-change-values,
+  .import-variant-change-row .import-change-comparisons {
+    flex-wrap: wrap;
+  }
+
+  .import-variant-change-row .import-source-details {
+    margin-left: 0;
+  }
+
+  .import-variant-change-row .import-source-details[open] {
+    grid-column: auto;
+  }
+}
