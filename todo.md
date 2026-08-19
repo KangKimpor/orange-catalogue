@@ -321,3 +321,7 @@
 - [x] Rework the Catalogue editor, POS import/history/review, and Security cards into consistent white, bordered, aligned operational surfaces while preserving every current interaction and import semantics.
 - [x] Add visual regression contracts and validate retained workflows at the existing responsive breakpoints.
 - [x] Submit the full Stitch-inspired refinement through pull request #39.
+
+- [x] Revert the Stitch-inspired Admin presentation layer at the owner’s request while retaining all prior import, header, picker, and storefront refinements.
+- [x] Validate the restored Admin presentation with the focused workflow suite, TypeScript check, and production build.
+- [x] Submit the focused revert through pull request #40.
