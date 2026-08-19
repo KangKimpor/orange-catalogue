@@ -4365,3 +4365,63 @@ html {
 @media (max-width: 540px) {
   .import-color-inline-change-list .import-color-inline-change { padding: 10px 12px; }
 }
+
+
+/* --------------------------------------------------------------------------
+   POS import actions and review rows — compact contrast follow-up
+   Keep the two apply-path actions unmistakably primary and give every review
+   entry its own quiet boundary for faster scanning.
+   -------------------------------------------------------------------------- */
+.pos-import-workbench > .primary-action,
+.preview-card.import-detail-card > .form-actions > .secondary-action {
+  border-color: #000000;
+  background: #000000;
+  color: #ffffff;
+}
+
+.pos-import-workbench > .primary-action:hover:not(:disabled),
+.pos-import-workbench > .primary-action:focus-visible,
+.preview-card.import-detail-card > .form-actions > .secondary-action:hover:not(:disabled),
+.preview-card.import-detail-card > .form-actions > .secondary-action:focus-visible {
+  border-color: #000000;
+  background: #242124;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.import-color-inline-change-list {
+  gap: 8px;
+  padding: 8px;
+  border-top: 0;
+  background: #fafafa;
+}
+
+.import-color-inline-change-list .import-color-inline-change,
+.import-color-inline-change-list .import-color-inline-change:first-child {
+  padding: 10px 12px;
+  border: 1px solid var(--preview-solid-line);
+  background: #ffffff;
+}
+
+.import-variant-change-list {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  background: #fafafa;
+}
+
+.import-variant-change-row {
+  border: 1px solid var(--preview-solid-line);
+  border-left-width: 3px;
+  background: #ffffff;
+}
+
+.import-variant-change-row .eyebrow,
+.import-color-inline-change > b {
+  letter-spacing: .11em;
+}
+
+@media (max-width: 540px) {
+  .import-color-inline-change-list,
+  .import-variant-change-list { padding: 6px; }
+}

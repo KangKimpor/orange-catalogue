@@ -23,8 +23,8 @@ describe("cleaned-code admin and color media workflow", () => {
   });
 
   it("uses the compact pink-accent inventory dashboard shell across every Admin workspace", () => {
-    expect(admin).toContain('className="admin-rail-primary"');
-    expect(admin).toContain("New POS import");
+    expect(admin).not.toContain('className="admin-rail-primary"');
+    expect(admin).not.toContain("New POS import");
     expect(admin).toContain('className="admin-rail-label"');
     expect(admin).toContain("Orange admin");
     expect(admin).toContain('className="admin-page-description"');
@@ -32,7 +32,6 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("Orange Admin — compact inventory dashboard");
     expect(stylesheet).toContain("grid-template-columns: 224px minmax(0, 1fr)");
     expect(stylesheet).toContain("--inventory-pink: #fff0f5");
-    expect(stylesheet).toContain(".admin-rail-primary");
     expect(stylesheet).toContain(".admin-rail-footer");
   });
 
@@ -134,6 +133,10 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("background-image: none;");
     expect(stylesheet).toContain(".import-change-group > header .eyebrow");
     expect(stylesheet).toContain(".import-color-inline-change-list");
+    expect(stylesheet).toContain("POS import actions and review rows — compact contrast follow-up");
+    expect(stylesheet).toContain(".pos-import-workbench > .primary-action");
+    expect(stylesheet).toContain(".import-variant-change-row {\n  border: 1px solid");
+    expect(stylesheet).toContain("letter-spacing: .11em;");
     expect(stylesheet).toContain("color: #000000;");
   });
 
