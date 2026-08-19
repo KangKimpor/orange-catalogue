@@ -330,3 +330,10 @@
 - [x] Preserve all import-history, removal, old-to-new comparison, source-detail, and responsive behaviors while making the selected-import details visually consistent.
 - [x] Add visual regression coverage and validate the focused correction.
 - [x] Submit the focused correction through pull request #41.
+
+- [x] Simplify the Vercel Analytics overview to storefront visitors only, without pageviews or Admin route metrics.
+- [x] Refine the workspace header tile with fully enclosed borders, improved title inset/alignment, and large 16:10 desktop spacing.
+- [x] Make expanded import preview rows summary-first and compact while retaining explicit old-to-new comparison values and source details.
+- [x] Apply the light-pink Admin design language to the Feature in Just In control without changing Just In persistence behavior.
+- [x] Add regression coverage and validate 1980×1200 and MacBook-class responsive behavior.
+- [ ] Submit the complete refinement through a pull request.

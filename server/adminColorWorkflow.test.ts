@@ -257,7 +257,10 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).not.toContain("Start with your first POS import.");
     expect(admin).toContain("<article><span>Items</span>");
     expect(admin).toContain("VERCEL ANALYTICS");
-    expect(admin).toContain("vercelAnalyticsSnapshot");
+    expect(admin).toContain("Storefront visitors");
+    expect(admin).toContain("vercelAnalyticsSnapshot.storefrontVisitors");
+    expect(admin).not.toContain("vercelAnalyticsSnapshot.pageviews");
+    expect(admin).not.toContain("vercelAnalyticsSnapshot.routes.map");
     expect(admin).toContain('importFeedback.status !== "idle"');
     expect(admin).not.toContain("Manage items");
     expect(admin).not.toContain("Upload POS file");
@@ -276,6 +279,14 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".import-history-detail > .import-change-list");
     expect(stylesheet).toContain(".import-variant-change-row .import-change-comparison");
     expect(stylesheet).toContain("background: transparent;");
+    expect(stylesheet).toContain("Orange Admin — overview, workspace, preview, and Just In refinement");
+    expect(stylesheet).toContain("margin: 18px 0 0;");
+    expect(stylesheet).toContain("border: 1px solid var(--inventory-line);");
+    expect(stylesheet).toContain(".analytics-visitors-only");
+    expect(stylesheet).toContain(".simple-item-form .just-in-toggle");
+    expect(stylesheet).toContain("background: var(--inventory-pink);");
+    expect(stylesheet).toContain("@media (min-width: 1880px) and (min-height: 1000px)");
+    expect(stylesheet).toContain(".import-variant-change-row .import-change-comparisons");
   });
 
   it("keeps the unified admin navigation usable at mobile breakpoints", () => {
