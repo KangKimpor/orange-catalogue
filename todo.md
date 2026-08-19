@@ -280,3 +280,6 @@
 
 - [x] Remove the 80-item Catalogue picker cap so the shown count and scrollable picker reflect every imported item matching the search.
 - [x] Add coverage, validate the complete-list picker behavior, and deliver the refinement through a new pull request.
+
+- [x] Sort all Catalogue picker search results by cleaned code in descending natural order, from Z to A and higher numeric portions to lower ones.
+- [x] Add regression coverage, validate the complete picker behavior, and deliver the sorting refinement through a new pull request.

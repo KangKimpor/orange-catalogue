@@ -98,7 +98,8 @@ describe("cleaned-code admin and color media workflow", () => {
   it("shows model and Attribute-color photo coverage in the Catalogue editor", () => {
     expect(admin).toContain("photoReadyColorCount");
     expect(admin).toContain("itemSetupStatus");
-    expect(admin).toContain("return matches;");
+    expect(admin).toContain("right.cleanedCode.localeCompare(left.cleanedCode");
+    expect(admin).toContain('{ numeric: true, sensitivity: "base" }');
     expect(admin).not.toContain("matches.slice(0, 80)");
     expect(admin).toContain("{filteredItems.length} shown");
     expect(admin).toContain("hasCompletePhotoCoverage: colorCount > 0 && colorsWithPhotos === colorCount");
