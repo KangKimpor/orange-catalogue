@@ -5176,3 +5176,173 @@ html {
 
   .catalogue-layout .model-results button small { justify-self: start; text-align: left; }
 }
+
+
+/* --------------------------------------------------------------------------
+   POS import detail — current neutral workspace
+   The selected import stays operationally dense without the earlier nested,
+   high-contrast comparison cards. Every value, source disclosure, and
+   destructive action remains visible in a calm solid hierarchy.
+   -------------------------------------------------------------------------- */
+.import-history-detail {
+  overflow: hidden;
+  border: 1px solid var(--inventory-line);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.import-detail-heading {
+  padding: 20px 22px 18px;
+  border-bottom: 1px solid var(--inventory-line);
+  background: #ffffff;
+}
+
+.import-detail-heading h3 {
+  margin: 3px 0 6px;
+  color: var(--inventory-ink);
+  font: 700 18px/1.18 "DM Sans", sans-serif;
+  letter-spacing: -.035em;
+}
+
+.import-removal-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin: 16px 22px;
+  padding: 14px 16px;
+  border: 0;
+  border-left: 3px solid #c52f47;
+  border-radius: 0;
+  background: #fff7fa;
+}
+
+.import-removal-panel p:last-child {
+  max-width: 560px;
+  color: var(--inventory-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.import-removal-panel .danger-action {
+  min-height: 38px;
+  padding-inline: 14px;
+  border-radius: 5px;
+}
+
+.import-history-detail > .import-change-list {
+  padding: 0 22px 22px;
+}
+
+.import-change-group-list {
+  gap: 8px;
+}
+
+.import-change-group {
+  border-color: var(--inventory-line);
+  border-radius: 5px;
+}
+
+.import-change-summary {
+  min-height: 72px;
+  padding: 12px 16px;
+}
+
+.import-change-summary .eyebrow {
+  margin-bottom: 3px;
+  color: var(--inventory-ink);
+  letter-spacing: .08em;
+}
+
+.import-change-summary h4 {
+  font-size: 14px;
+}
+
+.import-change-summary-text {
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+.import-change-summary-action > span {
+  border-color: var(--inventory-line);
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.import-color-change-heading {
+  min-height: 40px;
+  padding: 9px 16px;
+  border-bottom-color: var(--inventory-line);
+  background: #fff7fa;
+}
+
+.import-color-inline-change-list,
+.import-variant-change-list {
+  gap: 0;
+  padding: 0;
+  background: #ffffff;
+}
+
+.import-color-inline-change-list .import-color-inline-change,
+.import-color-inline-change-list .import-color-inline-change:first-child,
+.import-variant-change-row {
+  border: 0;
+  border-bottom: 1px solid var(--inventory-line);
+  border-left-width: 3px;
+  border-radius: 0;
+  background: #ffffff;
+}
+
+.import-color-inline-change-list .import-color-inline-change:last-child,
+.import-variant-change-row:last-child {
+  border-bottom: 0;
+}
+
+.import-variant-change-row {
+  padding: 12px 16px;
+}
+
+.import-variant-change-row .eyebrow {
+  margin-bottom: 7px;
+  border-radius: 3px;
+}
+
+.import-variant-change-row .import-change-values {
+  gap: 7px;
+}
+
+.import-variant-change-row .import-change-comparisons {
+  gap: 5px;
+}
+
+.import-variant-change-row .import-change-comparison {
+  max-width: none;
+  padding: 8px 0 0;
+  border: 0;
+  border-top: 1px solid #f0eeee;
+  border-radius: 0;
+  background: transparent;
+}
+
+.import-variant-change-row .import-source-details {
+  margin-top: 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.import-variant-change-row .import-source-details[open] {
+  padding: 8px 0 0;
+  border-top: 1px solid #f0eeee;
+  background: transparent;
+}
+
+@media (max-width: 540px) {
+  .import-detail-heading { padding: 16px; }
+  .import-removal-panel { grid-template-columns: 1fr; margin: 12px 16px; }
+  .import-removal-panel .danger-action { width: 100%; }
+  .import-history-detail > .import-change-list { padding: 0 16px 16px; }
+  .import-change-summary { min-height: 0; padding: 12px; }
+  .import-color-change-heading,
+  .import-variant-change-row { padding-inline: 12px; }
+}

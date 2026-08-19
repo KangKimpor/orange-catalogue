@@ -138,7 +138,7 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("grid-template-areas:");
     expect(stylesheet).toContain("Catalogue editor — alignment polish");
     expect(stylesheet).toContain("grid-template-columns: minmax(300px, 326px) minmax(0, 1fr)");
-    expect(stylesheet).toContain("background: #b52a39;");
+    expect(stylesheet).toContain("background: #c52f47;");
     expect(stylesheet).toContain("color: #ffffff;");
     expect(stylesheet).toContain("Catalogue item picker — keep setup tags on the right-hand code baseline.");
     expect(stylesheet).toContain('"code tags"');
@@ -267,6 +267,15 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("width: 100px;");
     expect(stylesheet).toContain("Header baseline, import identity tags, and dense Catalogue picker rows");
     expect(stylesheet).toContain("grid-template-columns: minmax(0, 1fr) auto;");
+  });
+
+  it("keeps selected POS import details in the current neutral workspace rather than the legacy nested-card treatment", () => {
+    expect(stylesheet).toContain("POS import detail — current neutral workspace");
+    expect(stylesheet).toContain("grid-template-columns: minmax(0, 1fr) auto;");
+    expect(stylesheet).toContain("border-left: 3px solid #c52f47;");
+    expect(stylesheet).toContain(".import-history-detail > .import-change-list");
+    expect(stylesheet).toContain(".import-variant-change-row .import-change-comparison");
+    expect(stylesheet).toContain("background: transparent;");
   });
 
   it("keeps the unified admin navigation usable at mobile breakpoints", () => {

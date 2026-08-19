@@ -325,3 +325,8 @@
 - [x] Revert the Stitch-inspired Admin presentation layer at the owner’s request while retaining all prior import, header, picker, and storefront refinements.
 - [x] Validate the restored Admin presentation with the focused workflow suite, TypeScript check, and production build.
 - [x] Submit the focused revert through pull request #40.
+
+- [x] Replace the remaining legacy selected-import removal panel, expanded cleaned-code rows, Attribute-color treatment, and comparison cards with the current neutral solid Admin presentation.
+- [x] Preserve all import-history, removal, old-to-new comparison, source-detail, and responsive behaviors while making the selected-import details visually consistent.
+- [x] Add visual regression coverage and validate the focused correction.
+- [x] Submit the focused correction through pull request #41.
