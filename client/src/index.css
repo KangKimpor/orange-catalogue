@@ -2202,6 +2202,7 @@ html {
 @keyframes admin-progress-sheen { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) {
   .photo-upload-feedback, .import-feedback, .import-feedback.is-reading, .import-feedback.is-previewing, .import-feedback.is-applying, .import-feedback.is-preview_ready, .import-feedback.is-success, .import-feedback.is-error, .photo-upload-feedback.is-success, .photo-upload-feedback.is-error, .upload-progress-bar::after { animation: none; }
+  .model-results { scroll-behavior: auto; }
 }
 
 /* Grouped POS change review and safe import removal */
@@ -2805,6 +2806,7 @@ html {
 .model-results {
   max-height: calc(100svh - 250px);
   border-top-color: var(--admin-soft-line);
+  scroll-behavior: smooth;
 }
 
 .model-results button {
