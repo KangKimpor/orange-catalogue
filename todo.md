@@ -252,3 +252,6 @@
 - [x] Use solid, readable POS preview surfaces without gradient effects while preserving status visibility and the existing light-pink Admin language.
 - [x] Consolidate each new item’s Attribute color, price, quantity, and source-details control into one compact row; keep the cleaned-code label black.
 - [x] Remove the redundant required-fields notice, add visual-contract coverage, validate the POS preview, and deliver this cleanup through a pull request.
+
+- [x] Render every new size under one Attribute color using the same compact inline change treatment, while retaining each size, price, quantity, and source-details control.
+- [x] Add a visual regression for grouped new variants, validate the preview workflow, and deliver the consistency repair through a new pull request.

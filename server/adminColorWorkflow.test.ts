@@ -124,12 +124,16 @@ describe("cleaned-code admin and color media workflow", () => {
   it("uses solid POS preview surfaces and keeps a one-row new item readable from its Attribute color heading", () => {
     expect(admin).toContain("function isNewImportChange");
     expect(admin).toContain("import-color-inline-change");
-    expect(admin).toContain("Price {formatImportPrice(compactNewChange.price)} · Quantity");
-    expect(admin).toContain("ImportSourceDetails change={compactNewChange}");
+    expect(admin).toContain("const compactNewChanges = changes.filter(isNewImportChange)");
+    expect(admin).toContain("const remainingChanges = changes.filter(change => !isNewImportChange(change))");
+    expect(admin).toContain("import-color-inline-change-list");
+    expect(admin).toContain("Size ${change.size} · ");
+    expect(admin).toContain("ImportSourceDetails change={change}");
     expect(admin).not.toContain("Required fields recognized:");
     expect(stylesheet).toContain("POS preview — solid compact follow-up");
     expect(stylesheet).toContain("background-image: none;");
     expect(stylesheet).toContain(".import-change-group > header .eyebrow");
+    expect(stylesheet).toContain(".import-color-inline-change-list");
     expect(stylesheet).toContain("color: #000000;");
   });
 

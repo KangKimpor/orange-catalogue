@@ -4341,3 +4341,27 @@ html {
   .import-color-inline-change { flex-basis: 100%; margin-left: 0; }
   .import-color-inline-change .import-source-details { margin-left: 0; }
 }
+
+
+/* Compact every new size inside the same Attribute-color group, not only a
+   single new variant. Each line remains independently legible and retains its
+   source disclosure without turning into a full-height change card. */
+.import-color-inline-change-list {
+  display: grid;
+  border-top: 1px solid var(--preview-solid-line);
+  background: var(--preview-solid-surface);
+}
+
+.import-color-inline-change-list .import-color-inline-change {
+  margin-left: 0;
+  padding: 10px 16px;
+  border-top: 1px solid #efeced;
+}
+
+.import-color-inline-change-list .import-color-inline-change:first-child {
+  border-top: 0;
+}
+
+@media (max-width: 540px) {
+  .import-color-inline-change-list .import-color-inline-change { padding: 10px 12px; }
+}
