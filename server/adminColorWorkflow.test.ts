@@ -64,6 +64,13 @@ describe("cleaned-code admin and color media workflow", () => {
     }
   });
 
+  it("keeps deliberate separation between the login password label and its input", () => {
+    expect(admin).toContain('className="login-password-label"');
+    expect(stylesheet).toContain(".login-password-label {");
+    expect(stylesheet).toContain("display: inline-flex;");
+    expect(stylesheet).toContain("gap: var(--sp-3);");
+  });
+
   it("combines item editing and color photo management in the Catalogue workspace", () => {
     expect(admin).toContain('label: "Catalogue editor"');
     expect(admin).not.toContain("<h2>Catalogue editor</h2>");

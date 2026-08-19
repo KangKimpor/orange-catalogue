@@ -3465,6 +3465,12 @@ html {
 .review-status.is-pending { background: var(--admin-pending-bg); }
 
 /* ---- Form field rhythm ---- */
+.login-password-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
 .model-form-grid { gap: var(--sp-4); }
 .simple-item-form { gap: var(--sp-4); }
 .form-actions { gap: var(--sp-3); margin-top: var(--sp-4); }
