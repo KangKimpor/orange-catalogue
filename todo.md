@@ -346,4 +346,4 @@
 - [x] Extend the public catalogue list with a privacy-safe detail payload for each published, non-discontinued product.
 - [x] Seed the existing product-detail query cache from the storefront list so each item renders immediately, with a background refresh retained.
 - [x] Add public-data and instant-detail regression coverage and validate all gallery and Messenger behavior.
-- [ ] Submit the instant-detail refinement through a new pull request.
+- [x] Submit the instant-detail refinement through pull request #44.
