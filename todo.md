@@ -255,3 +255,7 @@
 
 - [x] Render every new size under one Attribute color using the same compact inline change treatment, while retaining each size, price, quantity, and source-details control.
 - [x] Add a visual regression for grouped new variants, validate the preview workflow, and deliver the consistency repair through a new pull request.
+
+- [x] Make the Preview all POS changes and Confirm and apply this import actions black with white labels, and remove the New POS import rail shortcut.
+- [x] Increase New item label tracking and add clear borders around every compact new-variant line and existing change row in import review.
+- [x] Add presentation coverage, validate the preserved import workflow, and deliver the refinements through a new pull request.

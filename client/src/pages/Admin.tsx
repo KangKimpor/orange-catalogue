@@ -414,7 +414,6 @@ export default function Admin() {
     <div className="admin-app">
       <aside className="admin-rail">
         <Link href="/" className="admin-wordmark" aria-label="Orange storefront home"><img src={LOGO_URL} alt="Orange" /><span><b>Orange</b><small>Inventory</small></span></Link>
-        <button type="button" className="admin-rail-primary" onClick={() => openWorkspace("imports")}><CloudUpload aria-hidden="true" /><span>New POS import</span></button>
         <nav aria-label="Admin workspaces">
           <p className="admin-rail-label">Workspace</p>
           {workspaceMeta.map(item => {
