@@ -314,4 +314,4 @@
 - [x] Change the import-preview main-row New item tag to a solid green status treatment.
 - [x] Label every new POS variant inside a new-item group as New variant while retaining the distinct main-row New item indicator.
 - [x] Add regression coverage and validate the focused import-preview correction.
-- [ ] Submit the import-preview correction through a new pull request.
+- [x] Submit the import-preview correction through pull request #38.
