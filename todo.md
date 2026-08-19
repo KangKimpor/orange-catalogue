@@ -341,4 +341,4 @@
 - [x] Rebalance the Color Photo Studio association grid at wide 16:10 and 1980×1200 sizes so upload context remains readable beside the upload zone.
 - [x] Prefetch public product-detail code and data from storefront item cards to remove avoidable navigation and query delay while preserving gallery and Messenger behavior.
 - [x] Add regression coverage and validate both workflows and responsive behavior.
-- [ ] Submit the focused correction through a new pull request.
+- [x] Submit the focused correction through pull request #43.
