@@ -20,6 +20,11 @@ function money(value: number) {
 
 export default function Storefront() {
   const { data, isLoading } = trpc.store.catalogue.list.useQuery();
+  const utils = trpc.useUtils();
+  const preloadProductDetail = (slug: string) => {
+    void import("./ProductDetail");
+    void utils.store.catalogue.getBySlug.prefetch({ slug });
+  };
   const [activeCategory, setActiveCategory] = useState(() => {
     const requested = new URLSearchParams(window.location.search).get("category");
     return requested || "just-in";
@@ -68,7 +73,7 @@ export default function Storefront() {
             const primaryImage = primary ? responsiveCatalogueMedia(primary.url, "grid") : null;
             const firstColor = product.colors[0];
             return (
-              <Link href={`/product/${product.slug}`} className="product-card" key={product.id}>
+              <Link href={`/product/${product.slug}`} className="product-card" key={product.id} onPointerEnter={() => preloadProductDetail(product.slug)} onFocus={() => preloadProductDetail(product.slug)} onTouchStart={() => preloadProductDetail(product.slug)}>
                 <div className="product-image">
                   {primaryImage ? <img {...primaryImage} alt={primary?.altText || product.displayName || product.cleanedCode} loading={index < 2 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"} decoding="async" /> : <span>{firstColor?.englishName || "Orange"}</span>}
                   {!product.available && <span className="availability soldout">Sold Out</span>}

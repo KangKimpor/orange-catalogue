@@ -5583,3 +5583,63 @@ html {
     grid-column: auto;
   }
 }
+
+
+/* --------------------------------------------------------------------------
+   Color Photo Studio — wide-screen association balance
+   Keep the selected Attribute-color context readable beside its upload target
+   rather than allowing an inherited fractional column to collapse on 16:10.
+   -------------------------------------------------------------------------- */
+.catalogue-layout .catalogue-photo-studio {
+  container-type: inline-size;
+}
+
+.catalogue-layout .photo-association {
+  grid-template-columns: minmax(220px, .9fr) minmax(300px, 1.1fr);
+  gap: clamp(18px, 2vw, 28px);
+  align-items: stretch;
+}
+
+.catalogue-layout .photo-association > div:first-child {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+}
+
+.catalogue-layout .photo-association > div:first-child h4 {
+  font-size: clamp(28px, 2.1vw, 38px);
+}
+
+.catalogue-layout .photo-association > div:first-child p:not(.eyebrow) {
+  max-width: 330px;
+  margin-bottom: 0;
+}
+
+.catalogue-layout .photo-association .upload-dropzone {
+  min-height: 230px;
+  padding: 24px;
+}
+
+@container (max-width: 680px) {
+  .catalogue-layout .photo-association {
+    grid-template-columns: 1fr;
+  }
+
+  .catalogue-layout .photo-association > div:first-child h4 {
+    font-size: 30px;
+  }
+
+  .catalogue-layout .photo-association > div:first-child p:not(.eyebrow) {
+    max-width: 560px;
+  }
+
+  .catalogue-layout .photo-association .upload-dropzone {
+    min-height: 190px;
+  }
+}
+
+@media (min-width: 1440px) and (min-height: 900px) {
+  .catalogue-layout .catalogue-editor-details .catalogue-photo-studio {
+    padding: 26px;
+  }
+}
