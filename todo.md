@@ -323,4 +323,5 @@
 - [x] Submit the full Stitch-inspired refinement through pull request #39.
 
 - [x] Revert the Stitch-inspired Admin presentation layer at the owner’s request while retaining all prior import, header, picker, and storefront refinements.
-- [ ] Validate the restored Admin presentation and submit the focused revert through a new pull request.
+- [x] Validate the restored Admin presentation with the focused workflow suite, TypeScript check, and production build.
+- [x] Submit the focused revert through pull request #40.
