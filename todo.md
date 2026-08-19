@@ -235,3 +235,6 @@
 - [x] Rename the Catalogue navigation tab to Catalogue editor and remove duplicate workspace headings beneath the Admin top bar for Catalogue editor, POS imports, import review, and Security.
 - [x] Restore the missing `imports.source_items_json` production schema contract and reload the API schema cache so POS previews can be created again.
 - [x] Add regression coverage, validate the copy and preview repair, and deliver the repository update through a pull request.
+
+- [x] Improve POS preview metric, Attribute-color group, and change-row scanability while retaining the existing light pink Admin visual language and import behavior.
+- [x] Add presentation regressions, validate the refreshed preview at desktop and mobile breakpoints, and deliver the visual improvement through a pull request.
