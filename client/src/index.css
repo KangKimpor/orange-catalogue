@@ -4736,3 +4736,100 @@ html {
   .catalogue-editor-details .catalogue-colors,
   .catalogue-editor-details .catalogue-photo-studio { padding: 15px; }
 }
+
+
+/* --------------------------------------------------------------------------
+   Catalogue editor — alignment polish
+   A single desktop rhythm keeps the picker, selected-item header, details,
+   color controls, and photo studio on straight, readable working lines.
+   -------------------------------------------------------------------------- */
+.catalogue-layout {
+  grid-template-columns: minmax(300px, 326px) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.catalogue-layout .model-picker {
+  align-self: stretch;
+  min-height: 0;
+}
+
+.catalogue-layout .catalogue-editor {
+  min-width: 0;
+  padding: 24px;
+}
+
+.catalogue-layout .model-editor-heading {
+  min-height: 78px;
+  align-items: center;
+  padding: 0 0 18px;
+}
+
+.catalogue-layout .model-editor-heading > div:first-child > .eyebrow { margin-bottom: 7px; }
+.catalogue-layout .model-editor-heading h3 { margin: 0; }
+.catalogue-layout .model-editor-heading > div:first-child > p:last-child { margin-top: 8px; }
+
+.catalogue-layout .selected-item-setup-tags {
+  gap: 6px;
+  padding-top: 0;
+}
+
+.catalogue-layout .catalogue-editor-workspace {
+  grid-template-columns: minmax(282px, .78fr) minmax(0, 1.22fr);
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.catalogue-layout .catalogue-settings-panel,
+.catalogue-layout .catalogue-editor-details .catalogue-colors,
+.catalogue-layout .catalogue-editor-details .catalogue-photo-studio {
+  padding: 20px;
+}
+
+.catalogue-layout .catalogue-settings-panel,
+.catalogue-layout .catalogue-editor-details { align-self: start; }
+.catalogue-layout .catalogue-editor-details { gap: 16px; }
+.catalogue-layout .catalogue-settings-panel { gap: 16px; }
+.catalogue-layout .catalogue-settings-panel .simple-item-form { gap: 11px; }
+
+.catalogue-layout .catalogue-colors > div:first-child,
+.catalogue-layout .catalogue-photo-heading,
+.catalogue-layout .photo-association,
+.catalogue-layout .photo-library > div:first-child { align-items: flex-start; }
+
+.catalogue-layout .attribute-list { gap: 7px; padding-top: 13px; }
+.catalogue-layout .attribute-list button { min-height: 44px; padding: 9px 10px; }
+.catalogue-layout .photo-association { gap: 14px; }
+.catalogue-layout .photo-library { margin-top: 18px; }
+
+.setup-status-tag.is-missing {
+  border-color: #b52a39;
+  background: #b52a39;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.model-result-tags .setup-status-tag.is-missing {
+  min-height: 20px;
+  padding: 4px 6px;
+  letter-spacing: .045em;
+}
+
+@media (max-width: 1220px) {
+  .catalogue-layout { grid-template-columns: minmax(270px, 300px) minmax(0, 1fr); }
+  .catalogue-layout .catalogue-editor-workspace { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 820px) {
+  .catalogue-layout { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  .catalogue-layout .catalogue-editor { padding: 20px; }
+  .catalogue-layout .model-editor-heading { min-height: 0; align-items: flex-start; padding-bottom: 14px; }
+  .catalogue-layout .catalogue-editor-workspace { gap: 14px; margin-top: 14px; }
+}
+
+@media (max-width: 540px) {
+  .catalogue-layout .catalogue-editor { padding: 16px; }
+  .catalogue-layout .catalogue-settings-panel,
+  .catalogue-layout .catalogue-editor-details .catalogue-colors,
+  .catalogue-layout .catalogue-editor-details .catalogue-photo-studio { padding: 15px; }
+  .catalogue-layout .selected-item-setup-tags { gap: 4px; }
+}

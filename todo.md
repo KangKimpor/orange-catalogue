@@ -270,3 +270,7 @@
 
 - [x] Remove the duplicate Name not set fallback from the Catalogue item-list name column while retaining the existing compact missing-name setup tag.
 - [x] Validate the tag-only missing-name presentation and deliver the cleanup through a new pull request.
+
+- [x] Align the Catalogue editor’s page shell, item picker, selected-item summary, panels, controls, color cards, and photo workspace to a consistent desktop grid with balanced spacing.
+- [x] Use solid red backgrounds and white lettering for all incomplete setup tags while retaining the existing green setup-complete treatment.
+- [x] Add presentation coverage, validate the catalogue workflow, and deliver this alignment polish through a new pull request.
