@@ -315,3 +315,9 @@
 - [x] Label every new POS variant inside a new-item group as New variant while retaining the distinct main-row New item indicator.
 - [x] Add regression coverage and validate the focused import-preview correction.
 - [x] Submit the import-preview correction through pull request #38.
+
+- [x] Apply the Stitch-inspired solid Admin foundation: neutral canvas, white surfaces, neutral borders, black ink, editorial display headings, orange brand accents, and restrained green/red statuses.
+- [x] Refine the Admin rail, navigation, header, statistics, overview analytics, controls, and feedback into the Stitch-style professional utility system without removing the logo-only brand treatment or any workspace.
+- [x] Rework the Catalogue editor, POS import/history/review, and Security cards into consistent white, bordered, aligned operational surfaces while preserving every current interaction and import semantics.
+- [x] Add visual regression contracts and validate retained workflows at the existing responsive breakpoints.
+- [ ] Submit the full Stitch-inspired refinement through a new pull request.
