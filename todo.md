@@ -329,4 +329,4 @@
 - [x] Replace the remaining legacy selected-import removal panel, expanded cleaned-code rows, Attribute-color treatment, and comparison cards with the current neutral solid Admin presentation.
 - [x] Preserve all import-history, removal, old-to-new comparison, source-detail, and responsive behaviors while making the selected-import details visually consistent.
 - [x] Add visual regression coverage and validate the focused correction.
-- [ ] Submit the focused correction through a new pull request.
+- [x] Submit the focused correction through pull request #41.
