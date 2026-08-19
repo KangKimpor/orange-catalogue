@@ -33,7 +33,13 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("Orange admin");
     expect(admin).toContain('className="admin-page-description"');
     expect(admin).toContain("ORANGE INVENTORY");
+    expect(admin).toContain('const workspace = workspaceFromPath(location, window.location.search);');
+    expect(admin).not.toContain("setWorkspace(next)");
+    expect(admin).toContain('const itemPicker = workspace === "catalogue" ?');
     expect(stylesheet).toContain("Orange Admin — compact inventory dashboard");
+    expect(stylesheet).toContain("Orange Admin — aligned logo mark and responsive workspace switching");
+    expect(stylesheet).toContain("width: 52px;");
+    expect(stylesheet).toContain("margin: 0 14px 25px;");
     expect(stylesheet).toContain("grid-template-columns: 224px minmax(0, 1fr)");
     expect(stylesheet).toContain("--inventory-pink: #fff0f5");
     expect(stylesheet).toContain(".admin-rail-footer");

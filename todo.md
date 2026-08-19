@@ -287,3 +287,7 @@
 - [x] Remove the Password-protected, Preview every change · apply once, and Simple item setup decorative helper chips from the Admin workspace.
 - [x] Simplify the upper-left Admin rail brand area to the Orange logo only, retaining the storefront-home link and all navigation controls.
 - [x] Update presentation coverage, validate retained Admin workflows, and deliver the cleanup through a new pull request.
+
+- [x] Enlarge the logo-only Admin rail mark and align its left edge with the Workspace label and navigation content below across desktop and responsive layouts.
+- [x] Remove duplicate workspace state updates and avoid building the full inactive Catalogue picker during non-Catalogue workspace switches.
+- [x] Add regression coverage, validate switch behavior and Admin workflows, and deliver the alignment and responsiveness refinement through a new pull request.
