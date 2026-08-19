@@ -74,6 +74,12 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).not.toContain("Review queue");
     expect(stylesheet).toContain(".import-history-layout");
     expect(stylesheet).toContain(".import-change-comparison");
+    expect(admin).toContain('aria-label="POS preview summary"');
+    expect(admin).toContain("import-color-change-heading");
+    expect(admin).toContain("Attribute color");
+    expect(stylesheet).toContain(".preview-card.import-detail-card");
+    expect(stylesheet).toContain(".import-color-change-heading");
+    expect(stylesheet).toContain(".import-summary > span");
   });
 
   it("shows model and Attribute-color photo coverage in the Catalogue editor", () => {
