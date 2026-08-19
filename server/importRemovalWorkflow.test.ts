@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const root = resolve(import.meta.dirname, "..");
 const router = readFileSync(resolve(root, "server/storeRouter.ts"), "utf8");
 const rebuildMigration = readFileSync(resolve(root, "supabase/migrations/0010_rebuild_catalogue_after_pos_import_removal.sql"), "utf8");
+const scopedUpdateMigration = readFileSync(resolve(root, "supabase/migrations/0011_fix_rebuild_variant_update_scope.sql"), "utf8");
 
 describe("rebuildable POS import removal workflow", () => {
   it("retains each normalized source snapshot and rejects a rebuild if a retained snapshot is unavailable", () => {
@@ -21,6 +22,13 @@ describe("rebuildable POS import removal workflow", () => {
     expect(rebuildMigration).toContain("perform public.apply_pos_import(v_replay.id, v_replay.digest, v_replay.source_items_json)");
     expect(rebuildMigration).toContain("and not exists (select 1 from public.product_media as media where media.product_id = product.id)");
     expect(rebuildMigration).toContain("lifecycle_status = 'discontinued'");
+  });
+
+  it("scopes the temporary variant-state clear so the production safe-update policy allows chronological replay", () => {
+    expect(scopedUpdateMigration).toContain("update public.variants");
+    expect(scopedUpdateMigration).toContain("where last_seen_import_id is not null;");
+    expect(scopedUpdateMigration).not.toContain("update public.variants set last_seen_import_id = null;");
+    expect(scopedUpdateMigration).toContain("delete from public.variants;");
   });
 
   it("requires an authenticated server action and routes every selected import to the rebuild RPC", () => {

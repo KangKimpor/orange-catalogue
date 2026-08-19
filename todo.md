@@ -238,3 +238,6 @@
 
 - [x] Improve POS preview metric, Attribute-color group, and change-row scanability while retaining the existing light pink Admin visual language and import behavior.
 - [x] Add presentation regressions, validate the refreshed preview at desktop and mobile breakpoints, and deliver the visual improvement through a pull request.
+
+- [x] Scope the POS rebuild’s variant state clear to rows with a non-null `last_seen_import_id` so the safe-update policy permits historical import removal.
+- [x] Apply the forward-only production procedure repair, verify retained snapshots and protected catalogue data, and deliver regression coverage through a pull request.
