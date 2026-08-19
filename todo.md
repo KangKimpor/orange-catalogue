@@ -241,3 +241,6 @@
 
 - [x] Scope the POS rebuild’s variant state clear to rows with a non-null `last_seen_import_id` so the safe-update policy permits historical import removal.
 - [x] Apply the forward-only production procedure repair, verify retained snapshots and protected catalogue data, and deliver regression coverage through a pull request.
+
+- [x] Scope the POS rebuild’s variant delete with an explicit safe predicate so the production delete guard permits chronological replay.
+- [x] Apply and verify the second forward-only procedure repair, extend the regression contract, and update the existing import-removal pull request.
