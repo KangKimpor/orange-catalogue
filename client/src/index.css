@@ -3598,3 +3598,258 @@ html {
   border-color: var(--review-border);
   background: var(--review-bg-tint);
 }
+
+
+/* ============================================================
+   POS import review redesign: same structure and logic as
+   before (summary counts, required-fields notice, cleaned-code
+   groups, attribute-color sections, change rows), restyled for
+   a calmer, more professional read. Pink is no longer used as
+   the default framing color for every card and border -- it's
+   reserved for the "count" badges. Structure now uses neutral
+   grays, and each change row gets a colored status tag (like a
+   GitHub/Linear label) instead of relying only on a thin left
+   border for meaning.
+   ============================================================ */
+
+.admin-app {
+  --review-line: #e4e4e4;
+  --review-line-strong: #d3d3d3;
+  --review-surface: #ffffff;
+  --review-tint: #fafafa;
+  --review-ink: #17151a;
+  --review-muted: #6b6570;
+
+  --status-new: #276b3c;
+  --status-new-bg: #e9f4ec;
+  --status-purple: #6551a0;
+  --status-purple-bg: #efeafa;
+  --status-blue: #35578f;
+  --status-blue-bg: #eaf1fa;
+  --status-amber: #92640f;
+  --status-amber-bg: #faf1de;
+  --status-teal: #216b62;
+  --status-teal-bg: #e6f4f2;
+  --status-brown: #7c481f;
+  --status-brown-bg: #f7ece0;
+  --status-mauve: #61505a;
+  --status-mauve-bg: #f2eef1;
+  --status-red: #a3332f;
+  --status-red-bg: #fbeae9;
+}
+
+/* ---- Summary metric cards: neutral surface, quiet border ---- */
+.import-summary > span {
+  border: 1px solid var(--review-line);
+  border-radius: 8px;
+  background: var(--review-surface);
+  color: var(--review-muted);
+  box-shadow: 0 1px 2px rgba(20, 12, 16, .03);
+}
+
+.import-summary > span b {
+  color: var(--review-ink);
+}
+
+/* ---- "Required fields recognized" notice: quiet gray note,
+   not a pink alert ---- */
+.import-validation-summary {
+  border-left: 3px solid var(--review-line-strong);
+  border-radius: 4px;
+  background: var(--review-tint);
+  color: var(--review-muted);
+}
+
+/* ---- Cleaned-code item group ---- */
+.import-change-group {
+  border: 1px solid var(--review-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.import-change-group > header {
+  background: var(--review-tint);
+  border-bottom: 1px solid var(--review-line);
+}
+
+.import-change-group > header .eyebrow {
+  color: var(--review-muted);
+}
+
+.import-change-group > header h4 {
+  color: var(--review-ink);
+  font-family: "DM Mono", monospace;
+}
+
+.import-change-group > header > span {
+  border: 1px solid var(--review-line-strong);
+  border-radius: 999px;
+  background: var(--review-surface);
+  color: var(--review-ink);
+  font-weight: 700;
+}
+
+/* ---- Attribute color sub-heading ---- */
+.import-color-change-heading {
+  background: var(--review-tint);
+  border-bottom: 1px solid var(--review-line);
+}
+
+.import-color-change-heading > span {
+  color: var(--review-muted);
+  font-weight: 700;
+}
+
+.import-color-change-heading h5 {
+  color: var(--review-ink);
+}
+
+.import-color-change-group + .import-color-change-group {
+  border-top: 1px solid var(--review-line);
+}
+
+/* ---- Change rows: neutral card, colored status tag instead
+   of relying on the left border alone ---- */
+.import-variant-change-row {
+  border-top: 1px solid var(--review-line);
+  border-left: 3px solid var(--review-line-strong);
+  background: var(--review-surface);
+}
+
+.import-variant-change-row:hover {
+  background: var(--review-tint);
+}
+
+.import-variant-change-row .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--status-mauve-bg);
+  color: var(--status-mauve);
+  font-weight: 700;
+}
+
+.import-variant-change-row p:last-child,
+.import-change-identity,
+.import-change-new-values {
+  color: var(--review-muted);
+}
+
+.import-variant-change-row.is-new_product {
+  border-left-color: var(--status-new);
+}
+.import-variant-change-row.is-new_product .eyebrow {
+  background: var(--status-new-bg);
+  color: var(--status-new);
+}
+
+.import-variant-change-row.is-new_color,
+.import-variant-change-row.is-new_variant {
+  border-left-color: var(--status-purple);
+}
+.import-variant-change-row.is-new_color .eyebrow,
+.import-variant-change-row.is-new_variant .eyebrow {
+  background: var(--status-purple-bg);
+  color: var(--status-purple);
+}
+
+.import-variant-change-row.is-new_size {
+  border-left-color: var(--status-blue);
+}
+.import-variant-change-row.is-new_size .eyebrow {
+  background: var(--status-blue-bg);
+  color: var(--status-blue);
+}
+
+.import-variant-change-row.is-price_changed {
+  border-left-color: var(--status-amber);
+}
+.import-variant-change-row.is-price_changed .eyebrow {
+  background: var(--status-amber-bg);
+  color: var(--status-amber);
+}
+
+.import-variant-change-row.is-stock_changed {
+  border-left-color: var(--status-teal);
+}
+.import-variant-change-row.is-stock_changed .eyebrow {
+  background: var(--status-teal-bg);
+  color: var(--status-teal);
+}
+
+.import-variant-change-row.is-price_and_stock_changed {
+  border-left-color: var(--status-brown);
+}
+.import-variant-change-row.is-price_and_stock_changed .eyebrow {
+  background: var(--status-brown-bg);
+  color: var(--status-brown);
+}
+
+.import-variant-change-row.is-variant_updated {
+  border-left-color: var(--status-mauve);
+}
+
+.import-variant-change-row.is-missing {
+  border-left-color: var(--status-red);
+  background: var(--status-red-bg);
+}
+.import-variant-change-row.is-missing .eyebrow {
+  background: var(--review-surface);
+  color: var(--status-red);
+}
+
+/* ---- Price/stock comparison chips inside a row ---- */
+.import-change-comparison {
+  border: 1px solid var(--review-line);
+  border-radius: 6px;
+  background: var(--review-tint);
+  color: var(--review-ink);
+}
+
+.import-change-comparison span,
+.import-change-comparison i {
+  color: var(--review-muted);
+}
+
+/* ---- Source details disclosure ---- */
+.import-source-details {
+  color: var(--review-muted);
+}
+
+.import-source-details summary {
+  color: var(--review-muted);
+}
+
+.import-source-details[open] {
+  border: 1px solid var(--review-line);
+  border-radius: 6px;
+  background: var(--review-tint);
+}
+
+/* ---- History list and detail panel share the same neutral
+   surface language ---- */
+.import-history-list button {
+  border: 1px solid var(--review-line);
+  border-radius: 8px;
+  background: var(--review-surface);
+}
+
+.import-history-list button:hover,
+.import-history-list button:focus-visible,
+.import-history-list button.is-selected {
+  border-color: var(--review-line-strong);
+  background: var(--review-tint);
+}
+
+.import-history-detail {
+  border: 1px solid var(--review-line);
+  border-radius: 8px;
+  background: var(--review-surface);
+}
+
+.preview-card {
+  border: 1px solid var(--review-line);
+  border-radius: 8px;
+}
