@@ -342,3 +342,8 @@
 - [x] Prefetch public product-detail code and data from storefront item cards to remove avoidable navigation and query delay while preserving gallery and Messenger behavior.
 - [x] Add regression coverage and validate both workflows and responsive behavior.
 - [x] Submit the focused correction through pull request #43.
+
+- [x] Extend the public catalogue list with a privacy-safe detail payload for each published, non-discontinued product.
+- [x] Seed the existing product-detail query cache from the storefront list so each item renders immediately, with a background refresh retained.
+- [x] Add public-data and instant-detail regression coverage and validate all gallery and Messenger behavior.
+- [x] Submit the instant-detail refinement through pull request #44.

@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { belongsInStorefrontCategory } from "@/lib/storefrontCategories";
 import { responsiveCatalogueMedia } from "@/lib/catalogueMedia";
@@ -30,6 +30,11 @@ export default function Storefront() {
     return requested || "just-in";
   });
   const categories = data?.categories?.length ? data.categories : FALLBACK_CATEGORIES;
+  useEffect(() => {
+    for (const product of data?.products ?? []) {
+      utils.store.catalogue.getBySlug.setData({ slug: product.slug }, product.detail);
+    }
+  }, [data?.products, utils]);
   const products = useMemo(
     () => (data?.products ?? []).filter(product => belongsInStorefrontCategory(product, activeCategory)),
     [activeCategory, data],
