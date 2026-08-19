@@ -1,4 +1,4 @@
-import { type ChangeEvent, type DragEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type DragEvent, type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   CheckCircle2,
@@ -66,10 +66,7 @@ function formatImportPrice(value: number | null) {
 
 function ImportChangeValues({ change }: { change: ImportChangeView }) {
   const isNew = ["new_product", "new_color", "new_size", "new_variant"].includes(change.type);
-  return <div className="import-change-values">
-    {isNew ? <div className="import-new-change-details"><p className="import-change-new-values">{importChangeIdentity(change)}</p><div className="import-new-value-list"><p className="import-change-comparison"><span>Price</span><b>{formatImportPrice(change.price)}</b></p><p className="import-change-comparison"><span>Quantity</span><b>{change.stock ?? "—"}</b></p></div></div> : <div className="import-change-comparisons"><p className="import-change-identity">{importChangeIdentity(change)}</p><div className="import-change-comparison-list">{change.stockChanged && <p className="import-change-comparison"><span>Quantity</span><b>{change.previousStock ?? "—"}</b><i aria-label="changes to">→</i><b>{change.stock ?? "—"}</b></p>}{change.priceChanged && <p className="import-change-comparison"><span>Price</span><b>{formatImportPrice(change.previousPrice)}</b><i aria-label="changes to">→</i><b>{formatImportPrice(change.price)}</b></p>}</div></div>}
-    {(change.posCode || change.rawName || change.rawAttribute) && <details className="import-source-details"><summary>Source details</summary><p>{change.posCode && <>POS Code: {change.posCode}<br /></>}{change.rawName && <>Raw Name: {change.rawName}<br /></>}{change.rawAttribute && <>Raw Attribute: {change.rawAttribute}</>}</p></details>}
-  </div>;
+  return <div className="import-change-values">{isNew ? <p className="import-change-new-values">{importChangeIdentity(change)} · Price {formatImportPrice(change.price)} · Quantity {change.stock ?? "—"}</p> : <div className="import-change-comparisons"><p className="import-change-identity">{importChangeIdentity(change)}</p>{change.stockChanged && <p className="import-change-comparison"><span>Quantity</span><b>{change.previousStock ?? "—"}</b><i aria-label="changes to">→</i><b>{change.stock ?? "—"}</b></p>}{change.priceChanged && <p className="import-change-comparison"><span>Price</span><b>{formatImportPrice(change.previousPrice)}</b><i aria-label="changes to">→</i><b>{formatImportPrice(change.price)}</b></p>}</div>}{(change.posCode || change.rawName || change.rawAttribute) && <details className="import-source-details"><summary>Source details</summary><p>{change.posCode && <>POS Code: {change.posCode}<br /></>}{change.rawName && <>Raw Name: {change.rawName}<br /></>}{change.rawAttribute && <>Raw Attribute: {change.rawAttribute}</>}</p></details>}</div>;
 }
 
 function ImportChangeGroups({ groups }: { groups: ImportChangeGroupView[] }) {
@@ -160,8 +157,6 @@ export default function Admin() {
   const [photoUploadFeedback, setPhotoUploadFeedback] = useState<PhotoUploadFeedback>(initialPhotoUploadFeedback);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importBase64, setImportBase64] = useState("");
-  const [importInputKey, setImportInputKey] = useState(0);
-  const importFileInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<any>(null);
   const [importFeedback, setImportFeedback] = useState<ImportFeedback>(initialImportFeedback);
   const [importRemovalFeedback, setImportRemovalFeedback] = useState("");
@@ -263,14 +258,6 @@ export default function Admin() {
       setImportBase64("");
       setImportFeedback({ status: "error", message: error instanceof Error ? error.message : "The POS file could not be read. Choose it again and try once more." });
     }
-  }
-  function cancelImportPreview() {
-    if (["reading", "previewing", "applying"].includes(importFeedback.status)) return;
-    setImportFile(null);
-    setImportBase64("");
-    setPreview(null);
-    setImportInputKey(current => current + 1);
-    setImportFeedback(initialImportFeedback);
   }
   async function previewPosImport() {
     if (!importFile || !importBase64) return;
@@ -487,18 +474,21 @@ export default function Admin() {
 
         {workspace === "imports" && (
           <section className="admin-view import-view">
-            <div className="workspace-intro import-workspace-intro">
-              <div><p>Upload the latest POS export, inspect every change, then apply it only when the complete preview looks right.</p><p className="import-workflow-label">Preview every change <span>·</span> Apply once</p></div>
+            <div className="workspace-intro">
+              <div><p>Upload the latest POS export, inspect every change, then apply it only when the complete preview looks right.</p></div>
+              <span className="helper-chip">Preview every change · apply once</span>
             </div>
             <section className="import-workbench pos-import-workbench">
-              <div className="import-card-heading"><p className="eyebrow">WEEKLY INVENTORY</p><h3>Upload and preview</h3><p>The POS filename is reference only. The file is compared with your current catalogue before any inventory changes are applied.</p><ol className="import-stage-list"><li className={importFile ? "is-complete" : "is-current"}>Upload POS file</li><li className={importBase64 ? "is-complete" : ""}>Validate format</li><li className={preview ? "is-complete" : ""}>Review changes</li><li className={importFeedback.status === "success" ? "is-complete" : ""}>Apply to catalogue</li></ol></div>
-              <div className="import-file-stage"><label className={`import-file is-${importFeedback.status}`}><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose latest POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input key={importInputKey} ref={importFileInputRef} type="file" accept=".xlsx,.xls" onChange={chooseImport} disabled={importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"} /></label><div className="import-file-actions"><button type="button" className="quiet-action" onClick={() => importFileInputRef.current?.click()} disabled={!importFile || ["reading", "previewing", "applying"].includes(importFeedback.status)}>Replace file</button><button type="button" className="primary-action import-preview-action" onClick={previewPosImport} disabled={!importBase64 || importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"}>{importFeedback.status === "previewing" ? "Comparing catalogue…" : "Preview all POS changes"}</button></div></div>
+              <div className="import-card-heading"><p className="eyebrow">WEEKLY INVENTORY</p><h3>Upload and preview</h3><p>The POS filename is reference only. The file is compared with your current catalogue before any inventory changes are applied.</p></div>
+              <label className={`import-file is-${importFeedback.status}`}><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose latest POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input type="file" accept=".xlsx,.xls" onChange={chooseImport} disabled={importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"} /></label>
+              <button type="button" className="primary-action" onClick={previewPosImport} disabled={!importBase64 || importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"}>{importFeedback.status === "previewing" ? "Comparing catalogue…" : "Preview all POS changes"}</button>
               <div className={`import-feedback is-${importFeedback.status}`} role="status" aria-live="polite"><div className="feedback-icon">{importFeedback.status === "success" || importFeedback.status === "preview_ready" ? <CheckCircle2 aria-hidden="true" /> : importFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : ["reading", "previewing", "applying"].includes(importFeedback.status) ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <FileSpreadsheet aria-hidden="true" />}</div><div><small>{importFeedback.status === "applying" ? "APPLYING IMPORT" : importFeedback.status === "previewing" ? "BUILDING PREVIEW" : importFeedback.status === "preview_ready" ? "READY TO CONFIRM" : "POS IMPORT"}</small><p>{importFeedback.message}</p></div></div>
               {preview && <section className="preview-card import-detail-card">
                 <div className="import-summary" aria-label="POS preview summary">{[{ label: "POS rows analyzed", value: preview.summary.rows, always: true }, { label: "items found", value: preview.summary.products, always: true }, { label: "items changed", value: preview.summary.changedProducts }, { label: "new items", value: preview.summary.newProducts }, { label: "new colors", value: preview.summary.newColors }, { label: "new sizes", value: preview.summary.newSizes }, { label: "new variants", value: preview.summary.newVariants }, { label: "price changes", value: preview.summary.priceChanges }, { label: "quantity changes", value: preview.summary.stockChanges }, { label: "price and quantity changes", value: preview.summary.priceAndStockChanges }, { label: "missing variants", value: preview.summary.missingVariants }].filter(entry => entry.always || Number(entry.value ?? 0) > 0).map(entry => <span key={entry.label}><b>{entry.value ?? 0}</b> {entry.label}</span>)}</div>
-                <div className="import-preview-context"><p>{preview.alreadyApplied ? "This exact POS file was already applied. Upload a newer export when it is available." : preview.validation.invalidRows.length ? (preview.validation.invalidRows.length + " invalid row(s) must be corrected before this import can be applied.") : "Preview only — no catalogue changes have been made. Review every row below before applying."}</p>{preview.validation.requiredColumns?.length ? <p className="import-validation-summary">Required fields recognized: {preview.validation.requiredColumns.join(" · ")}</p> : null}</div>
+                <p>{preview.alreadyApplied ? "This exact POS file was already applied. Upload a newer export when it is available." : preview.validation.invalidRows.length ? (preview.validation.invalidRows.length + " invalid row(s) must be corrected before this import can be applied.") : "Preview only — no catalogue changes have been made. Review every row below before applying."}</p>
+                {preview.validation.requiredColumns?.length ? <p className="import-validation-summary">Required fields recognized: {preview.validation.requiredColumns.join(" · ")}</p> : null}
                 {!preview.alreadyApplied && <div className="import-change-list" aria-label="All POS changes grouped by cleaned-code item"><ImportChangeGroups groups={preview.changeGroups as ImportChangeGroupView[]} /></div>}
-                <div className="form-actions import-preview-actions"><button type="button" className="quiet-action" onClick={cancelImportPreview} disabled={importFeedback.status === "applying"}>Cancel import</button><button type="button" className="primary-action" onClick={applyPosImport} disabled={importFeedback.status === "applying" || preview.validation.invalidRows.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : importFeedback.status === "applying" ? "Applying verified changes…" : "Confirm and apply this import"}</button></div>
+                <div className="form-actions"><button type="button" className="secondary-action" onClick={applyPosImport} disabled={importFeedback.status === "applying" || preview.validation.invalidRows.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : importFeedback.status === "applying" ? "Applying verified changes…" : "Confirm and apply this import"}</button></div>
               </section>}
             </section>
             <section className="history-card import-history-card">
