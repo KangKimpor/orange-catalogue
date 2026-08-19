@@ -248,3 +248,7 @@
 - [x] Reframe every Orange Admin workspace in a compact desktop inventory-dashboard composition with a visible label rail, concise page headers, quiet working surfaces, and light-pink interaction hints.
 - [x] Preserve all POS, catalogue, photo, import-history, security, route, and API behavior while adapting the layout to tablet and mobile widths.
 - [x] Add presentation regressions, validate the redesigned Admin workflow, and deliver the visual update through a pull request.
+
+- [x] Restyle the POS import workspace around the supplied editorial ink-on-paper reference: slim monochrome rail, serif import hierarchy, sharp panels, staged file-preview interaction, restrained blush dividers, and black confirm actions.
+- [x] Keep complete grouped cleaned-code, Attribute-color, price, quantity, source-detail, validation, apply, history, and safe-removal behavior intact while making the preview faster to scan.
+- [x] Add visual-contract coverage, validate desktop and mobile behavior, and update the existing open Admin-dashboard pull request.

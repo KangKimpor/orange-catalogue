@@ -121,6 +121,22 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".photo-upload-feedback.is-error");
   });
 
+  it("uses the supplied editorial reference for a staged POS import layout without removing preview safety", () => {
+    expect(admin).toContain("import-stage-list");
+    expect(admin).toContain("Preview every change");
+    expect(admin).toContain("Apply once");
+    expect(admin).toContain("Cancel import");
+    expect(admin).toContain("function cancelImportPreview");
+    expect(admin).toContain("importInputKey");
+    expect(admin).toContain("import-preview-actions");
+    expect(admin).toContain("import-new-value-list");
+    expect(stylesheet).toContain("Orange Admin — editorial POS import reference adaptation");
+    expect(stylesheet).toContain("--editorial-pink-line: #f7dbe5");
+    expect(stylesheet).toContain(".import-stage-list");
+    expect(stylesheet).toContain(".import-preview-actions .primary-action");
+    expect(stylesheet).toContain(".admin-rail {\n  position: sticky;");
+  });
+
   it("shows staged POS import feedback before reading, previewing, applying, succeeding, or failing", () => {
     expect(admin).toContain("ImportFeedbackStatus");
     expect(admin).toContain("Reading ${file.name} securely in your browser");
