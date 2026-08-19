@@ -22,6 +22,20 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).not.toContain("variant-table-header");
   });
 
+  it("uses the compact pink-accent inventory dashboard shell across every Admin workspace", () => {
+    expect(admin).toContain('className="admin-rail-primary"');
+    expect(admin).toContain("New POS import");
+    expect(admin).toContain('className="admin-rail-label"');
+    expect(admin).toContain("Orange admin");
+    expect(admin).toContain('className="admin-page-description"');
+    expect(admin).toContain("ORANGE INVENTORY");
+    expect(stylesheet).toContain("Orange Admin — compact inventory dashboard");
+    expect(stylesheet).toContain("grid-template-columns: 224px minmax(0, 1fr)");
+    expect(stylesheet).toContain("--inventory-pink: #fff0f5");
+    expect(stylesheet).toContain(".admin-rail-primary");
+    expect(stylesheet).toContain(".admin-rail-footer");
+  });
+
   it("combines item editing and color photo management in the Catalogue workspace", () => {
     expect(admin).toContain('label: "Catalogue editor"');
     expect(admin).not.toContain("<h2>Catalogue editor</h2>");

@@ -244,3 +244,7 @@
 
 - [x] Scope the POS rebuild’s variant delete with an explicit safe predicate so the production delete guard permits chronological replay.
 - [x] Apply and verify the second forward-only procedure repair, extend the regression contract, and update the existing import-removal pull request.
+
+- [x] Reframe every Orange Admin workspace in a compact desktop inventory-dashboard composition with a visible label rail, concise page headers, quiet working surfaces, and light-pink interaction hints.
+- [x] Preserve all POS, catalogue, photo, import-history, security, route, and API behavior while adapting the layout to tablet and mobile widths.
+- [x] Add presentation regressions, validate the redesigned Admin workflow, and deliver the visual update through a pull request.
