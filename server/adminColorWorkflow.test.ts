@@ -119,6 +119,10 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".setup-status-tag.is-missing");
     expect(stylesheet).toContain(".selected-item-setup-tags");
     expect(stylesheet).toContain("grid-template-areas:");
+    expect(stylesheet).toContain("Catalogue editor — alignment polish");
+    expect(stylesheet).toContain("grid-template-columns: minmax(300px, 326px) minmax(0, 1fr)");
+    expect(stylesheet).toContain("background: #b52a39;");
+    expect(stylesheet).toContain("color: #ffffff;");
   });
 
   it("guides a photo upload through validation, Cloudinary transfer, saving, and confirmation", () => {
