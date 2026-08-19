@@ -291,3 +291,7 @@
 - [x] Enlarge the logo-only Admin rail mark and align its left edge with the Workspace label and navigation content below across desktop and responsive layouts.
 - [x] Remove duplicate workspace state updates and avoid building the full inactive Catalogue picker during non-Catalogue workspace switches.
 - [x] Add regression coverage, validate switch behavior and Admin workflows, and deliver the alignment and responsiveness refinement through a new pull request.
+
+- [x] Style the Remove this POS dataset destructive action with a solid red background and white lettering, including a darker red hover/focus state.
+- [x] Increase the upper-left Admin rail logo substantially while preserving its alignment with navigation and responsive sizing.
+- [x] Add presentation coverage, validate the retained safe-removal workflow, and deliver the refinement through a new pull request.
