@@ -66,7 +66,6 @@ export default function ProductDetail() {
           {sizes.length > 0 && <div className="choice-block"><span>Size</span><div className="choice-row">{sizes.map(item => <button key={item} onClick={() => setSize(item)} className={size === item ? "size-choice is-selected" : "size-choice"}>{item}</button>)}</div></div>}
           {!selectedVariant?.available && <p className="detail-status soldout">Sold Out</p>}
           <a className={`message-button ${selectedVariant?.available ? "" : "is-disabled"}`} href={selectedVariant?.available ? orderUrl : undefined} target="_blank" rel="noreferrer">Message to Order</a>
-          <p className="message-note">Messenger opens with your selected product details ready to send.</p>
         </div>
       </main>
     </div>

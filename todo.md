@@ -303,3 +303,10 @@
 - [x] Replace the Overview quick-action block with a clearly dated Vercel Analytics snapshot: 30 visitors, 115 pageviews, and the leading routes for the 15–20 August 2026 reporting period.
 - [x] Add presentation coverage and validate all preserved workflows for the full Admin refinement.
 - [x] Submit the full Admin refinement through pull request #36.
+
+- [x] Align the Admin workspace header content and session actions on a consistent desktop baseline while retaining the compact mobile header.
+- [x] Show a New item badge beside the cleaned code only for import groups containing an actual new cleaned-code product, while retaining New variant labels for new variants.
+- [x] Make Catalogue picker rows more compact without hiding cleaned codes, setup status, color count, lifecycle status, or mobile usability.
+- [x] Remove the explanatory Messenger helper sentence below the product-detail Message to Order action without changing the Messenger handoff.
+- [x] Add regression coverage and validate the Admin and storefront refinement.
+- [ ] Submit the refinement through a new pull request.

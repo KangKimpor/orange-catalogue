@@ -5095,3 +5095,89 @@ html {
   box-shadow: none;
   backdrop-filter: none;
 }
+
+
+/* Header baseline, import identity tags, and dense Catalogue picker rows */
+@media (min-width: 821px) {
+  .admin-app .admin-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 24px;
+    min-height: 104px;
+    padding: 18px 0 16px;
+  }
+
+  .admin-app .admin-page-context {
+    display: grid;
+    align-content: center;
+    gap: 4px;
+  }
+
+  .admin-app .admin-page-context .eyebrow,
+  .admin-app .admin-topbar h1,
+  .admin-app .admin-page-description { margin: 0; }
+
+  .admin-app .admin-session {
+    display: inline-flex;
+    align-items: center;
+    justify-self: end;
+    align-self: center;
+    min-height: 34px;
+  }
+}
+
+.import-change-summary h4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.import-new-item-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 19px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  background: var(--inventory-ink);
+  color: #ffffff;
+  font: 700 8px/1 "DM Mono", monospace;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.catalogue-layout .model-results button {
+  grid-template-areas:
+    "code tags"
+    "name meta";
+  gap: 3px 8px;
+  min-height: 64px;
+  padding: 9px 12px;
+}
+
+.catalogue-layout .model-results button strong { padding-top: 1px; }
+.catalogue-layout .model-results button .model-result-tags { gap: 3px; }
+.catalogue-layout .model-results button small {
+  align-self: end;
+  justify-self: end;
+  margin: 0;
+  color: var(--inventory-muted);
+  font-size: 9px;
+  text-align: right;
+}
+
+.model-result-tags .setup-status-tag.is-missing {
+  min-height: 18px;
+  padding: 3px 5px;
+  font-size: 7px;
+}
+
+@media (max-width: 540px) {
+  .catalogue-layout .model-results button {
+    min-height: 60px;
+    padding: 8px 10px;
+  }
+
+  .catalogue-layout .model-results button small { justify-self: start; text-align: left; }
+}
