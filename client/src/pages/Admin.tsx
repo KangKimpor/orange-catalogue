@@ -200,6 +200,12 @@ export default function Admin() {
   const selectedColorMedia = useMemo(() => selectedProduct?.media.filter(media => selectedColorVariantIds.has(media.variantId ?? -1) || media.colorTag?.toLowerCase() === selectedColor?.englishName.toLowerCase()) ?? [], [selectedColor?.englishName, selectedColorVariantIds, selectedProduct?.media]);
   const colorPhotoCounts = useMemo(() => new Map<string, number>((selectedProduct?.colors ?? []).map(color => [`${color.id}-${color.englishName}`, selectedProduct?.media.filter(media => color.variants.some(variant => variant.id === media.variantId) || media.colorTag?.toLowerCase() === color.englishName.toLowerCase()).length ?? 0] as const)), [selectedProduct]);
   const photoReadyColorCount = useMemo(() => Array.from(colorPhotoCounts.values()).filter(count => count > 0).length, [colorPhotoCounts]);
+  const itemSetupStatus = useMemo(() => new Map(products.map(product => {
+    const colorsWithPhotos = product.colors.filter(color => product.media.some(media => color.variants.some(variant => variant.id === media.variantId) || media.colorTag?.toLowerCase() === color.englishName.toLowerCase())).length;
+    const colorCount = product.colors.length;
+    return [product.id, { hasName: Boolean(product.displayName?.trim()), colorCount, colorsWithPhotos, hasCompletePhotoCoverage: colorCount > 0 && colorsWithPhotos === colorCount }] as const;
+  })), [products]);
+  const selectedItemSetupStatus = selectedProduct ? itemSetupStatus.get(selectedProduct.id) : null;
   const appliedImportCount = history.data?.filter(item => item.status === "applied").length ?? 0;
   const photoReadyCount = products.filter(product => product.media.length > 0).length;
   const archivedSourceItems = products.filter(product => product.lifecycleStatus === "discontinued" && product.id !== selectedProductId);
@@ -417,7 +423,8 @@ export default function Admin() {
         {filteredItems.length ? filteredItems.map(product => (
           <button type="button" key={product.id} onClick={() => chooseItem(product.id)} className={product.id === selectedProductId ? "is-selected" : ""}>
             <strong>{product.cleanedCode}</strong>
-            <span>{product.displayName || "Name not set"}</span>
+            <span className="model-result-name">{product.displayName || "Name not set"}</span>
+            <span className="model-result-tags">{!itemSetupStatus.get(product.id)?.hasName && <b className="setup-status-tag is-missing">Name not set</b>}{itemSetupStatus.get(product.id)?.colorCount && !itemSetupStatus.get(product.id)?.hasCompletePhotoCoverage && <b className="setup-status-tag is-missing">Pictures not set · {itemSetupStatus.get(product.id)?.colorsWithPhotos}/{itemSetupStatus.get(product.id)?.colorCount} colors</b>}</span>
             <small>{product.colors.length} color{product.colors.length === 1 ? "" : "s"} · {product.lifecycleStatus === "out_of_stock" ? "Out of stock" : product.lifecycleStatus === "discontinued" ? "Discontinued" : "Active"}</small>
           </button>
         )) : <p className="picker-empty">No items yet. Import your new POS file to begin.</p>}
@@ -464,7 +471,7 @@ export default function Admin() {
               {itemPicker}
               <section className="model-editor catalogue-editor">
                 {selectedProduct ? <>
-                  <div className="model-editor-heading"><div><p className="eyebrow">SELECTED ITEM</p><h3>{selectedProduct.cleanedCode}</h3><p>{selectedProduct.colors.length} POS Attribute color{selectedProduct.colors.length === 1 ? "" : "s"} · {photoReadyColorCount} color{photoReadyColorCount === 1 ? "" : "s"} with photo{photoReadyColorCount === 1 ? "" : "s"}</p></div></div>
+                  <div className="model-editor-heading"><div><p className="eyebrow">SELECTED ITEM</p><h3>{selectedProduct.cleanedCode}</h3><p>{selectedProduct.colors.length} POS Attribute color{selectedProduct.colors.length === 1 ? "" : "s"} · {photoReadyColorCount} color{photoReadyColorCount === 1 ? "" : "s"} with photo{photoReadyColorCount === 1 ? "" : "s"}</p></div><div className="selected-item-setup-tags">{!selectedItemSetupStatus?.hasName && <span className="setup-status-tag is-missing">Name not set</span>}{selectedItemSetupStatus?.colorCount && !selectedItemSetupStatus.hasCompletePhotoCoverage && <span className="setup-status-tag is-missing">Pictures not set · {selectedItemSetupStatus.colorsWithPhotos}/{selectedItemSetupStatus.colorCount} colors</span>}{selectedItemSetupStatus?.hasName && selectedItemSetupStatus.hasCompletePhotoCoverage && <span className="setup-status-tag is-ready">Setup complete</span>}</div></div>
                   <div className="catalogue-editor-workspace">
                     <section className="catalogue-settings-panel">
                       <div><p className="eyebrow">ITEM SETUP</p><h4>Storefront details</h4><p>Set the customer-facing name, category, status, and Just In placement for this cleaned-code item.</p></div>

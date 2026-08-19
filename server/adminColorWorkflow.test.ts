@@ -97,6 +97,11 @@ describe("cleaned-code admin and color media workflow", () => {
 
   it("shows model and Attribute-color photo coverage in the Catalogue editor", () => {
     expect(admin).toContain("photoReadyColorCount");
+    expect(admin).toContain("itemSetupStatus");
+    expect(admin).toContain("hasCompletePhotoCoverage: colorCount > 0 && colorsWithPhotos === colorCount");
+    expect(admin).toContain("Name not set");
+    expect(admin).toContain("Pictures not set ·");
+    expect(admin).toContain("Setup complete");
     expect(admin).toContain("with photo");
     expect(admin).toContain("A status beside each color shows whether its photo has already been added.");
     expect(admin).toContain("No photo yet");
@@ -108,6 +113,10 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("Storefront details");
     expect(stylesheet).toContain(".catalogue-editor-workspace");
     expect(stylesheet).toContain(".catalogue-settings-panel");
+    expect(stylesheet).toContain("Catalogue editor — aligned setup workflow and completion states");
+    expect(stylesheet).toContain(".setup-status-tag.is-missing");
+    expect(stylesheet).toContain(".selected-item-setup-tags");
+    expect(stylesheet).toContain("grid-template-areas:");
   });
 
   it("guides a photo upload through validation, Cloudinary transfer, saving, and confirmation", () => {
