@@ -5,9 +5,9 @@ import { trpc } from "@/lib/trpc";
 import { nextGalleryPhotoIndex, photoSwipeDirection } from "@/lib/galleryNavigation";
 import { exactMediaForColor, galleryMediaForColor } from "@/lib/galleryMedia";
 import { responsiveCatalogueMedia } from "@/lib/catalogueMedia";
+import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
 
-const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto/v1786849610/orange/brand/orange-logo.png";
-const BRAND_IMAGE = responsiveCatalogueMedia(LOGO_URL, "brand");
+const BRAND_IMAGE = responsiveCatalogueMedia(SUPABASE_BRAND_LOGO_URL, "brand");
 const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
 export default function ProductDetail() {
@@ -41,7 +41,7 @@ export default function ProductDetail() {
   return (
     <div className="store-shell">
       <header className="store-header compact">
-        <Link href="/" className="brand-mark" aria-label="Orange home"><img {...BRAND_IMAGE} alt="Orange" decoding="async" fetchPriority="high" /></Link>
+        <Link href="/" className="brand-mark" aria-label="Orange home"><img {...BRAND_IMAGE} alt="Orange" decoding="async" fetchPriority="high" onError={fallbackToLocalBrandLogo} /></Link>
         <Link href="/" className="back-link">Back to shop</Link>
       </header>
       <main className="product-page">

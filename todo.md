@@ -347,3 +347,8 @@
 - [x] Seed the existing product-detail query cache from the storefront list so each item renders immediately, with a background refresh retained.
 - [x] Add public-data and instant-detail regression coverage and validate all gallery and Messenger behavior.
 - [x] Submit the instant-detail refinement through pull request #44.
+
+- [x] Replace the Cloudinary brand-logo references with the verified versioned public Supabase Storage URL.
+- [x] Add a packaged same-origin logo fallback and ensure all logo images switch to it on any primary-asset loading error.
+- [x] Add logo-hosting regression coverage and validate public delivery, application rendering, type safety, and the production build.
+- [x] Submit the Supabase-hosted brand-logo reliability improvement through pull request #45.
