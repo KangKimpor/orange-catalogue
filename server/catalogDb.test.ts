@@ -27,12 +27,14 @@ describe("compact public catalogue queries", () => {
     request.mockImplementation((path: string) => Promise.resolve(respond(path)));
   });
 
-  it("returns lightweight card data with only each product's primary image", async () => {
+  it("returns compact card data plus a privacy-safe detail payload for instant navigation", async () => {
     const payload = await fetchStorefrontCards();
     expect(payload.categories).toEqual([{ slug: "tops", label: "Tops" }]);
     expect(payload.products[0]).toMatchObject({ slug: "zl-0041", priceMin: 19, priceMax: 19, colors: [{ englishName: "Black", available: true }] });
     expect(payload.products[0].media).toEqual([{ id: 1000, url: media.optimized_url, altText: media.alt_text, isPrimary: true }]);
-    expect(request.mock.calls.some(([path]) => String(path).includes("product_media?") && String(path).includes("is_primary=eq.true"))).toBe(true);
+    expect(payload.products[0].detail).toMatchObject({ slug: "zl-0041", colors: [{ englishName: "Black", variants: [{ posCode: "ZL0041-BLK-S", available: true }] }], media: [{ id: 1000, variantId: 100, colorTag: "Black" }] });
+    expect(JSON.stringify(payload.products[0].detail)).not.toContain("stock_quantity");
+    expect(request.mock.calls.some(([path]) => String(path).includes("product_media?") && !String(path).includes("is_primary=eq.true"))).toBe(true);
   });
 
   it("queries one product and its related rows directly for the detail route", async () => {

@@ -275,6 +275,8 @@ describe("cleaned-code admin and color media workflow", () => {
 
   it("prewarms product-detail code and data from storefront cards without changing the public product-detail flow", () => {
     expect(storefront).toContain("const utils = trpc.useUtils();");
+    expect(storefront).toContain("useEffect(() => {");
+    expect(storefront).toContain("utils.store.catalogue.getBySlug.setData({ slug: product.slug }, product.detail);");
     expect(storefront).toContain('void import("./ProductDetail");');
     expect(storefront).toContain("utils.store.catalogue.getBySlug.prefetch({ slug })");
     expect(storefront).toContain("onPointerEnter={() => preloadProductDetail(product.slug)}");
