@@ -26,6 +26,12 @@ describe("public storefront branding and responsiveness", () => {
     expect(stylesheet).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
   });
 
+  it("centers the mobile category picker while retaining safe horizontal navigation behavior", () => {
+    expect(stylesheet).toContain("Center the five categories when they fit");
+    expect(stylesheet).toContain("justify-content: center;");
+    expect(stylesheet).toContain("overflow-x: auto");
+  });
+
   it("uses the requested compact copy, Messenger footer link, and sold-out-only product labels", () => {
     expect(storefront).not.toContain("WOMEN&apos;S CLOTHING");
     expect(storefront).not.toContain("ORANGE COLLECTION");
