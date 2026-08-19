@@ -277,3 +277,6 @@
 
 - [x] Align each Catalogue item-row setup-tag group to the right on the same top baseline as the cleaned-code label, while keeping website-name and lifecycle details on lower lines.
 - [x] Add coverage, validate the unchanged completion-tag behavior, and deliver the item-row alignment refinement through a new pull request.
+
+- [x] Remove the 80-item Catalogue picker cap so the shown count and scrollable picker reflect every imported item matching the search.
+- [x] Add coverage, validate the complete-list picker behavior, and deliver the refinement through a new pull request.
