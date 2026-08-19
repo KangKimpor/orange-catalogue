@@ -164,7 +164,7 @@ export default function Admin() {
   const registerMedia = trpc.store.admin.registerMedia.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
   const deleteMedia = trpc.store.admin.deleteMedia.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
 
-  const [workspace, setWorkspace] = useState<Workspace>(() => workspaceFromPath(location, window.location.search));
+  const workspace = workspaceFromPath(location, window.location.search);
   const [itemSearch, setItemSearch] = useState("");
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
@@ -211,7 +211,6 @@ export default function Admin() {
   const archivedSourceItems = products.filter(product => product.lifecycleStatus === "discontinued" && product.id !== selectedProductId);
   const photoUploadIsBusy = ["preparing", "uploading", "saving"].includes(photoUploadFeedback.status) || signUpload.isPending || registerMedia.isPending;
 
-  useEffect(() => { setWorkspace(workspaceFromPath(location, window.location.search)); }, [location]);
   useEffect(() => { if (!history.data?.length) { setSelectedImportId(null); return; } setSelectedImportId(current => history.data.some(item => item.id === current) ? current : history.data[0].id); }, [history.data]);
   useEffect(() => {
     if (!selectedProduct && products[0]) setSelectedProductId(products[0].id);
@@ -235,7 +234,6 @@ export default function Admin() {
 
   function openWorkspace(next: Workspace) {
     const target = workspaceMeta.find(item => item.id === next)?.path ?? "/admin";
-    setWorkspace(next);
     setLocation(target);
   }
   function chooseItem(id: number) {
@@ -411,7 +409,7 @@ export default function Admin() {
   if (isLoading) return <div className="admin-login">Loading admin workspace…</div>;
   if (!isAdmin) return <AdminLogin />;
 
-  const itemPicker = (
+  const itemPicker = workspace === "catalogue" ? (
     <div className="model-picker">
       <label htmlFor="item-search">Find an item by cleaned code or website name</label>
       <div className="model-search">
@@ -430,7 +428,7 @@ export default function Admin() {
         )) : <p className="picker-empty">No items yet. Import your new POS file to begin.</p>}
       </div>
     </div>
-  );
+  ) : null;
 
   return (
     <div className="admin-app">
