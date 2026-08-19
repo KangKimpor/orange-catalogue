@@ -259,3 +259,7 @@
 - [x] Make the Preview all POS changes and Confirm and apply this import actions black with white labels, and remove the New POS import rail shortcut.
 - [x] Increase New item label tracking and add clear borders around every compact new-variant line and existing change row in import review.
 - [x] Add presentation coverage, validate the preserved import workflow, and deliver the refinements through a new pull request.
+
+- [x] Replace repeated expanded POS review cards with collapsible cleaned-code summary rows that state meaningful change counts before details are opened.
+- [x] Restyle review details around the existing compact Orange admin language: white surfaces, thin neutral/blush lines, small solid status labels, and no full-width green status bars.
+- [x] Add coverage for the expandable summary contract, validate the POS workflow, and deliver the redesign through a new pull request.

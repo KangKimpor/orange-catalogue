@@ -122,6 +122,11 @@ describe("cleaned-code admin and color media workflow", () => {
 
   it("uses solid POS preview surfaces and keeps a one-row new item readable from its Attribute color heading", () => {
     expect(admin).toContain("function isNewImportChange");
+    expect(admin).toContain("function importGroupSummary");
+    expect(admin).toContain("<details className=\"import-change-group\"");
+    expect(admin).toContain("className=\"import-change-summary\"");
+    expect(admin).toContain("className=\"import-change-group-body\"");
+    expect(admin).toContain("quantity update");
     expect(admin).toContain("import-color-inline-change");
     expect(admin).toContain("const compactNewChanges = changes.filter(isNewImportChange)");
     expect(admin).toContain("const remainingChanges = changes.filter(change => !isNewImportChange(change))");
@@ -134,6 +139,9 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".import-change-group > header .eyebrow");
     expect(stylesheet).toContain(".import-color-inline-change-list");
     expect(stylesheet).toContain("POS import actions and review rows — compact contrast follow-up");
+    expect(stylesheet).toContain("POS import review — summary-first disclosure design");
+    expect(stylesheet).toContain(".import-change-summary");
+    expect(stylesheet).toContain(".import-change-group[open] .import-change-summary");
     expect(stylesheet).toContain(".pos-import-workbench > .primary-action");
     expect(stylesheet).toContain(".import-variant-change-row {\n  border: 1px solid");
     expect(stylesheet).toContain("letter-spacing: .11em;");
