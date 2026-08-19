@@ -3486,3 +3486,115 @@ html {
   .metric-grid { gap: var(--sp-2); }
   .metric-grid article { padding: var(--sp-4); }
 }
+
+
+/* ============================================================
+   POS import review contrast pass: the pastel-on-pastel
+   borders, badges, and status-color bars in the change preview
+   were too close to white to read comfortably. Darkens borders,
+   labels, and status accents while keeping the same palette
+   family (no new colors introduced).
+   ============================================================ */
+
+.admin-app {
+  --review-border: #e3c3cf;
+  --review-border-strong: #d99fb2;
+  --review-bg-tint: #fdf1f5;
+  --review-text: #3d3438;
+  --review-text-strong: #1c1518;
+  --review-label: #6b5760;
+}
+
+/* Summary metric cards (POS rows analyzed / items found / etc.) */
+.import-summary > span {
+  border-color: var(--review-border);
+  background: #ffffff;
+  color: var(--review-text);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, .02);
+}
+
+.import-summary > span b {
+  color: var(--review-text-strong);
+}
+
+/* "Required fields recognized" notice bar */
+.import-validation-summary {
+  border-left-color: var(--review-border-strong);
+  background: var(--review-bg-tint);
+  color: var(--review-text);
+}
+
+/* Cleaned-code item group container and header */
+.import-change-group {
+  border-color: var(--review-border);
+}
+
+.import-change-group > header {
+  background: var(--review-bg-tint);
+  border-bottom-color: var(--review-border);
+}
+
+.import-change-group > header h4 {
+  color: var(--review-text-strong);
+}
+
+.import-change-group > header > span {
+  border-color: var(--review-border-strong);
+  background: #ffffff;
+  color: var(--review-label);
+  font-weight: 700;
+}
+
+/* "Attribute color" sub-headings */
+.import-color-change-heading {
+  border-bottom-color: var(--review-border);
+}
+
+.import-color-change-heading > span {
+  color: var(--review-label);
+  font-weight: 700;
+}
+
+.import-color-change-heading h5 {
+  color: var(--review-text-strong);
+}
+
+.import-color-change-group + .import-color-change-group {
+  border-top-color: var(--review-border);
+}
+
+/* Change rows: darker left-border accents so the change type
+   is legible at a glance instead of nearly blending in */
+.import-variant-change-row {
+  border-top-color: var(--review-border);
+  border-left-color: #d5748f;
+}
+
+.import-variant-change-row.is-new_product { border-left-color: #3f8a54; }
+.import-variant-change-row.is-new_color { border-left-color: #6e55a3; }
+.import-variant-change-row.is-new_size { border-left-color: #3f66a3; }
+.import-variant-change-row.is-new_variant { border-left-color: #6e55a3; }
+.import-variant-change-row.is-price_changed { border-left-color: #a3701f; }
+.import-variant-change-row.is-stock_changed { border-left-color: #2c7a70; }
+.import-variant-change-row.is-price_and_stock_changed { border-left-color: #8f5322; }
+.import-variant-change-row.is-variant_updated { border-left-color: #6c525d; }
+
+.import-variant-change-row .eyebrow {
+  color: var(--review-text-strong);
+  font-weight: 700;
+}
+
+.import-variant-change-row p:last-child,
+.import-change-identity,
+.import-change-new-values {
+  color: var(--review-text);
+}
+
+.import-source-details {
+  color: var(--review-label);
+}
+
+.import-source-details[open] {
+  border-color: var(--review-border);
+  background: var(--review-bg-tint);
+}
