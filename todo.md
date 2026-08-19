@@ -351,4 +351,4 @@
 - [x] Replace the Cloudinary brand-logo references with the verified versioned public Supabase Storage URL.
 - [x] Add a packaged same-origin logo fallback and ensure all logo images switch to it on any primary-asset loading error.
 - [x] Add logo-hosting regression coverage and validate public delivery, application rendering, type safety, and the production build.
-- [ ] Submit the Supabase-hosted brand-logo reliability improvement through a new pull request.
+- [x] Submit the Supabase-hosted brand-logo reliability improvement through pull request #45.
