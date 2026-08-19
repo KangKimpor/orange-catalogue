@@ -121,6 +121,18 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".photo-upload-feedback.is-error");
   });
 
+  it("uses solid POS preview surfaces and keeps a one-row new item readable from its Attribute color heading", () => {
+    expect(admin).toContain("function isNewImportChange");
+    expect(admin).toContain("import-color-inline-change");
+    expect(admin).toContain("Price {formatImportPrice(compactNewChange.price)} · Quantity");
+    expect(admin).toContain("ImportSourceDetails change={compactNewChange}");
+    expect(admin).not.toContain("Required fields recognized:");
+    expect(stylesheet).toContain("POS preview — solid compact follow-up");
+    expect(stylesheet).toContain("background-image: none;");
+    expect(stylesheet).toContain(".import-change-group > header .eyebrow");
+    expect(stylesheet).toContain("color: #000000;");
+  });
+
   it("shows staged POS import feedback before reading, previewing, applying, succeeding, or failing", () => {
     expect(admin).toContain("ImportFeedbackStatus");
     expect(admin).toContain("Reading ${file.name} securely in your browser");
