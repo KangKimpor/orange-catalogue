@@ -4077,7 +4077,7 @@ html {
 .metric-grid { gap: 10px; margin: 0 0 18px; }
 .metric-grid article {
   min-height: 116px;
-  padding: 17px 18px;
+  padding: var(--sp-6);
   border-color: var(--inventory-line);
   border-radius: 6px;
   background: var(--inventory-surface);
