@@ -245,12 +245,15 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).not.toContain("overview-hero");
     expect(admin).not.toContain("Start with your first POS import.");
     expect(admin).toContain("<article><span>Items</span>");
-    expect(admin).toContain("Manage items");
-    expect(admin).toContain("Upload POS file");
-    expect(stylesheet).toContain("grid-template-columns: 84px minmax(0, 1fr)");
-    expect(stylesheet).toContain("backdrop-filter: blur(16px)");
-    expect(stylesheet).toContain(".overview-actions { align-items: center; }");
-    expect(stylesheet).toContain(".quick-actions button { align-items: center; }");
+    expect(admin).toContain("VERCEL ANALYTICS");
+    expect(admin).toContain("vercelAnalyticsSnapshot");
+    expect(admin).toContain('importFeedback.status !== "idle"');
+    expect(admin).not.toContain("Manage items");
+    expect(admin).not.toContain("Upload POS file");
+    expect(stylesheet).toContain("Orange Admin — solid surfaces, full-height picker, and Analytics overview");
+    expect(stylesheet).toContain("backdrop-filter: none;");
+    expect(stylesheet).toContain("height: calc(100svh - 132px);");
+    expect(stylesheet).toContain("width: 100px;");
   });
 
   it("keeps the unified admin navigation usable at mobile breakpoints", () => {

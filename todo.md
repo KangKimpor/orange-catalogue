@@ -295,3 +295,11 @@
 - [x] Style the Remove this POS dataset destructive action with a solid red background and white lettering, including a darker red hover/focus state.
 - [x] Increase the upper-left Admin rail logo substantially while preserving its alignment with navigation and responsive sizing.
 - [x] Add presentation coverage, validate the retained safe-removal workflow, and deliver the refinement through a new pull request.
+
+- [x] Enlarge the Admin rail logo again while preserving alignment and responsive rail behavior.
+- [x] Remove the idle POS import feedback callout that says to choose the newest POS XLSX file, while retaining active import progress, success, and error feedback.
+- [x] Replace remaining Admin glass or transparent treatments with solid surfaces, remove shadows, and preserve clear solid status colors.
+- [x] Make the Catalogue picker and scrollable result list fill the available panel height without a lower blank area.
+- [x] Replace the Overview quick-action block with a clearly dated Vercel Analytics snapshot: 30 visitors, 115 pageviews, and the leading routes for the 15–20 August 2026 reporting period.
+- [x] Add presentation coverage and validate all preserved workflows for the full Admin refinement.
+- [ ] Submit the full Admin refinement through a new pull request.
