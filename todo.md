@@ -263,3 +263,7 @@
 - [x] Replace repeated expanded POS review cards with collapsible cleaned-code summary rows that state meaningful change counts before details are opened.
 - [x] Restyle review details around the existing compact Orange admin language: white surfaces, thin neutral/blush lines, small solid status labels, and no full-width green status bars.
 - [x] Add coverage for the expandable summary contract, validate the POS workflow, and deliver the redesign through a new pull request.
+
+- [x] Refine the Catalogue editor’s item picker, selected-item header, setup panels, color controls, and photo studio into a consistently aligned desktop-first layout with responsive spacing.
+- [x] Show Name not set and Pictures not set tags for each model, treating photo setup as complete only when every POS Attribute color has at least one color-specific photo.
+- [x] Add regression coverage, validate the existing naming and color-photo workflow, and deliver the refinement through a new pull request.

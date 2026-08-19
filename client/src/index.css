@@ -4601,3 +4601,138 @@ html {
   .import-color-inline-change { align-items: flex-start; }
   .import-color-inline-change .import-source-details { width: 100%; margin-left: 0; }
 }
+
+
+/* --------------------------------------------------------------------------
+   Catalogue editor — aligned setup workflow and completion states
+   A model is photo-ready only after every imported Attribute color has a
+   dedicated photo. These tags identify exactly what staff still need to do.
+   -------------------------------------------------------------------------- */
+.catalogue-layout {
+  align-items: start;
+  gap: 18px;
+}
+
+.catalogue-editor {
+  padding: 26px;
+}
+
+.model-editor-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+}
+
+.model-editor-heading > div:first-child { min-width: 0; }
+.model-editor-heading > div:first-child > p:last-child {
+  margin: 7px 0 0;
+  color: var(--inventory-muted);
+  font-size: 12px;
+}
+
+.selected-item-setup-tags,
+.model-result-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.selected-item-setup-tags {
+  max-width: 340px;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+.setup-status-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 4px 7px;
+  border: 1px solid var(--inventory-line);
+  border-radius: 999px;
+  color: var(--inventory-ink);
+  background: #ffffff;
+  font: 700 8px/1 "DM Mono", monospace;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.setup-status-tag.is-missing {
+  border-color: var(--inventory-pink-line);
+  background: var(--inventory-pink);
+  color: #5c3442;
+}
+
+.setup-status-tag.is-ready {
+  border-color: #bbd9c4;
+  background: #f4fbf5;
+  color: #27643b;
+}
+
+.model-results button {
+  grid-template-columns: 84px minmax(0, 1fr);
+  grid-template-areas:
+    "code name"
+    "code tags"
+    "meta meta";
+  align-items: center;
+  gap: 5px 10px;
+  min-height: 86px;
+}
+
+.model-results button strong { grid-area: code; align-self: start; padding-top: 2px; }
+.model-results button .model-result-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-results button .model-result-tags { grid-area: tags; min-width: 0; }
+.model-results button small { grid-area: meta; margin-top: 2px; }
+
+.catalogue-editor-workspace {
+  grid-template-columns: minmax(290px, .82fr) minmax(0, 1.18fr);
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.catalogue-settings-panel,
+.catalogue-editor-details .catalogue-colors,
+.catalogue-editor-details .catalogue-photo-studio {
+  padding: 22px;
+}
+
+.catalogue-editor-details { gap: 18px; }
+.catalogue-settings-panel { gap: 18px; }
+.catalogue-settings-panel .simple-item-form { gap: 12px; }
+.catalogue-editor-details .attribute-list { gap: 8px; padding-top: 14px; }
+.catalogue-editor-details .attribute-list button { min-height: 46px; padding: 10px 11px; }
+.catalogue-editor-details .catalogue-photo-studio { margin-top: 0; }
+.catalogue-photo-heading { align-items: flex-start; gap: 16px; }
+.photo-association { align-items: stretch; gap: 16px; }
+
+@media (max-width: 1220px) {
+  .catalogue-editor-workspace { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 820px) {
+  .catalogue-editor { padding: 20px; }
+  .model-editor-heading { flex-direction: column; gap: 10px; }
+  .selected-item-setup-tags { max-width: none; justify-content: flex-start; }
+  .catalogue-editor-workspace { gap: 14px; margin-top: 16px; }
+  .catalogue-settings-panel,
+  .catalogue-editor-details .catalogue-colors,
+  .catalogue-editor-details .catalogue-photo-studio { padding: 18px; }
+}
+
+@media (max-width: 540px) {
+  .model-results button {
+    grid-template-columns: 72px minmax(0, 1fr);
+    min-height: 82px;
+    padding: 11px 12px;
+  }
+  .setup-status-tag { font-size: 7px; }
+  .catalogue-editor { padding: 16px; }
+  .catalogue-settings-panel,
+  .catalogue-editor-details .catalogue-colors,
+  .catalogue-editor-details .catalogue-photo-studio { padding: 15px; }
+}
