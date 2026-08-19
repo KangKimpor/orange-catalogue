@@ -231,3 +231,7 @@
 - [x] Persist each confirmed POS snapshot as structured source data so the catalogue can be rebuilt chronologically without a removed dataset.
 - [x] Allow staff to delete any selected POS import, including the first, by rebuilding inventory from the remaining retained snapshots while preserving website-managed content and remote Cloudinary assets.
 - [x] Add replay/deletion regressions, validate the workflow, and deliver it through a pull request.
+
+- [x] Rename the Catalogue navigation tab to Catalogue editor and remove duplicate workspace headings beneath the Admin top bar for Catalogue editor, POS imports, import review, and Security.
+- [x] Restore the missing `imports.source_items_json` production schema contract and reload the API schema cache so POS previews can be created again.
+- [x] Add regression coverage, validate the copy and preview repair, and deliver the repository update through a pull request.

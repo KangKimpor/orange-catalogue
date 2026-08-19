@@ -23,8 +23,10 @@ describe("cleaned-code admin and color media workflow", () => {
   });
 
   it("combines item editing and color photo management in the Catalogue workspace", () => {
-    expect(admin).toContain('label: "Catalogue"');
-    expect(admin).toContain("Catalogue editor");
+    expect(admin).toContain('label: "Catalogue editor"');
+    expect(admin).not.toContain("<h2>Catalogue editor</h2>");
+    expect(admin).not.toContain("<h2>POS imports</h2>");
+    expect(admin).not.toContain("<h2>Security</h2>");
     expect(admin).toContain("COLOR PHOTO STUDIO");
     expect(admin).not.toContain('label: "Photos"');
   });

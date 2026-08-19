@@ -22,7 +22,7 @@ const LOGO_URL = "https://res.cloudinary.com/ozv9lzss/image/upload/f_auto,q_auto
 
 const workspaceMeta: Array<{ id: Workspace; label: string; path: string; icon: typeof LayoutDashboard; hint: string }> = [
   { id: "overview", label: "Overview", path: "/admin", icon: LayoutDashboard, hint: "Today’s catalogue health" },
-  { id: "catalogue", label: "Catalogue", path: "/admin/items", icon: PackageSearch, hint: "Items, colors, and photos" },
+  { id: "catalogue", label: "Catalogue editor", path: "/admin/items", icon: PackageSearch, hint: "Items, colors, and photos" },
   { id: "imports", label: "POS imports", path: "/admin/import", icon: FileSpreadsheet, hint: "Preview and apply POS updates" },
   { id: "settings", label: "Security", path: "/admin/security", icon: Settings, hint: "Admin password and access" },
 ];
@@ -434,7 +434,7 @@ export default function Admin() {
 
         {workspace === "catalogue" && (
           <section className="admin-view model-view">
-            <div className="workspace-intro"><div><h2>Catalogue editor</h2><p>Choose an item, give it a website name, choose its POS color, and add photos. Everything else is handled by your POS import.</p></div><span className="helper-chip">Simple item setup</span></div>
+            <div className="workspace-intro"><div><p>Choose an item, give it a website name, choose its POS color, and add photos. Everything else is handled by your POS import.</p></div><span className="helper-chip">Simple item setup</span></div>
             <div className="model-layout catalogue-layout">
               {itemPicker}
               <section className="model-editor catalogue-editor">
@@ -473,7 +473,7 @@ export default function Admin() {
         {workspace === "imports" && (
           <section className="admin-view import-view">
             <div className="workspace-intro">
-              <div><h2>POS imports</h2><p>Upload the latest POS export, inspect every change, then apply it only when the complete preview looks right.</p></div>
+              <div><p>Upload the latest POS export, inspect every change, then apply it only when the complete preview looks right.</p></div>
               <span className="helper-chip">Preview every change · apply once</span>
             </div>
             <section className="import-workbench pos-import-workbench">
@@ -499,7 +499,7 @@ export default function Admin() {
           </section>
         )}
 
-        {workspace === "settings" && <section className="admin-view settings-view"><div className="workspace-intro"><div><h2>Security</h2><p>Update the shared admin password when store staff or access requirements change.</p></div><span className="helper-chip">Password-protected</span></div><section className="security-card"><div><p className="eyebrow">ADMIN PASSWORD</p><h3>Change workspace password</h3><p>The active session will be renewed after a successful update.</p></div><form onSubmit={async event => { event.preventDefault(); await changePassword.mutateAsync({ currentPassword, newPassword }); setCurrentPassword(""); setNewPassword(""); }}><label>Current password<input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} autoComplete="current-password" /></label><label>New password<input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} minLength={4} autoComplete="new-password" /></label><button type="submit" className="primary-action" disabled={changePassword.isPending}>{changePassword.isPending ? "Updating…" : "Update password"}</button>{changePassword.error && <p className="form-error">{changePassword.error.message}</p>}</form></section></section>}
+        {workspace === "settings" && <section className="admin-view settings-view"><div className="workspace-intro"><div><p>Update the shared admin password when store staff or access requirements change.</p></div><span className="helper-chip">Password-protected</span></div><section className="security-card"><div><p className="eyebrow">ADMIN PASSWORD</p><h3>Change workspace password</h3><p>The active session will be renewed after a successful update.</p></div><form onSubmit={async event => { event.preventDefault(); await changePassword.mutateAsync({ currentPassword, newPassword }); setCurrentPassword(""); setNewPassword(""); }}><label>Current password<input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} autoComplete="current-password" /></label><label>New password<input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} minLength={4} autoComplete="new-password" /></label><button type="submit" className="primary-action" disabled={changePassword.isPending}>{changePassword.isPending ? "Updating…" : "Update password"}</button>{changePassword.error && <p className="form-error">{changePassword.error.message}</p>}</form></section></section>}
       </main>
     </div>
   );
