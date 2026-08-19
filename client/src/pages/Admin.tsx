@@ -404,19 +404,21 @@ export default function Admin() {
   return (
     <div className="admin-app">
       <aside className="admin-rail">
-        <Link href="/" className="admin-wordmark" aria-label="Orange storefront home"><img src={LOGO_URL} alt="Orange" /><span>Admin</span></Link>
+        <Link href="/" className="admin-wordmark" aria-label="Orange storefront home"><img src={LOGO_URL} alt="Orange" /><span><b>Orange</b><small>Inventory</small></span></Link>
+        <button type="button" className="admin-rail-primary" onClick={() => openWorkspace("imports")}><CloudUpload aria-hidden="true" /><span>New POS import</span></button>
         <nav aria-label="Admin workspaces">
+          <p className="admin-rail-label">Workspace</p>
           {workspaceMeta.map(item => {
             const Icon = item.icon;
             return <button type="button" key={item.id} className={workspace === item.id ? "is-active" : ""} onClick={() => openWorkspace(item.id)} title={item.label} aria-label={`${item.label}: ${item.hint}`}><Icon aria-hidden="true" /><span>{item.label}</span></button>;
           })}
         </nav>
-        <button type="button" onClick={() => logout.mutate()} className="admin-logout"><LogOut aria-hidden="true" />Sign out</button>
+        <div className="admin-rail-footer"><p>Orange admin</p><button type="button" onClick={() => logout.mutate()} className="admin-logout"><LogOut aria-hidden="true" />Sign out</button></div>
       </aside>
 
       <main className="admin-workspace">
         <header className="admin-topbar">
-          <div className="admin-page-context"><p className="eyebrow">ORANGE CATALOGUE</p><h1>{workspaceMeta.find(item => item.id === workspace)?.label}</h1></div>
+          <div className="admin-page-context"><p className="eyebrow">ORANGE INVENTORY</p><h1>{workspaceMeta.find(item => item.id === workspace)?.label}</h1><p className="admin-page-description">{workspaceMeta.find(item => item.id === workspace)?.hint}</p></div>
           <div className="admin-session"><span className="admin-session-status"><ShieldCheck aria-hidden="true" />Secure session</span><button type="button" className="admin-topbar-logout" onClick={() => logout.mutate()}><LogOut aria-hidden="true" />Sign out</button></div>
         </header>
 
