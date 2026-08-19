@@ -267,6 +267,12 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("width: 100px;");
     expect(stylesheet).toContain("Header baseline, import identity tags, and dense Catalogue picker rows");
     expect(stylesheet).toContain("grid-template-columns: minmax(0, 1fr) auto;");
+    expect(stylesheet).toContain("Stitch-inspired editorial utility system");
+    expect(stylesheet).toContain("--stitch-canvas: #f7f7f5;");
+    expect(stylesheet).toContain("--stitch-orange: #c96a2b;");
+    expect(stylesheet).toContain('font-family: "Playfair Display", serif;');
+    expect(stylesheet).toContain("scroll-behavior: smooth;");
+    expect(stylesheet).toContain("width: min(100%, 540px);");
   });
 
   it("keeps the unified admin navigation usable at mobile breakpoints", () => {
