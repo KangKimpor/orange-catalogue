@@ -5652,3 +5652,15 @@ html {
     padding: 26px;
   }
 }
+
+
+/* Orange Admin — touch-safe workspace switching
+   Workspace names are visible in the rail, so do not render a hover/tap tag that
+   can overlap the next mobile workspace control. */
+.admin-rail nav button::after,
+.admin-rail nav button:hover::after,
+.admin-rail nav button:focus-visible::after {
+  display: none;
+  pointer-events: none;
+  content: none;
+}

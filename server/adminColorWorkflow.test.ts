@@ -272,7 +272,7 @@ describe("cleaned-code admin and color media workflow", () => {
   });
 
   it("uses an accessible premium admin shell with a streamlined functional overview", () => {
-    expect(admin).toContain("title={item.label}");
+    expect(admin).not.toContain("title={item.label}");
     expect(admin).toContain("aria-label={`${item.label}: ${item.hint}`}");
     expect(admin).toContain("admin-page-context");
     expect(admin).toContain("admin-session-status");
@@ -337,6 +337,10 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".catalogue-editor-details .attribute-list");
     expect(stylesheet).toContain(".admin-rail nav { display: flex;");
     expect(stylesheet).toContain(".admin-workspace { padding: 0 18px");
+    expect(admin).toContain("if (next === workspace) return;");
+    expect(admin).not.toContain('title={item.label}');
+    expect(stylesheet).toContain("Orange Admin — touch-safe workspace switching");
+    expect(stylesheet).toContain("pointer-events: none;");
   });
 
   it("moves a selected color gallery predictably for desktop controls and iPhone swipe gestures", () => {

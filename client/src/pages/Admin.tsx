@@ -248,6 +248,7 @@ export default function Admin() {
   useEffect(() => () => { if (mediaPreviewUrl) URL.revokeObjectURL(mediaPreviewUrl); }, [mediaPreviewUrl]);
 
   function openWorkspace(next: Workspace) {
+    if (next === workspace) return;
     const target = workspaceMeta.find(item => item.id === next)?.path ?? "/admin";
     setLocation(target);
   }
@@ -453,7 +454,7 @@ export default function Admin() {
           <p className="admin-rail-label">Workspace</p>
           {workspaceMeta.map(item => {
             const Icon = item.icon;
-            return <button type="button" key={item.id} className={workspace === item.id ? "is-active" : ""} onClick={() => openWorkspace(item.id)} title={item.label} aria-label={`${item.label}: ${item.hint}`}><Icon aria-hidden="true" /><span>{item.label}</span></button>;
+            return <button type="button" key={item.id} className={workspace === item.id ? "is-active" : ""} onClick={() => openWorkspace(item.id)} aria-label={`${item.label}: ${item.hint}`}><Icon aria-hidden="true" /><span>{item.label}</span></button>;
           })}
         </nav>
         <div className="admin-rail-footer"><p>Orange admin</p><button type="button" onClick={() => logout.mutate()} className="admin-logout"><LogOut aria-hidden="true" />Sign out</button></div>

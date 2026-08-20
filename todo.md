@@ -361,3 +361,8 @@
 - [x] Center the storefront category picker on mobile when its five labels fit, while preserving safe horizontal overflow on narrower screens.
 - [x] Add responsive presentation coverage and validate both refinements with a 390×844 production-preview visual check, focused tests, type safety, and a production build.
 - [x] Submit the Admin-logo and mobile category-picker refinements through pull request #47.
+
+- [x] Remove the mobile Admin workspace-switcher tooltip/tag so it cannot obstruct adjacent workspace controls after a tap.
+- [x] Avoid redundant same-workspace navigation and retain immediate mobile switching between every Admin workspace.
+- [x] Add mobile navigation regression coverage and validate the layout with focused tests, type safety, production build output, and an unauthenticated mobile-shell visual check.
+- [x] Submit the mobile Admin workspace-switcher correction through pull request #48.
