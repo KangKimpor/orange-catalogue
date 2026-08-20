@@ -396,3 +396,6 @@
 - [x] Refine only existing Admin collapsible and expandable rows into consistent rounded editorial cards, preserving their current data, disclosure behavior, and every non-accordion surface.
 - [x] Cover the shared accordion presentation contract, validate desktop and mobile disclosure behavior, and submit the refinement through a focused pull request.
 - [x] Validate the scoped restoration, preserve checklist history, and submit it through a focused pull request.
+
+- [x] Restore the prior approved Admin collapsible-row presentation by reversing only the merged rounded editorial-card refinement.
+- [x] Validate the accordion rollback, preserve checklist history, and submit it through a dedicated pull request.

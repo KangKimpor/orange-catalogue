@@ -209,14 +209,6 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".import-change-summary");
     expect(stylesheet).toContain("min-height: 64px;");
     expect(stylesheet).toContain(".import-change-group[open] .import-change-summary");
-    expect(stylesheet).toContain("Admin disclosures — restrained editorial cards");
-    expect(stylesheet).toContain("border-color: #e4e2de;");
-    expect(stylesheet).toContain("border-radius: 12px;");
-    expect(stylesheet).toContain("min-height: 76px;");
-    expect(stylesheet).toContain("background: #fbfaf7;");
-    expect(stylesheet).toContain("@keyframes admin-accordion-reveal");
-    expect(stylesheet).toContain(".import-change-group .import-source-details > summary::after");
-    expect(stylesheet).toContain(".import-change-group[open] .import-change-group-body");
     expect(stylesheet).toContain(".pos-import-workbench > .primary-action");
     expect(stylesheet).toContain(".import-variant-change-row {\n  border: 1px solid");
     expect(stylesheet).toContain("letter-spacing: .11em;");
@@ -247,7 +239,6 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("items found");
     expect(stylesheet).toContain(".import-color-change-group");
     expect(stylesheet).toContain(".import-source-details");
-    expect(stylesheet).toContain(".import-variant-change-row .import-source-details > summary");
     expect(stylesheet).toContain(".import-feedback.is-preview_ready");
     expect(stylesheet).toContain("@keyframes admin-feedback-shimmer");
     expect(stylesheet).toContain("prefers-reduced-motion");
