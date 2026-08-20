@@ -6,6 +6,7 @@ import { nextGalleryPhotoIndex, photoSwipeDirection } from "@/lib/galleryNavigat
 import { exactMediaForColor, galleryMediaForColor } from "@/lib/galleryMedia";
 import { responsiveCatalogueMedia } from "@/lib/catalogueMedia";
 import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
+import { readStorefrontReturnPosition } from "@/lib/storefrontReturnPosition";
 
 const BRAND_IMAGE = responsiveCatalogueMedia(SUPABASE_BRAND_LOGO_URL, "brand");
 const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -17,6 +18,7 @@ export default function ProductDetail() {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [size, setSize] = useState<string | null>(null);
   const swipeStartX = useRef<number | null>(null);
+  const storefrontReturnHref = readStorefrontReturnPosition(window.sessionStorage)?.href ?? "/";
   useEffect(() => { setColorIndex(0); setPhotoIndex(0); setSize(null); }, [product?.id]);
   const color = product?.colors[colorIndex];
   const colorMedia = galleryMediaForColor(product?.media ?? [], color);
@@ -41,8 +43,8 @@ export default function ProductDetail() {
   return (
     <div className="store-shell">
       <header className="store-header compact">
-        <Link href="/" className="brand-mark" aria-label="Orange home"><img {...BRAND_IMAGE} alt="Orange" decoding="async" fetchPriority="high" onError={fallbackToLocalBrandLogo} /></Link>
-        <Link href="/" className="back-link">Back to shop</Link>
+        <Link href={storefrontReturnHref} className="brand-mark" aria-label="Orange home"><img {...BRAND_IMAGE} alt="Orange" decoding="async" fetchPriority="high" onError={fallbackToLocalBrandLogo} /></Link>
+        <Link href={storefrontReturnHref} className="back-link">Back to shop</Link>
       </header>
       <main className="product-page">
         <div className="detail-gallery" style={!activeMedia ? { backgroundColor: color?.hex ?? "#d9d0c1" } : undefined}>

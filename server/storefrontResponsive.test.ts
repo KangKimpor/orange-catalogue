@@ -50,4 +50,14 @@ describe("public storefront branding and responsiveness", () => {
     expect(stylesheet).toContain(".product-image img,");
     expect(stylesheet).toContain(".message-button {");
   });
+
+  it("returns shoppers to the saved catalogue category and vertical position after viewing an item", () => {
+    expect(storefront).toContain("rememberStorefrontPosition");
+    expect(storefront).toContain("saveStorefrontReturnPosition(window.sessionStorage, window.location, window.scrollY)");
+    expect(storefront).toContain("readStorefrontReturnPosition(window.sessionStorage)");
+    expect(storefront).toContain("clearStorefrontReturnPosition(window.sessionStorage)");
+    expect(storefront).toContain('window.scrollTo({ top: savedPosition.scrollY, left: 0, behavior: "auto" })');
+    expect(detail).toContain("const storefrontReturnHref = readStorefrontReturnPosition(window.sessionStorage)?.href ?? \"/\";");
+    expect(detail).toContain('href={storefrontReturnHref} className="back-link"');
+  });
 });
