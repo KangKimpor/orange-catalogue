@@ -2,15 +2,15 @@
 
 ## Architecture and deployment targets
 
-Orange is a light-theme, public catalogue with a password-protected administration area. The repository is hosted privately at [KangKimpor/orange-catalogue](https://github.com/KangKimpor/orange-catalogue). The external deployment target is Vercel, the relational data store is Supabase PostgreSQL, and product media is stored and transformed by Cloudinary. Messenger is the only ordering handoff: `https://m.me/OfficiallyDavit`.
+Orange is a light-theme, public catalogue with a password-protected administration area. The repository is public at [KangKimpor/orange-catalogue](https://github.com/KangKimpor/orange-catalogue). The external deployment target is Vercel, the relational data store is Supabase PostgreSQL, product media is stored and transformed by Cloudinary, and the approved Orange logo is delivered from a public Supabase Storage brand-assets path with a packaged same-origin fallback. Messenger is the only ordering handoff: `https://m.me/OfficiallyDavit`.
 
 The application can also run in the managed project preview for development. The managed preview and the Vercel project are separate runtime targets, so environment variables must be configured in each target that will be used.
 
 ## Supabase setup and migration
 
-Create or select the Supabase project, then apply `supabase/migrations/0001_orange_catalogue.sql` using the Supabase SQL editor or migration tooling. The migration creates the category, product, variant, color, media, import, import-change, and store-settings tables with the constraints used by the application.
+Apply every committed migration in `supabase/migrations/` in numeric order through the current migration, using the approved Supabase migration workflow. These migrations create and evolve the categories, products, immutable POS variants, colors, media, import history, import changes, lifecycle controls, safe import-rebuild routines, login throttling, and public brand-assets bucket.
 
-Populate the baseline catalogue by previewing the supplied POS XLSX through `/admin/import`, reviewing the generated change summary, and applying only an approved preview. The import process preserves the immutable POS `Code` as `variants.pos_code`, associates product-level data by the cleaned POS name, and flags missing rows for review rather than deleting them. The current baseline contains **534 products** and **1,385 variants**.
+Populate or update catalogue data by previewing the supplied POS XLSX through `/admin/import`, reviewing the generated change summary, and applying only an approved preview. The import process preserves the immutable POS `Code` as `variants.pos_code`, associates product-level data by the cleaned code, retains historical snapshots for rebuild, and never auto-deletes items absent from a later file.
 
 The server accesses Supabase through its REST API using the service-role key. Never expose the service-role key in browser code, commit it to Git, or place it in a `VITE_` variable.
 
@@ -35,7 +35,7 @@ Supply an initial owner password through `ADMIN_PASSWORD` only for first access.
 
 Create or select a Cloudinary account and copy the cloud name, API key, and API secret into the Vercel variables above. No unsigned upload preset is required: the server signs each request after validating the admin session. Photos are uploaded beneath `orange/products/<normalized-cleaned-product-name>` and tagged with the category and color. The database stores the Cloudinary public ID and optimized URL; image bytes remain in Cloudinary.
 
-Open `/admin/photos`, search by cleaned product name such as `ZL 0041`, choose the whole product or a specific variant, select a color tag, and upload the image. After registration, the storefront reads the optimized Cloudinary URL. If no media is registered, a color placeholder is shown instead of fabricated photography.
+Open the unified `/admin` Catalogue editor, search by cleaned code or website name such as `ZL 0041`, choose the grouped item and its POS Attribute color, then upload the image. After registration, the storefront reads the optimized Cloudinary URL. If no media is registered, a color placeholder is shown instead of fabricated photography.
 
 ## Product naming, categories, and visibility
 
@@ -47,7 +47,7 @@ The public site has exactly five categories: **Just In**, **Tops**, **Jeans**, *
 | `SK`, `SJ`, `WJ`, `FJ` | Jeans |
 | `SP` | Shorts |
 | `LP` | Pants |
-| Any other prefix | Just In and flagged for review |
+| Any other prefix | Unassigned and hidden until staff selects a storefront category |
 
 The Products workspace supports display names, category overrides, published state, and review status. A product absent from a later import is retained and marked for review; there is no automatic destructive deletion.
 
@@ -65,6 +65,6 @@ Before publication, verify the public storefront without a Vercel authentication
 
 ## Vercel and GitHub release procedure
 
-Commit source, migration, and operations changes to the private GitHub repository and push the production branch. Confirm the Vercel project is linked to that repository, uses `pnpm build`, and routes `/api/*` to the bundled `api/index.js` function. A new push creates a preview deployment. Check its build status, run the smoke tests above, and inspect runtime logs for failed API requests.
+Submit source, migration, and operations changes through a pull request; do not push feature work directly to `main`. Confirm the Vercel project is linked to the public repository, uses `pnpm build`, and routes `/api/*` to the bundled `api/index.js` function. A pull request creates an independent review deployment; check its build status, run the smoke tests above, and inspect runtime logs for failed API requests.
 
-After the preview is verified, promote that deployment to Production in Vercel, or deploy the production branch using the linked project. Confirm that `orange-catalogue.vercel.app` serves the new Supabase-backed build, that public shoppers do not see a team login wall, and that `/admin` still requires the store password. Do not publish the service-role key, Cloudinary secret, or JWT secret in repository files.
+After the pull request is merged, confirm that `orange-catalogue.vercel.app` serves the new Supabase-backed build, that public shoppers do not see a team login wall, and that `/admin` still requires the store password. Do not publish the service-role key, Cloudinary secret, JWT secret, or any owner credential in repository files.

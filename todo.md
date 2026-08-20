@@ -366,3 +366,10 @@
 - [x] Avoid redundant same-workspace navigation and retain immediate mobile switching between every Admin workspace.
 - [x] Add mobile navigation regression coverage and validate the layout with focused tests, type safety, production build output, and an unauthenticated mobile-shell visual check.
 - [x] Submit the mobile Admin workspace-switcher correction through pull request #48.
+
+- [x] Audit the repository against the supplied optimization brief and record the baseline, priority findings, implementation decisions, and deferred risks.
+- [x] Keep Manus runtime and debug tooling development-only so the Vercel production document does not ship the embedded editor runtime.
+- [x] Move pnpm patch and override configuration to a supported workspace configuration file so installation no longer silently ignores it.
+- [x] Remove confirmed-unused direct dependencies and generic UI scaffold files while preserving the existing 404 and error-boundary behavior.
+- [x] Update stale operations documentation and validate measurable production-build and dependency improvements.
+- [x] Submit this audit optimization tranche through pull request #49.
