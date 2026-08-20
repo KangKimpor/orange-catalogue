@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { belongsInStorefrontCategory } from "@/lib/storefrontCategories";
 import { responsiveCatalogueMedia } from "@/lib/catalogueMedia";
@@ -37,13 +37,16 @@ export default function Storefront() {
       utils.store.catalogue.getBySlug.setData({ slug: product.slug }, product.detail);
     }
   }, [data?.products, utils]);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isLoading || !data) return;
     const savedPosition = readStorefrontReturnPosition(window.sessionStorage);
     if (!savedPosition || savedPosition.href !== storefrontHref(window.location)) return;
+    const root = document.documentElement;
+    const previousScrollBehavior = root.style.scrollBehavior;
+    root.style.scrollBehavior = "auto";
+    window.scrollTo(0, savedPosition.scrollY);
+    root.style.scrollBehavior = previousScrollBehavior;
     clearStorefrontReturnPosition(window.sessionStorage);
-    const frame = window.requestAnimationFrame(() => window.scrollTo({ top: savedPosition.scrollY, left: 0, behavior: "auto" }));
-    return () => window.cancelAnimationFrame(frame);
   }, [data, isLoading]);
   const products = useMemo(
     () => (data?.products ?? []).filter(product => belongsInStorefrontCategory(product, activeCategory)),
