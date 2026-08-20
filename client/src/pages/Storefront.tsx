@@ -80,7 +80,7 @@ export default function Storefront() {
             return (
               <Link href={`/product/${product.slug}`} className="product-card" key={product.id} onPointerEnter={() => preloadProductDetail(product.slug)} onFocus={() => preloadProductDetail(product.slug)} onTouchStart={() => preloadProductDetail(product.slug)}>
                 <div className="product-image">
-                  {primaryImage ? <img {...primaryImage} alt={primary?.altText || product.displayName || product.cleanedCode} loading={index < 2 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"} decoding="async" /> : <span>{firstColor?.englishName || "Orange"}</span>}
+                  {primaryImage ? <img {...primaryImage} alt={primary?.altText || product.displayName || product.cleanedCode} loading={index < 2 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"} decoding="async" onLoad={event => event.currentTarget.classList.add("is-loaded")} onError={event => event.currentTarget.classList.add("is-loaded")} /> : <span>{firstColor?.englishName || "Orange"}</span>}
                   {!product.available && <span className="availability soldout">Sold Out</span>}
                 </div>
                 <div className="product-meta">

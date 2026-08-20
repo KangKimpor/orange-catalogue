@@ -42,6 +42,31 @@ const initialImportFeedback: ImportFeedback = {
   message: "Choose the newest POS XLSX file. You will see every catalogue change before anything is applied.",
 };
 
+type ImportWorkflowStage = "file" | "preview" | "confirm" | "apply" | "complete";
+type ItemSaveFeedback = { status: "idle" | "success" | "error"; message: string };
+
+const initialItemSaveFeedback: ItemSaveFeedback = {
+  status: "idle",
+  message: "",
+};
+
+const importWorkflowSteps: Array<{ id: Exclude<ImportWorkflowStage, "complete">; label: string }> = [
+  { id: "file", label: "Read file" },
+  { id: "preview", label: "Compare catalogue" },
+  { id: "confirm", label: "Confirm changes" },
+  { id: "apply", label: "Apply import" },
+];
+
+function ImportStageTracker({ stage, status }: { stage: ImportWorkflowStage; status: ImportFeedbackStatus }) {
+  const stageIndex = stage === "complete" ? importWorkflowSteps.length : importWorkflowSteps.findIndex(step => step.id === stage);
+  return <ol className="import-stage-tracker" aria-label="POS import progress">{importWorkflowSteps.map((step, index) => {
+    const isComplete = stage === "complete" || index < stageIndex;
+    const isCurrent = stage !== "complete" && index === stageIndex;
+    const state = isComplete ? "is-complete" : isCurrent ? status === "error" ? "is-error" : "is-current" : "";
+    return <li className={state} key={step.id} aria-current={isCurrent ? "step" : undefined}><span>{isComplete ? <CheckCircle2 aria-hidden="true" /> : index + 1}</span><b>{step.label}</b></li>;
+  })}</ol>;
+}
+
 type ImportChangeView = { id: number; type: "new_product" | "new_color" | "new_size" | "new_variant" | "price_changed" | "stock_changed" | "price_and_stock_changed" | "variant_updated" | "updated" | "missing"; code: string; posCode: string | null; color: string | null; previousColor: string | null; size: string | null; previousSize: string | null; colorChanged: boolean; sizeChanged: boolean; priceChanged: boolean; stockChanged: boolean; rawName: string | null; rawAttribute: string | null; previousRawName: string | null; previousRawAttribute: string | null; previousPrice: number | null; price: number | null; previousStock: number | null; stock: number | null; missingPosCodes: string[] };
 type ImportChangeGroupView = { code: string; changes: ImportChangeView[] };
 
@@ -198,6 +223,7 @@ export default function Admin() {
   const [importBase64, setImportBase64] = useState("");
   const [preview, setPreview] = useState<any>(null);
   const [importFeedback, setImportFeedback] = useState<ImportFeedback>(initialImportFeedback);
+  const [itemSaveFeedback, setItemSaveFeedback] = useState<ItemSaveFeedback>(initialItemSaveFeedback);
   const [importRemovalFeedback, setImportRemovalFeedback] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -225,6 +251,7 @@ export default function Admin() {
   const photoReadyCount = products.filter(product => product.media.length > 0).length;
   const archivedSourceItems = products.filter(product => product.lifecycleStatus === "discontinued" && product.id !== selectedProductId);
   const photoUploadIsBusy = ["preparing", "uploading", "saving"].includes(photoUploadFeedback.status) || signUpload.isPending || registerMedia.isPending;
+  const importWorkflowStage: ImportWorkflowStage = importFeedback.status === "success" ? "complete" : importFeedback.status === "applying" ? "apply" : importFeedback.status === "preview_ready" || (importFeedback.status === "ready" && Boolean(preview)) ? "confirm" : importFeedback.status === "error" && Boolean(preview) ? "apply" : importFeedback.status === "error" && !importBase64 ? "file" : importFeedback.status === "reading" || importFeedback.status === "idle" ? "file" : "preview";
 
   useEffect(() => { if (!history.data?.length) { setSelectedImportId(null); return; } setSelectedImportId(current => history.data.some(item => item.id === current) ? current : history.data[0].id); }, [history.data]);
   useEffect(() => {
@@ -238,6 +265,7 @@ export default function Admin() {
     setLifecycleStatus(selectedProduct.lifecycleStatus ?? "active");
     setArchiveSourceId(null);
     setArchiveReuseFeedback("");
+    setItemSaveFeedback(initialItemSaveFeedback);
     setSelectedColorIndex(0);
     setMediaFile(null);
     setMediaPreviewUrl("");
@@ -254,6 +282,7 @@ export default function Admin() {
   }
   function chooseItem(id: number) {
     setSelectedProductId(id);
+    setItemSaveFeedback(initialItemSaveFeedback);
     setSelectedColorIndex(0);
     setMediaFile(null);
     setMediaPreviewUrl("");
@@ -271,7 +300,13 @@ export default function Admin() {
   }
   async function saveItem() {
     if (!selectedProduct) return;
-    await updateProduct.mutateAsync({ id: selectedProduct.id, displayName: itemName.trim() || null, categoryId, isJustIn, lifecycleStatus });
+    setItemSaveFeedback(initialItemSaveFeedback);
+    try {
+      await updateProduct.mutateAsync({ id: selectedProduct.id, displayName: itemName.trim() || null, categoryId, isJustIn, lifecycleStatus });
+      setItemSaveFeedback({ status: "success", message: "Item details saved." });
+    } catch (error) {
+      setItemSaveFeedback({ status: "error", message: error instanceof Error ? error.message : "Item details could not be saved. Please try again." });
+    }
   }
   async function reuseArchivedWebsiteContent() {
     if (!selectedProduct || !archiveSourceId) return;
@@ -495,7 +530,7 @@ export default function Admin() {
                         <label>Item status<select value={lifecycleStatus} onChange={event => setLifecycleStatus(event.target.value as "active" | "out_of_stock" | "discontinued")}><option value="active">Active</option><option value="out_of_stock">Out of stock</option><option value="discontinued">Discontinued</option></select><small>Discontinued items stay in admin with their names and photos, but are hidden from the storefront.</small></label>
                         <label className="just-in-toggle"><span>Feature in Just In</span><input type="checkbox" checked={isJustIn} onChange={event => setIsJustIn(event.target.checked)} /><small>Also show this item in Just In.</small></label>
                       </div>
-                      <div className="form-actions"><button type="button" className="primary-action" onClick={saveItem} disabled={updateProduct.isPending}>{updateProduct.isPending ? "Saving…" : "Save item details"}</button>{updateProduct.error && <p className="form-error">{updateProduct.error.message}</p>}</div>
+                      <div className="form-actions item-save-actions"><button type="button" className="primary-action" onClick={saveItem} disabled={updateProduct.isPending}>{updateProduct.isPending ? "Saving…" : "Save item details"}</button>{itemSaveFeedback.status !== "idle" && <p className={`item-save-feedback is-${itemSaveFeedback.status}`} role="status" aria-live="polite">{itemSaveFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : <CircleAlert aria-hidden="true" />}{itemSaveFeedback.message}</p>}</div>
                       {lifecycleStatus !== "discontinued" && archivedSourceItems.length > 0 && <section className="attribute-panel archive-reuse-panel"><div><p className="eyebrow">REUSE ARCHIVED CONTENT</p><p>Copy an old item’s website name, category, Just In setting, and linked photos. POS codes, inventory, colors, and price remain unchanged.</p></div><label>Discontinued source item<select value={archiveSourceId ?? ""} onChange={event => setArchiveSourceId(Number(event.target.value) || null)}><option value="">Choose an archived item</option>{archivedSourceItems.map(product => <option key={product.id} value={product.id}>{product.displayName || "Name not set"} — {product.cleanedCode}</option>)}</select></label><div className="form-actions"><button type="button" className="secondary-action" onClick={reuseArchivedWebsiteContent} disabled={!archiveSourceId || reuseArchivedContent.isPending}>{reuseArchivedContent.isPending ? "Copying…" : "Copy archived website content"}</button>{archiveReuseFeedback && <p className={reuseArchivedContent.error ? "form-error" : "form-success"}>{archiveReuseFeedback}</p>}</div></section>}
                     </section>
                     <div className="catalogue-editor-details">
@@ -503,7 +538,7 @@ export default function Admin() {
                       {selectedColor && <section className="catalogue-photo-studio" aria-labelledby="selected-color-photos">
                     <div className="catalogue-photo-heading"><div><p className="eyebrow">COLOR PHOTO STUDIO</p><h4 id="selected-color-photos">Photos for {selectedColor.englishName}</h4><p>Each photo is associated with this POS Attribute color only. Photos for other colors stay separate.</p></div><span>{selectedColorMedia.length} photo{selectedColorMedia.length === 1 ? "" : "s"}</span></div>
                     <div className="photo-association"><div><p className="eyebrow">ADDING PHOTOS TO</p><h4>{selectedColor.englishName}</h4><p>Photos you upload here will appear only when customers choose this color.</p></div><label className={["upload-dropzone", isDragOver ? "is-dragover" : "", photoUploadIsBusy ? "is-busy" : ""].filter(Boolean).join(" ")} onDragOver={event => { event.preventDefault(); if (!photoUploadIsBusy) setIsDragOver(true); }} onDragLeave={() => setIsDragOver(false)} onDrop={(event: DragEvent<HTMLLabelElement>) => { event.preventDefault(); if (!photoUploadIsBusy) selectPhotoFile(event.dataTransfer.files?.[0] ?? null); }} >{mediaPreviewUrl ? <img className="upload-preview" src={mediaPreviewUrl} alt="Selected upload preview" /> : <CloudUpload aria-hidden="true" />}<span>{mediaFile ? mediaFile.name : "Drag a photo here, or click to browse"}</span><small>JPG, PNG, or WebP · one photo at a time</small><input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={choosePhoto} disabled={photoUploadIsBusy} /></label></div>
-                    <div className={`photo-upload-feedback is-${photoUploadFeedback.status}${photoUploadIsBusy ? " is-busy" : ""}`} role="status" aria-live="polite"><div className="feedback-icon">{photoUploadFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : photoUploadFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : photoUploadIsBusy ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <CloudUpload aria-hidden="true" />}</div><div><small>PHOTO UPLOAD</small><p>{photoUploadFeedback.message}</p></div></div>
+                    <div className={`photo-upload-feedback is-${photoUploadFeedback.status}${photoUploadIsBusy ? " is-busy" : ""}`} role="status" aria-live="polite"><div className="feedback-icon">{photoUploadFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : photoUploadFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : photoUploadIsBusy ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <CloudUpload aria-hidden="true" />}</div><div><small>PHOTO UPLOAD</small><p>{photoUploadFeedback.message}</p>{photoUploadFeedback.status === "success" && <span className="upload-completion-mark"><CheckCircle2 aria-hidden="true" />Photo saved</span>}</div></div>
                     {photoUploadIsBusy && <div className="upload-progress" role="status" aria-live="polite"><div className="upload-progress-track"><div className="upload-progress-bar" style={{ width: `${photoUploadFeedback.status === "saving" ? 100 : uploadProgress}%` }} /></div><span>{photoUploadFeedback.status === "saving" ? "Saving to catalogue…" : `Uploading… ${uploadProgress}%`}</span></div>}
                     <div className="form-actions">{mediaFile && !photoUploadIsBusy && <button type="button" className="quiet-action" onClick={() => selectPhotoFile(null)}>Remove selected</button>}<button type="button" className="primary-action" onClick={uploadColorMedia} disabled={!mediaFile || photoUploadIsBusy}>{photoUploadFeedback.status === "preparing" ? "Preparing…" : photoUploadFeedback.status === "uploading" ? `Uploading… ${uploadProgress}%` : photoUploadFeedback.status === "saving" ? "Saving…" : `Upload for ${selectedColor.englishName}`}</button></div>
                     <div className="photo-library"><div><p className="eyebrow">CURRENT COLOR PHOTOS</p><h4>{selectedColor.englishName}</h4></div>{selectedColorMedia.length ? <div className="photo-thumb-grid">{selectedColorMedia.map(media => <article className="media-thumb" key={media.id}><img src={media.url} alt={media.altText || `${selectedColor.englishName} item`} /><button type="button" className="delete-photo-action" onClick={() => deleteColorMedia(media.id)} disabled={deleteMedia.isPending} aria-label={`Delete ${selectedColor.englishName} photo`}>{deleteMedia.isPending ? "Deleting…" : <><Trash2 aria-hidden="true" />Delete photo</>}</button></article>)}</div> : <p className="empty-media">No photo is linked to this color yet. Choose a file above, then upload it for {selectedColor.englishName}.</p>}</div>
@@ -525,7 +560,7 @@ export default function Admin() {
               <div className="import-card-heading"><p className="eyebrow">WEEKLY INVENTORY</p><h3>Upload and preview</h3><p>The POS filename is reference only. The file is compared with your current catalogue before any inventory changes are applied.</p></div>
               <label className={`import-file is-${importFeedback.status}`}><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose latest POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input type="file" accept=".xlsx,.xls" onChange={chooseImport} disabled={importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"} /></label>
               <button type="button" className="primary-action" onClick={previewPosImport} disabled={!importBase64 || importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"}>{importFeedback.status === "previewing" ? "Comparing catalogue…" : "Preview all POS changes"}</button>
-              {importFeedback.status !== "idle" && <div className={`import-feedback is-${importFeedback.status}`} role="status" aria-live="polite"><div className="feedback-icon">{importFeedback.status === "success" || importFeedback.status === "preview_ready" ? <CheckCircle2 aria-hidden="true" /> : importFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : ["reading", "previewing", "applying"].includes(importFeedback.status) ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <FileSpreadsheet aria-hidden="true" />}</div><div><small>{importFeedback.status === "applying" ? "APPLYING IMPORT" : importFeedback.status === "previewing" ? "BUILDING PREVIEW" : importFeedback.status === "preview_ready" ? "READY TO CONFIRM" : "POS IMPORT"}</small><p>{importFeedback.message}</p></div></div>}
+              {importFeedback.status !== "idle" && <><ImportStageTracker stage={importWorkflowStage} status={importFeedback.status} /><div className={`import-feedback is-${importFeedback.status}`} role="status" aria-live="polite"><div className="feedback-icon">{importFeedback.status === "success" || importFeedback.status === "preview_ready" ? <CheckCircle2 aria-hidden="true" /> : importFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : ["reading", "previewing", "applying"].includes(importFeedback.status) ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <FileSpreadsheet aria-hidden="true" />}</div><div><small>{importFeedback.status === "applying" ? "APPLYING IMPORT" : importFeedback.status === "previewing" ? "BUILDING PREVIEW" : importFeedback.status === "preview_ready" ? "READY TO CONFIRM" : "POS IMPORT"}</small><p>{importFeedback.message}</p></div></div></>}
               {preview && <section className="preview-card import-detail-card">
                 <div className="import-summary" aria-label="POS preview summary">{[{ label: "POS rows analyzed", value: preview.summary.rows, always: true }, { label: "items found", value: preview.summary.products, always: true }, { label: "items changed", value: preview.summary.changedProducts }, { label: "new items", value: preview.summary.newProducts }, { label: "new colors", value: preview.summary.newColors }, { label: "new sizes", value: preview.summary.newSizes }, { label: "new variants", value: preview.summary.newVariants }, { label: "price changes", value: preview.summary.priceChanges }, { label: "quantity changes", value: preview.summary.stockChanges }, { label: "price and quantity changes", value: preview.summary.priceAndStockChanges }, { label: "missing variants", value: preview.summary.missingVariants }].filter(entry => entry.always || Number(entry.value ?? 0) > 0).map(entry => <span key={entry.label}><b>{entry.value ?? 0}</b> {entry.label}</span>)}</div>
                 <p>{preview.alreadyApplied ? "This exact POS file was already applied. Upload a newer export when it is available." : preview.validation.invalidRows.length ? (preview.validation.invalidRows.length + " invalid row(s) must be corrected before this import can be applied.") : "Preview only — no catalogue changes have been made. Review every row below before applying."}</p>

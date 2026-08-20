@@ -366,3 +366,9 @@
 - [x] Avoid redundant same-workspace navigation and retain immediate mobile switching between every Admin workspace.
 - [x] Add mobile navigation regression coverage and validate the layout with focused tests, type safety, production build output, and an unauthenticated mobile-shell visual check.
 - [x] Submit the mobile Admin workspace-switcher correction through pull request #48.
+
+- [x] Add an honest POS-import stage tracker for file reading, preview generation, confirmation, and completed import states without fake percentage progress.
+- [x] Strengthen selected-colour photo-upload feedback with a brief completion treatment while preserving real transfer progress and error states.
+- [x] Add compact save confirmation beside item details after a server-confirmed mutation, with an explicit error path.
+- [x] Add restrained storefront image-load feedback and Messenger handoff acknowledgement while preserving instant detail navigation and reduced-motion support.
+- [x] Cover the workflow feedback contracts, validate desktop and mobile behavior, and submit the refinements through a new pull request.
