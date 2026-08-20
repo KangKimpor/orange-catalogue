@@ -399,3 +399,9 @@
 
 - [x] Restore the prior approved Admin collapsible-row presentation by reversing only the merged rounded editorial-card refinement.
 - [x] Validate the accordion rollback, preserve checklist history, and submit it through a dedicated pull request.
+
+- [x] Normalize quantity and price change rows to the compact new-item/new-variant visual rhythm, removing the vertical green edge while preserving all comparison information.
+- [x] Reposition the catalogue-picker color and lifecycle status directly under each cleaned code as a larger red status tag with white text, while keeping setup tags in their current supporting role.
+- [x] Add filename-driven batch photo intake that recognizes a cleaned code, optional website name, Attribute-derived color, and sequence number, previews every match, and uploads only confirmed valid matches through existing secure media contracts.
+- [x] Add an explicit confirmed item-deletion action that removes the selected model, its registered Cloudinary media, and associated metadata safely while preserving import-history snapshots and explaining future POS reintroduction behavior.
+- [x] Add regression coverage, validate the full Admin workflow update, and submit it through a dedicated pull request.

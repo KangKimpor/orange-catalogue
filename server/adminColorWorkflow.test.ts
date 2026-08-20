@@ -369,6 +369,29 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("pointer-events: none;");
   });
 
+  it("keeps quantity changes compact, surfaces lifecycle status under the code, and exposes the new batch-media and safe item-deletion workflows", () => {
+    expect(admin).toContain('className="model-result-identity"');
+    expect(admin).toContain('className="model-result-lifecycle-tag"');
+    expect(admin).toContain("1 ? \"\" : \"s\"} · {product.lifecycleStatus");
+    expect(stylesheet).toContain("border-left-width: 0;");
+    expect(stylesheet).toContain(".model-result-lifecycle-tag");
+    expect(stylesheet).toContain("background: #c52f47;");
+    expect(stylesheet).toContain("color: #ffffff;");
+    expect(admin).toContain("BATCH_PHOTO_FILENAME_PATTERN");
+    expect(admin).toContain("planBatchPhotoIntake");
+    expect(admin).toContain("sortBatchPhotoMatches");
+    expect(admin).toContain("multiple onChange={chooseBatchPhotos}");
+    expect(admin).toContain("nothing uploads until you confirm recognised matches");
+    expect(admin).toContain("uploadBatchPhotos");
+    expect(stylesheet).toContain(".batch-photo-match-list");
+    expect(stylesheet).toContain(".batch-photo-file");
+    expect(admin).toContain("DELETE ITEM");
+    expect(admin).toContain("Type ${selectedProduct.cleanedCode} to permanently delete this item");
+    expect(admin).toContain("deleteProduct.mutateAsync");
+    expect(router).toContain("deleteProduct: publicProcedure");
+    expect(router).toContain("deleteProductAndMedia");
+  });
+
   it("moves a selected color gallery predictably for desktop controls and iPhone swipe gestures", () => {
     expect(nextGalleryPhotoIndex(0, 3, 1)).toBe(1);
     expect(nextGalleryPhotoIndex(0, 3, -1)).toBe(2);
