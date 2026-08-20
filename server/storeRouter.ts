@@ -248,6 +248,42 @@ async function removeImportAndRebuild(importId: number) {
   }
 }
 
+export async function deleteProductAndMedia(productId: number) {
+  const [products, mediaRows] = await Promise.all([
+    supabaseRequest<DbProduct[]>(`products?select=id,cleaned_code&${supabaseEq("id", productId)}&limit=1`),
+    supabaseRequest<DbProductMedia[]>(`product_media?select=id,cloudinary_public_id&${supabaseEq("product_id", productId)}&limit=500`),
+  ]);
+  const product = products[0];
+  if (!product) throw new TRPCError({ code: "NOT_FOUND", message: "The selected item no longer exists." });
+
+  const uniquePublicIds = Array.from(new Set(mediaRows.map(media => media.cloudinary_public_id)));
+  let destroyedCloudinaryAssets = 0;
+  let retainedSharedAssets = 0;
+  if (uniquePublicIds.length) {
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    if (!cloudName || !apiKey || !apiSecret) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+
+    for (const publicId of uniquePublicIds) {
+      const otherAssociations = await supabaseRequest<Array<{ id: number }>>(`product_media?select=id&${supabaseEq("cloudinary_public_id", publicId)}&product_id=neq.${productId}&limit=1`);
+      if (otherAssociations.length) {
+        retainedSharedAssets += 1;
+        continue;
+      }
+      try {
+        await destroyCloudinaryProductImage(publicId, { cloudName, apiKey, apiSecret });
+        destroyedCloudinaryAssets += 1;
+      } catch (error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove this item’s photo." });
+      }
+    }
+  }
+
+  await supabaseRequest(`products?${supabaseEq("id", productId)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+  return { deletedProductId: product.id, cleanedCode: product.cleaned_code, deletedMediaRecords: mediaRows.length, destroyedCloudinaryAssets, retainedSharedAssets };
+}
+
 async function copyArchivedWebsiteContent(sourceProductId: number, targetProductId: number) {
   if (sourceProductId === targetProductId) throw new TRPCError({ code: "BAD_REQUEST", message: "Choose a different archived item to reuse its website content." });
   const [sourceRows, targetRows] = await Promise.all([
@@ -286,6 +322,7 @@ export const storeRouter = router({
     changePassword: publicProcedure.input(adminPasswordChangeInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const stored = await readStoredPasswordHash(); const valid = stored ? passwordMatches(input.currentPassword, stored) : input.currentPassword === process.env.ADMIN_PASSWORD; if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password is incorrect." }); await savePasswordHash(hashPassword(input.newPassword)); await issueAdminSession(ctx as Context); return { success: true }; }),
     overview: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); return cataloguePayload(true, true); }),
     updateProduct: publicProcedure.input(z.object({ id: z.number().int(), displayName: z.string().max(255).nullable(), categoryId: z.number().int().nullable(), isJustIn: z.boolean().optional(), lifecycleStatus: z.enum(["active", "out_of_stock", "discontinued"]).optional() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...(input.isJustIn === undefined ? {} : { is_just_in: input.isJustIn }), ...(input.lifecycleStatus === undefined ? {} : { lifecycle_status: input.lifecycleStatus }) }) }); return { success: true }; }),
+    deleteProduct: publicProcedure.input(z.object({ productId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return deleteProductAndMedia(input.productId); }),
     reuseArchivedContent: publicProcedure.input(z.object({ sourceProductId: z.number().int().positive(), targetProductId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return copyArchivedWebsiteContent(input.sourceProductId, input.targetProductId); }),
     previewImport: publicProcedure.input(importInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return createPreview(input); }), applyImport: publicProcedure.input(importInput.extend({ importId: z.number().int() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return applyImport(input); }),
     removeImport: publicProcedure.input(z.object({ importId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return removeImportAndRebuild(input.importId); }),

@@ -1372,6 +1372,38 @@ async function removeImportAndRebuild(importId) {
     throw new TRPCError4({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The selected POS import could not be removed and rebuilt safely." });
   }
 }
+async function deleteProductAndMedia(productId) {
+  const [products2, mediaRows] = await Promise.all([
+    supabaseRequest(`products?select=id,cleaned_code&${supabaseEq("id", productId)}&limit=1`),
+    supabaseRequest(`product_media?select=id,cloudinary_public_id&${supabaseEq("product_id", productId)}&limit=500`)
+  ]);
+  const product = products2[0];
+  if (!product) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected item no longer exists." });
+  const uniquePublicIds = Array.from(new Set(mediaRows.map((media) => media.cloudinary_public_id)));
+  let destroyedCloudinaryAssets = 0;
+  let retainedSharedAssets = 0;
+  if (uniquePublicIds.length) {
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+    for (const publicId of uniquePublicIds) {
+      const otherAssociations = await supabaseRequest(`product_media?select=id&${supabaseEq("cloudinary_public_id", publicId)}&product_id=neq.${productId}&limit=1`);
+      if (otherAssociations.length) {
+        retainedSharedAssets += 1;
+        continue;
+      }
+      try {
+        await destroyCloudinaryProductImage(publicId, { cloudName, apiKey, apiSecret });
+        destroyedCloudinaryAssets += 1;
+      } catch (error) {
+        throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove this item\u2019s photo." });
+      }
+    }
+  }
+  await supabaseRequest(`products?${supabaseEq("id", productId)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
+  return { deletedProductId: product.id, cleanedCode: product.cleaned_code, deletedMediaRecords: mediaRows.length, destroyedCloudinaryAssets, retainedSharedAssets };
+}
 async function copyArchivedWebsiteContent(sourceProductId, targetProductId) {
   if (sourceProductId === targetProductId) throw new TRPCError4({ code: "BAD_REQUEST", message: "Choose a different archived item to reuse its website content." });
   const [sourceRows, targetRows] = await Promise.all([
@@ -1443,6 +1475,10 @@ var storeRouter = router({
       await requireAdmin(ctx);
       await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...input.isJustIn === void 0 ? {} : { is_just_in: input.isJustIn }, ...input.lifecycleStatus === void 0 ? {} : { lifecycle_status: input.lifecycleStatus } }) });
       return { success: true };
+    }),
+    deleteProduct: publicProcedure.input(z2.object({ productId: z2.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requireAdmin(ctx);
+      return deleteProductAndMedia(input.productId);
     }),
     reuseArchivedContent: publicProcedure.input(z2.object({ sourceProductId: z2.number().int().positive(), targetProductId: z2.number().int().positive() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);

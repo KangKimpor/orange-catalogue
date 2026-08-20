@@ -19,6 +19,7 @@ import { formatAppliedPosImportSummary } from "@/lib/posImportSummary";
 import { trpc } from "@/lib/trpc";
 import { vercelAnalyticsSnapshot } from "@/lib/vercelAnalyticsSnapshot";
 import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
+import { BATCH_PHOTO_FILENAME_PATTERN, type BatchPhotoMatch, planBatchPhotoIntake, sortBatchPhotoMatches } from "@/lib/batchPhotoIntake";
 
 const workspaceMeta: Array<{ id: Workspace; label: string; path: string; icon: typeof LayoutDashboard; hint: string }> = [
   { id: "overview", label: "Overview", path: "/admin", icon: LayoutDashboard, hint: "Today’s catalogue health" },
@@ -29,12 +30,18 @@ const workspaceMeta: Array<{ id: Workspace; label: string; path: string; icon: t
 
 type PhotoUploadStatus = "idle" | "ready" | "preparing" | "uploading" | "saving" | "success" | "error";
 type PhotoUploadFeedback = { status: PhotoUploadStatus; message: string };
+type BatchPhotoFeedback = { status: "idle" | "ready" | "uploading" | "success" | "error"; message: string };
 type ImportFeedbackStatus = "idle" | "reading" | "ready" | "previewing" | "preview_ready" | "applying" | "success" | "error";
 type ImportFeedback = { status: ImportFeedbackStatus; message: string };
 
 const initialPhotoUploadFeedback: PhotoUploadFeedback = {
   status: "idle",
   message: "Choose one JPG, PNG, or WebP photo. It will be linked only to the selected POS Attribute color.",
+};
+
+const initialBatchPhotoFeedback: BatchPhotoFeedback = {
+  status: "idle",
+  message: "Choose photos whose filenames identify the cleaned code, optional website name, POS Attribute color, and photo number.",
 };
 
 const initialImportFeedback: ImportFeedback = {
@@ -203,6 +210,7 @@ export default function Admin() {
   const signUpload = trpc.store.admin.signMediaUpload.useMutation();
   const registerMedia = trpc.store.admin.registerMedia.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
   const deleteMedia = trpc.store.admin.deleteMedia.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
+  const deleteProduct = trpc.store.admin.deleteProduct.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
 
   const workspace = workspaceFromPath(location, window.location.search);
   const [itemSearch, setItemSearch] = useState("");
@@ -219,6 +227,10 @@ export default function Admin() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [photoUploadFeedback, setPhotoUploadFeedback] = useState<PhotoUploadFeedback>(initialPhotoUploadFeedback);
+  const [batchPhotoMatches, setBatchPhotoMatches] = useState<BatchPhotoMatch<File>[]>([]);
+  const [batchPhotoFeedback, setBatchPhotoFeedback] = useState<BatchPhotoFeedback>(initialBatchPhotoFeedback);
+  const [batchUploadProgress, setBatchUploadProgress] = useState({ completed: 0, total: 0, percent: 0 });
+  const [itemDeleteFeedback, setItemDeleteFeedback] = useState<ItemSaveFeedback>(initialItemSaveFeedback);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importBase64, setImportBase64] = useState("");
   const [preview, setPreview] = useState<any>(null);
@@ -251,6 +263,8 @@ export default function Admin() {
   const photoReadyCount = products.filter(product => product.media.length > 0).length;
   const archivedSourceItems = products.filter(product => product.lifecycleStatus === "discontinued" && product.id !== selectedProductId);
   const photoUploadIsBusy = ["preparing", "uploading", "saving"].includes(photoUploadFeedback.status) || signUpload.isPending || registerMedia.isPending;
+  const batchPhotoIsBusy = batchPhotoFeedback.status === "uploading";
+  const readyBatchPhotoCount = batchPhotoMatches.filter(match => match.status === "ready").length;
   const importWorkflowStage: ImportWorkflowStage = importFeedback.status === "success" ? "complete" : importFeedback.status === "applying" ? "apply" : importFeedback.status === "preview_ready" || (importFeedback.status === "ready" && Boolean(preview)) ? "confirm" : importFeedback.status === "error" && Boolean(preview) ? "apply" : importFeedback.status === "error" && !importBase64 ? "file" : importFeedback.status === "reading" || importFeedback.status === "idle" ? "file" : "preview";
 
   useEffect(() => { if (!history.data?.length) { setSelectedImportId(null); return; } setSelectedImportId(current => history.data.some(item => item.id === current) ? current : history.data[0].id); }, [history.data]);
@@ -272,6 +286,9 @@ export default function Admin() {
     setIsDragOver(false);
     setUploadProgress(0);
     setPhotoUploadFeedback(initialPhotoUploadFeedback);
+    setBatchPhotoMatches([]);
+    setBatchPhotoFeedback(initialBatchPhotoFeedback);
+    setBatchUploadProgress({ completed: 0, total: 0, percent: 0 });
   }, [selectedProduct?.id]);
   useEffect(() => () => { if (mediaPreviewUrl) URL.revokeObjectURL(mediaPreviewUrl); }, [mediaPreviewUrl]);
 
@@ -289,6 +306,10 @@ export default function Admin() {
     setIsDragOver(false);
     setUploadProgress(0);
     setPhotoUploadFeedback(initialPhotoUploadFeedback);
+    setBatchPhotoMatches([]);
+    setBatchPhotoFeedback(initialBatchPhotoFeedback);
+    setBatchUploadProgress({ completed: 0, total: 0, percent: 0 });
+    setItemDeleteFeedback(initialItemSaveFeedback);
   }
   function chooseColor(index: number) {
     setSelectedColorIndex(index);
@@ -400,11 +421,11 @@ export default function Admin() {
     selectPhotoFile(event.target.files?.[0] ?? null);
     event.target.value = "";
   }
-  function uploadFileToCloudinary(url: string, form: FormData) {
+  function uploadFileToCloudinary(url: string, form: FormData, onProgress: (progress: number) => void = setUploadProgress) {
     return new Promise<{ public_id?: string; secure_url?: string }>((resolve, reject) => {
       const request = new XMLHttpRequest();
       request.open("POST", url);
-      request.upload.onprogress = event => { if (event.lengthComputable) setUploadProgress(Math.round((event.loaded / event.total) * 100)); };
+      request.upload.onprogress = event => { if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100)); };
       request.onload = () => {
         const payload = (() => { try { return JSON.parse(request.responseText) as { public_id?: string; secure_url?: string; error?: { message?: string } }; } catch { return null; } })();
         if (request.status >= 200 && request.status < 300 && payload) resolve(payload);
@@ -414,6 +435,78 @@ export default function Admin() {
       request.send(form);
     });
   }
+  function chooseBatchPhotos(event: ChangeEvent<HTMLInputElement>) {
+    const matches = sortBatchPhotoMatches(planBatchPhotoIntake(Array.from(event.target.files ?? []), products));
+    event.target.value = "";
+    setBatchPhotoMatches(matches);
+    setBatchUploadProgress({ completed: 0, total: matches.filter(match => match.status === "ready").length, percent: 0 });
+    if (!matches.length) {
+      setBatchPhotoFeedback(initialBatchPhotoFeedback);
+      return;
+    }
+    const readyCount = matches.filter(match => match.status === "ready").length;
+    const invalidCount = matches.length - readyCount;
+    setBatchPhotoFeedback({ status: readyCount ? "ready" : "error", message: readyCount ? `${readyCount} photo${readyCount === 1 ? "" : "s"} recognised${invalidCount ? `; ${invalidCount} need${invalidCount === 1 ? "s" : ""} a filename correction` : ""}. Review the list, then confirm upload.` : "No photo filenames could be matched. Review the required filename format below." });
+  }
+
+  async function uploadBatchPhotos() {
+    const queue = batchPhotoMatches.filter(match => match.status === "ready" && match.productId && match.variantId && match.colorName && match.categorySlug && match.cleanedCode);
+    if (!queue.length) return;
+    const successful = new Set<File>();
+    const failed = new Map<File, string>();
+    const primaryAssigned = new Set<number>();
+    setBatchUploadProgress({ completed: 0, total: queue.length, percent: 0 });
+    setBatchPhotoFeedback({ status: "uploading", message: `Uploading 0 of ${queue.length} recognised photos. Keep this page open until the batch finishes.` });
+
+    for (let index = 0; index < queue.length; index += 1) {
+      const match = queue[index];
+      try {
+        setBatchPhotoFeedback({ status: "uploading", message: `Uploading ${index + 1} of ${queue.length}: ${match.file.name}` });
+        const signed = await signUpload.mutateAsync({ productCode: match.cleanedCode!, categorySlug: match.categorySlug!, colorTag: match.colorName! });
+        const form = new FormData();
+        form.append("file", match.file);
+        form.append("api_key", signed.apiKey);
+        form.append("timestamp", String(signed.timestamp));
+        form.append("folder", signed.folder);
+        form.append("tags", signed.tags);
+        form.append("signature", signed.signature);
+        const uploaded = await uploadFileToCloudinary(signed.uploadUrl, form, progress => setBatchUploadProgress({ completed: index, total: queue.length, percent: Math.round(((index + progress / 100) / queue.length) * 100) }));
+        if (!uploaded.public_id || !uploaded.secure_url) throw new Error("Cloudinary did not return a usable image address. Please try again.");
+        const displayName = match.displayName || match.cleanedCode!;
+        const isPrimary = !match.hasExistingMedia && !primaryAssigned.has(match.productId!);
+        await registerMedia.mutateAsync({ productId: match.productId!, variantId: match.variantId!, publicId: uploaded.public_id, secureUrl: uploaded.secure_url, colorTag: match.colorName!, altText: `${displayName} — ${match.colorName!}`, isPrimary });
+        if (isPrimary) primaryAssigned.add(match.productId!);
+        successful.add(match.file);
+        setBatchUploadProgress({ completed: index + 1, total: queue.length, percent: Math.round(((index + 1) / queue.length) * 100) });
+      } catch (error) {
+        failed.set(match.file, error instanceof Error ? error.message : "This photo could not be uploaded.");
+      }
+    }
+
+    setBatchPhotoMatches(current => current.filter(match => !successful.has(match.file)).map(match => failed.has(match.file) ? { ...match, status: "error" as const, message: failed.get(match.file)! } : match));
+    const failedCount = failed.size;
+    const successfulCount = successful.size;
+    setBatchPhotoFeedback({ status: failedCount ? "error" : "success", message: failedCount ? `${successfulCount} photo${successfulCount === 1 ? "" : "s"} uploaded. ${failedCount} remain in the list with an error; correct or retry only those files.` : `${successfulCount} photo${successfulCount === 1 ? "" : "s"} uploaded and linked to their recognised POS Attribute colors.` });
+  }
+
+  async function deleteSelectedItem() {
+    if (!selectedProduct) return;
+    const confirmation = window.prompt(`Type ${selectedProduct.cleanedCode} to permanently delete this item, its POS variants, and its catalogue photo records. Import history stays intact. A future POS import containing this code can recreate it.`);
+    if (confirmation === null) return;
+    if (confirmation.trim() !== selectedProduct.cleanedCode) {
+      setItemDeleteFeedback({ status: "error", message: "The cleaned code did not match. No item was deleted." });
+      return;
+    }
+    setItemDeleteFeedback(initialItemSaveFeedback);
+    try {
+      const result = await deleteProduct.mutateAsync({ productId: selectedProduct.id });
+      setSelectedProductId(null);
+      setItemDeleteFeedback({ status: "success", message: `${result.cleanedCode} was deleted. ${result.deletedMediaRecords} photo record${result.deletedMediaRecords === 1 ? "" : "s"} removed; ${result.destroyedCloudinaryAssets} Cloudinary asset${result.destroyedCloudinaryAssets === 1 ? "" : "s"} deleted${result.retainedSharedAssets ? `, with ${result.retainedSharedAssets} shared asset${result.retainedSharedAssets === 1 ? "" : "s"} retained` : ""}.` });
+    } catch (error) {
+      setItemDeleteFeedback({ status: "error", message: error instanceof Error ? error.message : "The item could not be deleted. No remaining catalogue records were changed." });
+    }
+  }
+
   async function deleteColorMedia(mediaId: number) {
     if (!window.confirm("Delete this photo from Cloudinary and the Orange catalogue? This cannot be undone.")) return;
     try {
@@ -471,10 +564,9 @@ export default function Admin() {
       <div className="model-results" role="listbox" aria-label="Matching items">
         {filteredItems.length ? filteredItems.map(product => (
           <button type="button" key={product.id} onClick={() => chooseItem(product.id)} className={product.id === selectedProductId ? "is-selected" : ""}>
-            <strong>{product.cleanedCode}</strong>
+            <span className="model-result-identity"><strong>{product.cleanedCode}</strong><b className="model-result-lifecycle-tag">{product.colors.length} color{product.colors.length === 1 ? "" : "s"} · {product.lifecycleStatus === "out_of_stock" ? "Out of stock" : product.lifecycleStatus === "discontinued" ? "Discontinued" : "Active"}</b></span>
             {product.displayName && <span className="model-result-name">{product.displayName}</span>}
             <span className="model-result-tags">{!itemSetupStatus.get(product.id)?.hasName && <b className="setup-status-tag is-missing">Name not set</b>}{itemSetupStatus.get(product.id)?.colorCount && !itemSetupStatus.get(product.id)?.hasCompletePhotoCoverage && <b className="setup-status-tag is-missing">Pictures not set · {itemSetupStatus.get(product.id)?.colorsWithPhotos}/{itemSetupStatus.get(product.id)?.colorCount} colors</b>}</span>
-            <small>{product.colors.length} color{product.colors.length === 1 ? "" : "s"} · {product.lifecycleStatus === "out_of_stock" ? "Out of stock" : product.lifecycleStatus === "discontinued" ? "Discontinued" : "Active"}</small>
           </button>
         )) : <p className="picker-empty">No items yet. Import your new POS file to begin.</p>}
       </div>
@@ -516,6 +608,7 @@ export default function Admin() {
         {workspace === "catalogue" && (
           <section className="admin-view model-view">
             <div className="workspace-intro"><div><p>Choose an item, give it a website name, choose its POS color, and add photos. Everything else is handled by your POS import.</p></div></div>
+            {itemDeleteFeedback.status !== "idle" && <p className={`item-delete-feedback is-${itemDeleteFeedback.status}`} role="status" aria-live="polite">{itemDeleteFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : <CircleAlert aria-hidden="true" />}{itemDeleteFeedback.message}</p>}
             <div className="model-layout catalogue-layout">
               {itemPicker}
               <section className="model-editor catalogue-editor">
@@ -532,6 +625,7 @@ export default function Admin() {
                       </div>
                       <div className="form-actions item-save-actions"><button type="button" className="primary-action" onClick={saveItem} disabled={updateProduct.isPending}>{updateProduct.isPending ? "Saving…" : "Save item details"}</button>{itemSaveFeedback.status !== "idle" && <p className={`item-save-feedback is-${itemSaveFeedback.status}`} role="status" aria-live="polite">{itemSaveFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : <CircleAlert aria-hidden="true" />}{itemSaveFeedback.message}</p>}</div>
                       {lifecycleStatus !== "discontinued" && archivedSourceItems.length > 0 && <section className="attribute-panel archive-reuse-panel"><div><p className="eyebrow">REUSE ARCHIVED CONTENT</p><p>Copy an old item’s website name, category, Just In setting, and linked photos. POS codes, inventory, colors, and price remain unchanged.</p></div><label>Discontinued source item<select value={archiveSourceId ?? ""} onChange={event => setArchiveSourceId(Number(event.target.value) || null)}><option value="">Choose an archived item</option>{archivedSourceItems.map(product => <option key={product.id} value={product.id}>{product.displayName || "Name not set"} — {product.cleanedCode}</option>)}</select></label><div className="form-actions"><button type="button" className="secondary-action" onClick={reuseArchivedWebsiteContent} disabled={!archiveSourceId || reuseArchivedContent.isPending}>{reuseArchivedContent.isPending ? "Copying…" : "Copy archived website content"}</button>{archiveReuseFeedback && <p className={reuseArchivedContent.error ? "form-error" : "form-success"}>{archiveReuseFeedback}</p>}</div></section>}
+                      <section className="item-delete-panel"><div><p className="eyebrow">DELETE ITEM</p><p>Permanently remove this cleaned-code item, its POS variants, and its catalogue photo records. Import history stays intact; a future POS import can recreate this code.</p></div><button type="button" className="quiet-action danger-action" onClick={deleteSelectedItem} disabled={deleteProduct.isPending}>{deleteProduct.isPending ? "Deleting item…" : "Delete this item"}</button></section>
                     </section>
                     <div className="catalogue-editor-details">
                       <div className="attribute-panel catalogue-colors"><div><p className="eyebrow">CHOOSE A COLOR</p><p>These colors come directly from your POS file. A status beside each color shows whether its photo has already been added.</p></div><div className="attribute-list">{selectedProduct.colors.map((color, index) => { const photoCount = colorPhotoCounts.get(`${color.id}-${color.englishName}`) ?? 0; return <button type="button" onClick={() => chooseColor(index)} className={index === selectedColorIndex ? "is-selected" : ""} key={`${color.id}-${color.englishName}`}><i style={{ backgroundColor: color.hex }} /><span>{color.englishName}</span><small className={photoCount ? "color-photo-status is-ready" : "color-photo-status"}>{photoCount ? `${photoCount} photo${photoCount === 1 ? "" : "s"} added` : "No photo yet"}</small></button>; })}</div></div>
@@ -541,6 +635,7 @@ export default function Admin() {
                     <div className={`photo-upload-feedback is-${photoUploadFeedback.status}${photoUploadIsBusy ? " is-busy" : ""}`} role="status" aria-live="polite"><div className="feedback-icon">{photoUploadFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : photoUploadFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : photoUploadIsBusy ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <CloudUpload aria-hidden="true" />}</div><div><small>PHOTO UPLOAD</small><p>{photoUploadFeedback.message}</p>{photoUploadFeedback.status === "success" && <span className="upload-completion-mark"><CheckCircle2 aria-hidden="true" />Photo saved</span>}</div></div>
                     {photoUploadIsBusy && <div className="upload-progress" role="status" aria-live="polite"><div className="upload-progress-track"><div className="upload-progress-bar" style={{ width: `${photoUploadFeedback.status === "saving" ? 100 : uploadProgress}%` }} /></div><span>{photoUploadFeedback.status === "saving" ? "Saving to catalogue…" : `Uploading… ${uploadProgress}%`}</span></div>}
                     <div className="form-actions">{mediaFile && !photoUploadIsBusy && <button type="button" className="quiet-action" onClick={() => selectPhotoFile(null)}>Remove selected</button>}<button type="button" className="primary-action" onClick={uploadColorMedia} disabled={!mediaFile || photoUploadIsBusy}>{photoUploadFeedback.status === "preparing" ? "Preparing…" : photoUploadFeedback.status === "uploading" ? `Uploading… ${uploadProgress}%` : photoUploadFeedback.status === "saving" ? "Saving…" : `Upload for ${selectedColor.englishName}`}</button></div>
+                    <section className="batch-photo-panel" aria-labelledby="batch-photo-heading"><div><p className="eyebrow">BATCH PHOTO INTAKE</p><h4 id="batch-photo-heading">Match photos from filenames</h4><p>Name each file as <code>{BATCH_PHOTO_FILENAME_PATTERN}</code>. The website-name part is optional; the cleaned code, POS Attribute color, and photo number are required.</p></div><label className={`batch-photo-file is-${batchPhotoFeedback.status}${batchPhotoIsBusy ? " is-busy" : ""}`}><CloudUpload aria-hidden="true" /><span>Choose photos for batch matching</span><small>JPG, PNG, or WebP · nothing uploads until you confirm recognised matches</small><input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple onChange={chooseBatchPhotos} disabled={batchPhotoIsBusy} /></label>{batchPhotoMatches.length > 0 && <><div className="batch-photo-summary"><span>{readyBatchPhotoCount} recognised</span><span>{batchPhotoMatches.length - readyBatchPhotoCount} need attention</span></div><ol className="batch-photo-match-list">{batchPhotoMatches.map(match => <li className={`is-${match.status}`} key={`${match.file.name}-${match.file.lastModified}`}><div><b>{match.file.name}</b><span>{match.status === "ready" ? `${match.cleanedCode} · ${match.colorName} · Photo ${match.sequence}` : match.message}</span></div><i>{match.status === "ready" ? "Ready" : "Fix filename"}</i></li>)}</ol></>}<div className={`batch-photo-feedback is-${batchPhotoFeedback.status}`} role="status" aria-live="polite"><div className="feedback-icon">{batchPhotoFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : batchPhotoFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : batchPhotoIsBusy ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <CloudUpload aria-hidden="true" />}</div><div><small>BATCH PHOTO INTAKE</small><p>{batchPhotoFeedback.message}</p></div></div>{batchPhotoIsBusy && <div className="upload-progress" role="status" aria-live="polite"><div className="upload-progress-track"><div className="upload-progress-bar" style={{ width: `${batchUploadProgress.percent}%` }} /></div><span>Uploading {batchUploadProgress.completed} of {batchUploadProgress.total} · {batchUploadProgress.percent}%</span></div>}<div className="form-actions">{batchPhotoMatches.length > 0 && !batchPhotoIsBusy && <button type="button" className="quiet-action" onClick={() => { setBatchPhotoMatches([]); setBatchPhotoFeedback(initialBatchPhotoFeedback); setBatchUploadProgress({ completed: 0, total: 0, percent: 0 }); }}>Clear batch</button>}<button type="button" className="primary-action" onClick={uploadBatchPhotos} disabled={!readyBatchPhotoCount || batchPhotoIsBusy}>{batchPhotoIsBusy ? `Uploading ${batchUploadProgress.completed} of ${batchUploadProgress.total}…` : `Upload ${readyBatchPhotoCount} recognised photo${readyBatchPhotoCount === 1 ? "" : "s"}`}</button></div></section>
                     <div className="photo-library"><div><p className="eyebrow">CURRENT COLOR PHOTOS</p><h4>{selectedColor.englishName}</h4></div>{selectedColorMedia.length ? <div className="photo-thumb-grid">{selectedColorMedia.map(media => <article className="media-thumb" key={media.id}><img src={media.url} alt={media.altText || `${selectedColor.englishName} item`} /><button type="button" className="delete-photo-action" onClick={() => deleteColorMedia(media.id)} disabled={deleteMedia.isPending} aria-label={`Delete ${selectedColor.englishName} photo`}>{deleteMedia.isPending ? "Deleting…" : <><Trash2 aria-hidden="true" />Delete photo</>}</button></article>)}</div> : <p className="empty-media">No photo is linked to this color yet. Choose a file above, then upload it for {selectedColor.englishName}.</p>}</div>
                       </section>}
                     </div>
