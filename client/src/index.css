@@ -5966,3 +5966,99 @@ html {
     left: -1px;
   }
 }
+
+/* --------------------------------------------------------------------------
+   POS import preview — one uniform row template for every change type
+   "New" changes and "updated/changed" changes previously rendered on two
+   different layout systems (inline-flex text line vs. a two-column grid
+   with its own comparison-chip sub-layout), which read as inconsistent
+   even after the seamless/point-by-point pass. Force every row — new,
+   price, quantity, variant, missing — onto the same single flex line:
+   [dot] [badge] [identity text] [value chip(s)] [source details, right].
+   The wrapper elements from ImportChangeValues/ImportChangeComparisons are
+   kept in the DOM (no JSX change) but laid out as `contents` so their
+   children become plain flex items of the row, exactly like the compact
+   "new" row's badge + span + link.
+   -------------------------------------------------------------------------- */
+.import-color-inline-change,
+.import-variant-change-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 4px;
+}
+
+.import-change-values,
+.import-change-comparisons {
+  display: contents;
+}
+
+.import-color-inline-change > b,
+.import-variant-change-row .eyebrow {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font: 700 8px/1 "DM Mono", monospace;
+  letter-spacing: .04em;
+}
+
+.import-color-inline-change > span,
+.import-change-identity,
+.import-change-new-values {
+  flex: 0 1 auto;
+  margin: 0;
+  color: var(--inventory-ink);
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.import-change-comparison {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  color: var(--inventory-ink);
+  font-size: 11px;
+}
+
+.import-change-comparison span {
+  color: var(--inventory-muted);
+  font-size: 9px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.import-change-comparison b {
+  color: var(--inventory-ink);
+  font-weight: 700;
+}
+
+.import-change-comparison i {
+  color: var(--inventory-muted);
+  font-style: normal;
+}
+
+.import-color-inline-change .import-source-details,
+.import-variant-change-row .import-source-details {
+  flex: 0 0 auto;
+  margin: 0 0 0 auto;
+}
+
+.import-variant-change-row .import-source-details[open] {
+  flex-basis: 100%;
+  margin-top: 4px;
+  padding-top: 0;
+}
+
+@media (max-width: 540px) {
+  .import-color-inline-change .import-source-details,
+  .import-variant-change-row .import-source-details {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
