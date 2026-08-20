@@ -398,4 +398,4 @@
 - [x] Validate the scoped restoration, preserve checklist history, and submit it through a focused pull request.
 
 - [x] Restore the prior approved Admin collapsible-row presentation by reversing only the merged rounded editorial-card refinement.
-- [ ] Validate the accordion rollback, preserve checklist history, and submit it through a dedicated pull request.
+- [x] Validate the accordion rollback, preserve checklist history, and submit it through a dedicated pull request.
