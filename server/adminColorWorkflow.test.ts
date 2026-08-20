@@ -160,6 +160,9 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain('className="batch-photo-panel" aria-labelledby="batch-photo-heading" hidden aria-hidden="true"');
     expect(admin).toContain('className="attribute-panel archive-reuse-panel" hidden aria-hidden="true"');
     expect(admin.indexOf("<h4>Item details</h4>")).toBeLessThan(admin.indexOf("<h4>Choose a color</h4>"));
+    expect(admin).toContain('className="catalogue-color-picker-inline"');
+    expect(admin).not.toContain('className="attribute-panel catalogue-colors"');
+    expect(admin.indexOf('className="catalogue-color-picker-inline"')).toBeLessThan(admin.indexOf('className="just-in-toggle"'));
     expect(admin.indexOf("<h4>Choose a color</h4>")).toBeLessThan(admin.indexOf("Photos for {selectedColor.englishName}"));
     expect(admin.indexOf("Photos for {selectedColor.englishName}")).toBeLessThan(admin.lastIndexOf("DELETE ITEM"));
     expect(stylesheet).toContain(".catalogue-editor-workspace");
@@ -167,6 +170,9 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".catalogue-editor-workflow");
     expect(stylesheet).toContain("display: contents;");
     expect(stylesheet).toContain(".batch-photo-panel[hidden]");
+    expect(stylesheet).toContain("Catalogue editor — compact color and upload balance");
+    expect(stylesheet).toContain(".catalogue-color-picker-inline");
+    expect(stylesheet).toContain("grid-template-columns: auto auto;");
     expect(stylesheet).toContain(".catalogue-settings-panel");
     expect(stylesheet).toContain("Catalogue editor — aligned setup workflow and completion states");
     expect(stylesheet).toContain(".setup-status-tag.is-missing");

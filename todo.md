@@ -417,3 +417,6 @@
 - [x] Consolidate the selected-item Catalogue Editor into one responsive bordered workflow: item details and POS Attribute color choice at the top, single-photo upload below, and the confirmed delete action at the bottom.
 - [x] Remove explanatory copy from the selected-item editor and temporarily hide the batch photo intake interface while preserving its underlying filename-matching capability.
 - [x] Add responsive editor regression coverage, validate desktop and phone layout behavior, and submit the simplification through a pull request.
+
+- [x] Move the POS Attribute color selector into the item-details column directly above the Feature in Just In control, move the single-photo studio into the reclaimed desktop color area, and center the Just In control.
+- [x] Verify the rebalanced selected-item editor at desktop and phone widths, then submit the refinement through a pull request.
