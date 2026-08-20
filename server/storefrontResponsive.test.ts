@@ -39,4 +39,15 @@ describe("public storefront branding and responsiveness", () => {
     expect(storefront).toContain("!product.available && <span className=\"availability soldout\">Sold Out</span>");
     expect(detail).toContain("!selectedVariant?.available && <p className=\"detail-status soldout\">Sold Out</p>");
   });
+
+  it("confirms product-card image readiness and the Messenger handoff without unnecessary navigation delay", () => {
+    expect(storefront).toContain('classList.add("is-loaded")');
+    expect(stylesheet).toContain(".product-image img.is-loaded");
+    expect(stylesheet).toContain("opacity: 0;");
+    expect(stylesheet).toContain("opacity: 1;");
+    expect(stylesheet).toContain(".message-button:active:not(.is-disabled)");
+    expect(stylesheet).toContain("scale(.985)");
+    expect(stylesheet).toContain(".product-image img,");
+    expect(stylesheet).toContain(".message-button {");
+  });
 });

@@ -177,8 +177,11 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("Uploading ${uploadingFile.name} to Cloudinary");
     expect(admin).toContain("Saving the ${selectedColor.englishName} photo");
     expect(admin).toContain("photo-upload-feedback");
+    expect(admin).toContain("Photo saved");
+    expect(admin).toContain("upload-completion-mark");
     expect(stylesheet).toContain(".photo-upload-feedback.is-success");
     expect(stylesheet).toContain(".photo-upload-feedback.is-error");
+    expect(stylesheet).toContain(".upload-completion-mark");
   });
 
   it("uses solid POS preview surfaces and keeps a one-row new item readable from its Attribute color heading", () => {
@@ -236,6 +239,26 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".import-feedback.is-preview_ready");
     expect(stylesheet).toContain("@keyframes admin-feedback-shimmer");
     expect(stylesheet).toContain("prefers-reduced-motion");
+    expect(admin).toContain("ImportWorkflowStage");
+    expect(admin).toContain("function ImportStageTracker");
+    expect(admin).toContain("Read file");
+    expect(admin).toContain("Compare catalogue");
+    expect(admin).toContain("Confirm changes");
+    expect(admin).toContain("Apply import");
+    expect(admin).toContain("<ImportStageTracker stage={importWorkflowStage}");
+    expect(stylesheet).toContain(".import-stage-tracker");
+    expect(stylesheet).toContain(".import-stage-tracker li.is-complete");
+  });
+
+  it("gives item-details saves a compact result that follows the server mutation", () => {
+    expect(admin).toContain("ItemSaveFeedback");
+    expect(admin).toContain("itemSaveFeedback");
+    expect(admin).toContain("Item details saved.");
+    expect(admin).toContain("Item details could not be saved. Please try again.");
+    expect(admin).toContain("item-save-feedback");
+    expect(stylesheet).toContain(".item-save-feedback");
+    expect(stylesheet).toContain(".item-save-feedback.is-success");
+    expect(stylesheet).toContain(".item-save-feedback.is-error");
   });
 
   it("adds drag-and-drop selection, local preview, removable selection, and measurable upload progress", () => {

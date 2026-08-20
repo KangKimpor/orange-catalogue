@@ -373,3 +373,9 @@
 - [x] Remove confirmed-unused direct dependencies and generic UI scaffold files while preserving the existing 404 and error-boundary behavior.
 - [x] Update stale operations documentation and validate measurable production-build and dependency improvements.
 - [x] Submit this audit optimization tranche through pull request #49.
+
+- [x] Add an honest POS-import stage tracker for file reading, preview generation, confirmation, and completed import states without fake percentage progress.
+- [x] Strengthen selected-colour photo-upload feedback with a brief completion treatment while preserving real transfer progress and error states.
+- [x] Add compact save confirmation beside item details after a server-confirmed mutation, with an explicit error path.
+- [x] Add restrained storefront image-load feedback and Messenger handoff acknowledgement while preserving instant detail navigation and reduced-motion support.
+- [x] Cover the workflow feedback contracts, validate desktop and mobile behavior, and submit the refinements through a new pull request.
