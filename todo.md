@@ -420,3 +420,5 @@
 
 - [x] Move the POS Attribute color selector into the item-details column directly above the Feature in Just In control, move the single-photo studio into the reclaimed desktop color area, and center the Just In control.
 - [x] Verify the rebalanced selected-item editor at desktop and phone widths, then submit the refinement through a pull request.
+
+- [x] Replace the superseded conflicted pull request with a fresh branch from current main after verifying that its intended picker and editor behavior is already present in main.
