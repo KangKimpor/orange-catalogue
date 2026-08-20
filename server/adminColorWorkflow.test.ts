@@ -184,11 +184,13 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".upload-completion-mark");
   });
 
-  it("uses solid POS preview surfaces and keeps a one-row new item readable from its Attribute color heading", () => {
+  it("uses solid compact POS preview surfaces with an Item-code heading and one-row new-item details", () => {
     expect(admin).toContain("function isNewImportChange");
     expect(admin).toContain("function importGroupSummary");
     expect(admin).toContain("<details className=\"import-change-group\"");
     expect(admin).toContain("className=\"import-change-summary\"");
+    expect(admin).toContain("<h4>Item <span>{group.code}</span>");
+    expect(admin).not.toContain("CLEANED-CODE ITEM");
     expect(admin).toContain("className=\"import-change-group-body\"");
     expect(admin).toContain("quantity update");
     expect(admin).toContain("import-color-inline-change");
@@ -205,6 +207,7 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("POS import actions and review rows — compact contrast follow-up");
     expect(stylesheet).toContain("POS import review — summary-first disclosure design");
     expect(stylesheet).toContain(".import-change-summary");
+    expect(stylesheet).toContain("min-height: 64px;");
     expect(stylesheet).toContain(".import-change-group[open] .import-change-summary");
     expect(stylesheet).toContain(".pos-import-workbench > .primary-action");
     expect(stylesheet).toContain(".import-variant-change-row {\n  border: 1px solid");
