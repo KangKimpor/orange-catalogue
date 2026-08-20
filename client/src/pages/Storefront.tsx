@@ -4,6 +4,7 @@ import { trpc } from "@/lib/trpc";
 import { belongsInStorefrontCategory } from "@/lib/storefrontCategories";
 import { responsiveCatalogueMedia } from "@/lib/catalogueMedia";
 import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
+import { clearStorefrontReturnPosition, readStorefrontReturnPosition, saveStorefrontReturnPosition, storefrontHref } from "@/lib/storefrontReturnPosition";
 
 const BRAND_IMAGE = responsiveCatalogueMedia(SUPABASE_BRAND_LOGO_URL, "brand");
 const FALLBACK_CATEGORIES = [
@@ -25,6 +26,7 @@ export default function Storefront() {
     void import("./ProductDetail");
     void utils.store.catalogue.getBySlug.prefetch({ slug });
   };
+  const rememberStorefrontPosition = () => saveStorefrontReturnPosition(window.sessionStorage, window.location, window.scrollY);
   const [activeCategory, setActiveCategory] = useState(() => {
     const requested = new URLSearchParams(window.location.search).get("category");
     return requested || "just-in";
@@ -35,6 +37,14 @@ export default function Storefront() {
       utils.store.catalogue.getBySlug.setData({ slug: product.slug }, product.detail);
     }
   }, [data?.products, utils]);
+  useEffect(() => {
+    if (isLoading || !data) return;
+    const savedPosition = readStorefrontReturnPosition(window.sessionStorage);
+    if (!savedPosition || savedPosition.href !== storefrontHref(window.location)) return;
+    clearStorefrontReturnPosition(window.sessionStorage);
+    const frame = window.requestAnimationFrame(() => window.scrollTo({ top: savedPosition.scrollY, left: 0, behavior: "auto" }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [data, isLoading]);
   const products = useMemo(
     () => (data?.products ?? []).filter(product => belongsInStorefrontCategory(product, activeCategory)),
     [activeCategory, data],
@@ -78,7 +88,7 @@ export default function Storefront() {
             const primaryImage = primary ? responsiveCatalogueMedia(primary.url, "grid") : null;
             const firstColor = product.colors[0];
             return (
-              <Link href={`/product/${product.slug}`} className="product-card" key={product.id} onPointerEnter={() => preloadProductDetail(product.slug)} onFocus={() => preloadProductDetail(product.slug)} onTouchStart={() => preloadProductDetail(product.slug)}>
+              <Link href={`/product/${product.slug}`} className="product-card" key={product.id} onClick={rememberStorefrontPosition} onPointerEnter={() => preloadProductDetail(product.slug)} onFocus={() => preloadProductDetail(product.slug)} onTouchStart={() => preloadProductDetail(product.slug)}>
                 <div className="product-image">
                   {primaryImage ? <img {...primaryImage} alt={primary?.altText || product.displayName || product.cleanedCode} loading={index < 2 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"} decoding="async" onLoad={event => event.currentTarget.classList.add("is-loaded")} onError={event => event.currentTarget.classList.add("is-loaded")} /> : <span>{firstColor?.englishName || "Orange"}</span>}
                   {!product.available && <span className="availability soldout">Sold Out</span>}
