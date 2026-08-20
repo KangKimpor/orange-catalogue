@@ -764,10 +764,13 @@ function makeSlug(value) {
 }
 function classifyProduct(cleanedCode) {
   const upper = cleanedCode.trim().toUpperCase();
-  if (/^(ZS|ZL)\b/.test(upper)) return "tops";
-  if (/^(SK|SJ|WJ|FJ)\b/.test(upper)) return "jeans";
-  if (/^SP\b/.test(upper)) return "shorts";
-  if (/^LP\b/.test(upper)) return "pants";
+  const prefixed = (prefixes) => new RegExp(`^(${prefixes})(?:\\b|(?=\\d))`).test(upper);
+  if (prefixed("ZS|ZL")) return "tops";
+  if (prefixed("SK|SJ|WJ|FJ|JJ")) return "jeans";
+  if (prefixed("SP")) return "shorts";
+  if (prefixed("LP")) return "pants";
+  if (prefixed("HD")) return "tops";
+  if (/^[A-Z0-9\s-]+$/.test(upper) && /\d/.test(upper)) return "tops";
   return null;
 }
 function normalizeAttribute(value) {

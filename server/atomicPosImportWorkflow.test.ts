@@ -5,6 +5,7 @@ const atomicMigration = readFileSync(new URL("../supabase/migrations/0006_atomic
 const traceabilityMigration = readFileSync(new URL("../supabase/migrations/0007_pos_traceability_and_meaningful_diff.sql", import.meta.url), "utf8");
 const nullCharacterHotfix = readFileSync(new URL("../supabase/migrations/0008_fix_pos_diff_count_separator.sql", import.meta.url), "utf8");
 const summaryClassificationFix = readFileSync(new URL("../supabase/migrations/0009_correct_pos_import_summary_classification.sql", import.meta.url), "utf8");
+const categoryFallbackMigration = readFileSync(new URL("../supabase/migrations/0014_expand_rule_category_fallbacks.sql", import.meta.url), "utf8");
 const router = readFileSync(new URL("./storeRouter.ts", import.meta.url), "utf8");
 
 describe("atomic POS import workflow", () => {
@@ -43,6 +44,15 @@ describe("atomic POS import workflow", () => {
     expect(summaryClassificationFix).toContain("when variant_id is not null then 'unchanged'");
     expect(summaryClassificationFix).toContain("count(*) filter (where stored_change_type = 'new_variant')");
     expect(summaryClassificationFix).toContain("stored_change_type in ('price_changed', 'stock_changed', 'price_and_stock_changed', 'variant_updated')");
+  });
+
+  it("backfills the owner-approved category fallbacks without overwriting manual choices", () => {
+    expect(categoryFallbackMigration).toContain("(SK|SJ|WJ|FJ|JJ)");
+    expect(categoryFallbackMigration).toContain("^SP([[:space:]-]|[0-9]|$)");
+    expect(categoryFallbackMigration).toContain("^HD([[:space:]-]|[0-9]|$)");
+    expect(categoryFallbackMigration).toContain("~ '[0-9]'");
+    expect(categoryFallbackMigration).toContain("coalesce(product.category_source, 'unassigned') <> 'manual'");
+    expect(categoryFallbackMigration).toContain("category_source = 'rule'");
   });
 
   it("has the server call only the transactional RPC after workbook validation", () => {

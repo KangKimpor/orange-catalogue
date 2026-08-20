@@ -6084,12 +6084,18 @@ html {
   max-width: 100%;
 }
 
-.catalogue-layout .model-result-lifecycle-tag {
+.catalogue-layout .model-result-lifecycle-meta {
   max-width: 100%;
-  min-height: 23px;
-  padding: 4px 7px;
-  line-height: 1.25;
+  color: var(--inventory-muted);
+  font-size: 10px;
+  line-height: 1.35;
   white-space: normal;
+}
+
+.catalogue-layout .model-result-tags .setup-status-tag.is-missing {
+  border-color: #a9253c;
+  background: #c52f47;
+  color: #ffffff;
 }
 
 .import-variant-change-row.is-stock_changed .eyebrow {

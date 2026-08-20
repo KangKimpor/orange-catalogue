@@ -380,12 +380,14 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("pointer-events: none;");
   });
 
-  it("keeps quantity changes compact, surfaces lifecycle status under the code, and exposes the new batch-media and safe item-deletion workflows", () => {
+  it("keeps quantity changes compact, surfaces neutral lifecycle text under the code, and highlights incomplete picker setup in red", () => {
     expect(admin).toContain('className="model-result-identity"');
-    expect(admin).toContain('className="model-result-lifecycle-tag"');
+    expect(admin).toContain('className="model-result-lifecycle-meta"');
+    expect(admin).not.toContain('className="model-result-lifecycle-tag"');
     expect(admin).toContain("1 ? \"\" : \"s\"} · {product.lifecycleStatus");
     expect(stylesheet).toContain("border-left-width: 0;");
-    expect(stylesheet).toContain(".model-result-lifecycle-tag");
+    expect(stylesheet).toContain(".catalogue-layout .model-result-lifecycle-meta");
+    expect(stylesheet).toContain(".catalogue-layout .model-result-tags .setup-status-tag.is-missing");
     expect(stylesheet).toContain("background: #c52f47;");
     expect(stylesheet).toContain("color: #ffffff;");
     expect(admin).toContain("BATCH_PHOTO_FILENAME_PATTERN");
