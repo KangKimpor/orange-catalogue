@@ -11,9 +11,14 @@ describe("Orange catalogue rules", () => {
     expect(classifyProduct("SJ 0017")).toBe("jeans");
     expect(classifyProduct("WJ 0046")).toBe("jeans");
     expect(classifyProduct("FJ 220")).toBe("jeans");
+    expect(classifyProduct("JJ 634")).toBe("jeans");
     expect(classifyProduct("SP 009")).toBe("shorts");
+    expect(classifyProduct("SP412")).toBe("shorts");
     expect(classifyProduct("LP 6020")).toBe("pants");
-    expect(classifyProduct("60215")).toBeNull();
+    expect(classifyProduct("HD 0010")).toBe("tops");
+    expect(classifyProduct("60215")).toBe("tops");
+    expect(classifyProduct("Y0237-1")).toBe("tops");
+    expect(classifyProduct("Plastic bag")).toBeNull();
   });
 
   it("removes only the approved Khmer sale marker from customer-facing POS names", () => {
@@ -52,7 +57,7 @@ describe("Orange catalogue rules", () => {
     expect(result.productCount).toBe(1);
     expect(result.validation.requiredColumns).toContain("Attributes");
     expect(result.items).toHaveLength(1);
-    expect(result.items[0]).toMatchObject({ posCode: "P0006297", cleanedCode: "5522", categorySlug: null, stockQuantity: 10, rawName: "5522 (បញ្ចុះ)", rawAttribute: "-ខ្មៅ -M", colorKhmer: "ខ្មៅ", size: "M" });
+    expect(result.items[0]).toMatchObject({ posCode: "P0006297", cleanedCode: "5522", categorySlug: "tops", stockQuantity: 10, rawName: "5522 (បញ្ចុះ)", rawAttribute: "-ខ្មៅ -M", colorKhmer: "ខ្មៅ", size: "M" });
   });
 
   it("rejects a workbook payload exceeding the approved import size", () => {

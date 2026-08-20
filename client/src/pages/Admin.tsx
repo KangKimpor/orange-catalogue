@@ -564,7 +564,7 @@ export default function Admin() {
       <div className="model-results" role="listbox" aria-label="Matching items">
         {filteredItems.length ? filteredItems.map(product => (
           <button type="button" key={product.id} onClick={() => chooseItem(product.id)} className={product.id === selectedProductId ? "is-selected" : ""}>
-            <span className="model-result-identity"><strong>{product.cleanedCode}</strong><b className="model-result-lifecycle-tag">{product.colors.length} color{product.colors.length === 1 ? "" : "s"} · {product.lifecycleStatus === "out_of_stock" ? "Out of stock" : product.lifecycleStatus === "discontinued" ? "Discontinued" : "Active"}</b></span>
+            <span className="model-result-identity"><strong>{product.cleanedCode}</strong><span className="model-result-lifecycle-meta">{product.colors.length} color{product.colors.length === 1 ? "" : "s"} · {product.lifecycleStatus === "out_of_stock" ? "Out of stock" : product.lifecycleStatus === "discontinued" ? "Discontinued" : "Active"}</span></span>
             {product.displayName && <span className="model-result-name">{product.displayName}</span>}
             <span className="model-result-tags">{!itemSetupStatus.get(product.id)?.hasName && <b className="setup-status-tag is-missing">Name not set</b>}{itemSetupStatus.get(product.id)?.colorCount && !itemSetupStatus.get(product.id)?.hasCompletePhotoCoverage && <b className="setup-status-tag is-missing">Pictures not set · {itemSetupStatus.get(product.id)?.colorsWithPhotos}/{itemSetupStatus.get(product.id)?.colorCount} colors</b>}</span>
           </button>

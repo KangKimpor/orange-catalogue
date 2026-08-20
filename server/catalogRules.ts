@@ -59,10 +59,17 @@ export function makeSlug(value: string): string {
 
 export function classifyProduct(cleanedCode: string): AssignedCategorySlug | null {
   const upper = cleanedCode.trim().toUpperCase();
-  if (/^(ZS|ZL)\b/.test(upper)) return "tops";
-  if (/^(SK|SJ|WJ|FJ)\b/.test(upper)) return "jeans";
-  if (/^SP\b/.test(upper)) return "shorts";
-  if (/^LP\b/.test(upper)) return "pants";
+  const prefixed = (prefixes: string) => new RegExp(`^(${prefixes})(?:\\b|(?=\\d))`).test(upper);
+
+  if (prefixed("ZS|ZL")) return "tops";
+  if (prefixed("SK|SJ|WJ|FJ|JJ")) return "jeans";
+  if (prefixed("SP")) return "shorts";
+  if (prefixed("LP")) return "pants";
+  if (prefixed("HD")) return "tops";
+
+  // Keep non-product labels such as "Plastic bag" unassigned, while routing
+  // code-like numeric and alphanumeric model identifiers to the owner's Tops fallback.
+  if (/^[A-Z0-9\s-]+$/.test(upper) && /\d/.test(upper)) return "tops";
   return null;
 }
 
