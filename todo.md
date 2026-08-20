@@ -365,4 +365,4 @@
 - [x] Remove the mobile Admin workspace-switcher tooltip/tag so it cannot obstruct adjacent workspace controls after a tap.
 - [x] Avoid redundant same-workspace navigation and retain immediate mobile switching between every Admin workspace.
 - [x] Add mobile navigation regression coverage and validate the layout with focused tests, type safety, production build output, and an unauthenticated mobile-shell visual check.
-- [ ] Submit the mobile Admin workspace-switcher correction through a new pull request.
+- [x] Submit the mobile Admin workspace-switcher correction through pull request #48.
