@@ -409,3 +409,7 @@
 - [x] Repair the Catalogue Editor picker’s responsive row grid so cleaned codes, lifecycle status, website names, and setup tags remain fully visible and aligned at phone and laptop widths.
 - [x] Match Quantity changed tags to the established green New item tag and make the Item code visibly bold in POS-import preview summaries.
 - [x] Add regression coverage, validate practical desktop and phone breakpoints, and update the active pull request with the correction.
+
+- [x] Reverse the Catalogue Editor picker hierarchy so missing-name and missing-photo setup tags use the red-and-white treatment, while the color count and lifecycle appear as plain supporting text below the cleaned code.
+- [x] Extend category resolution without changing established prefix mappings: route `JJ` to Jeans, preserve `SP` as Shorts, route `HD` and otherwise alphanumeric cleaned-code patterns to Tops, and retain manual category choices.
+- [x] Add regression coverage and an idempotent category backfill migration for existing rule-managed and unassigned catalogue items, then validate and submit through a pull request.
