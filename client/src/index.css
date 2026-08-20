@@ -6035,3 +6035,87 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .batch-photo-file { transition: none !important; }
 }
+
+/* --------------------------------------------------------------------------
+   Catalogue picker repair — a fixed-width picker cannot safely reserve a
+   second max-content column for setup tags. Keep every item identity in one
+   readable vertical track instead of letting status labels push content away.
+   -------------------------------------------------------------------------- */
+.catalogue-layout .model-results button {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "identity"
+    "name"
+    "tags";
+  align-content: start;
+  gap: 6px;
+  min-height: 0;
+  padding: 11px 12px;
+}
+
+.catalogue-layout .model-results button > * { min-width: 0; }
+
+.catalogue-layout .model-results button .model-result-identity {
+  display: grid;
+  grid-area: identity;
+  justify-items: start;
+  gap: 5px;
+}
+
+.catalogue-layout .model-results button .model-result-identity strong {
+  color: var(--inventory-ink);
+  font-weight: 800;
+}
+
+.catalogue-layout .model-results button .model-result-name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalogue-layout .model-results button .model-result-tags {
+  grid-area: tags;
+  justify-self: start;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px 5px;
+  max-width: 100%;
+}
+
+.catalogue-layout .model-result-lifecycle-tag {
+  max-width: 100%;
+  min-height: 23px;
+  padding: 4px 7px;
+  line-height: 1.25;
+  white-space: normal;
+}
+
+.import-variant-change-row.is-stock_changed .eyebrow {
+  background: #276b3c;
+  color: #ffffff;
+}
+
+.import-change-summary .import-item-code {
+  color: var(--inventory-ink);
+  font-weight: 800;
+}
+
+@media (max-width: 540px) {
+  .catalogue-layout .model-results button {
+    gap: 5px;
+    padding: 10px 11px;
+  }
+
+  .catalogue-layout .model-results button .model-result-tags {
+    gap: 4px;
+  }
+}
+
+/* The broad legacy code-area rule applies to every picker <strong>; clear it
+   inside the identity stack so the cleaned code remains above its lifecycle tag. */
+.catalogue-layout .model-results button .model-result-identity strong {
+  grid-area: auto;
+  justify-self: start;
+}

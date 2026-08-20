@@ -405,3 +405,7 @@
 - [x] Add filename-driven batch photo intake that recognizes a cleaned code, optional website name, Attribute-derived color, and sequence number, previews every match, and uploads only confirmed valid matches through existing secure media contracts.
 - [x] Add an explicit confirmed item-deletion action that removes the selected model, its registered Cloudinary media, and associated metadata safely while preserving import-history snapshots and explaining future POS reintroduction behavior.
 - [x] Add regression coverage, validate the full Admin workflow update, and submit it through a dedicated pull request.
+
+- [x] Repair the Catalogue Editor picker’s responsive row grid so cleaned codes, lifecycle status, website names, and setup tags remain fully visible and aligned at phone and laptop widths.
+- [x] Match Quantity changed tags to the established green New item tag and make the Item code visibly bold in POS-import preview summaries.
+- [x] Add regression coverage, validate practical desktop and phone breakpoints, and update the active pull request with the correction.
