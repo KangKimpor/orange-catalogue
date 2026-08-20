@@ -5879,3 +5879,90 @@ html {
   .import-change-summary { padding: 14px 15px; border-radius: 12px; }
   .import-change-summary h4 { font-size: 15px; }
 }
+
+/* --------------------------------------------------------------------------
+   POS import preview — seamless expand, point-by-point change list
+   Follow-up pass: the opened panel should read as one continuous white
+   surface (no separate tinted attribute-color band, no boxed rows for each
+   change). Each change becomes a plain list row with a small color-coded
+   bullet, divided by hairlines only — solid colors, no boxes, no glass.
+   -------------------------------------------------------------------------- */
+.import-color-change-heading {
+  background: #ffffff;
+  padding: 12px 20px 8px;
+  border-bottom: 0;
+}
+
+.import-color-change-group + .import-color-change-group {
+  border-top: 1px solid var(--inventory-line);
+}
+
+.import-color-inline-change-list,
+.import-variant-change-list {
+  gap: 0;
+  padding: 2px 20px 14px;
+  background: #ffffff;
+}
+
+.import-color-inline-change-list .import-color-inline-change,
+.import-color-inline-change-list .import-color-inline-change:first-child,
+.import-variant-change-row {
+  position: relative;
+  min-height: 0;
+  margin: 0;
+  padding: 11px 4px 11px 20px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--inventory-line);
+  background: transparent;
+}
+
+.import-color-inline-change-list .import-color-inline-change:last-child,
+.import-variant-change-row:last-child {
+  border-bottom: 0;
+}
+
+.import-color-inline-change::before,
+.import-variant-change-row::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 18px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--inventory-muted);
+}
+
+.import-color-inline-change::before {
+  background: var(--preview-solid-new);
+}
+
+.import-variant-change-row.is-new_product::before { background: var(--preview-solid-new); }
+.import-variant-change-row.is-new_color::before,
+.import-variant-change-row.is-new_variant::before { background: var(--preview-solid-purple); }
+.import-variant-change-row.is-new_size::before { background: var(--preview-solid-blue); }
+.import-variant-change-row.is-price_changed::before { background: var(--preview-solid-amber); }
+.import-variant-change-row.is-stock_changed::before { background: var(--preview-solid-teal); }
+.import-variant-change-row.is-price_and_stock_changed::before { background: var(--preview-solid-brown); }
+.import-variant-change-row.is-variant_updated::before { background: var(--preview-solid-mauve); }
+.import-variant-change-row.is-missing::before { background: var(--status-red, #a3332f); }
+
+@media (max-width: 540px) {
+  .import-color-change-heading,
+  .import-color-inline-change-list,
+  .import-variant-change-list {
+    padding-inline: 15px;
+  }
+
+  .import-color-inline-change-list .import-color-inline-change,
+  .import-color-inline-change-list .import-color-inline-change:first-child,
+  .import-variant-change-row {
+    padding-left: 16px;
+  }
+
+  .import-color-inline-change::before,
+  .import-variant-change-row::before {
+    left: -1px;
+  }
+}
