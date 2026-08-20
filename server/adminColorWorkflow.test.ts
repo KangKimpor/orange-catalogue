@@ -17,7 +17,8 @@ describe("cleaned-code admin and color media workflow", () => {
   it("keeps the simplified staff workflow centered on names, categories, Just In, colors, and photos", () => {
     expect(admin).toContain("Find an item by cleaned code or website name");
     expect(admin).toContain("Website item name");
-    expect(admin).toContain("CHOOSE A COLOR");
+    expect(admin).toContain("<h4>Choose a color</h4>");
+    expect(admin).not.toContain("CHOOSE A COLOR");
     expect(admin).not.toContain("Simple item setup");
     expect(admin).not.toContain("Preview every change · apply once");
     expect(admin).not.toContain("Password-protected");
@@ -76,7 +77,8 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).not.toContain("<h2>Catalogue editor</h2>");
     expect(admin).not.toContain("<h2>POS imports</h2>");
     expect(admin).not.toContain("<h2>Security</h2>");
-    expect(admin).toContain("COLOR PHOTO STUDIO");
+    expect(admin).not.toContain("COLOR PHOTO STUDIO");
+    expect(admin).toContain("Photos for {selectedColor.englishName}");
     expect(admin).not.toContain('label: "Photos"');
   });
 
@@ -145,15 +147,26 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("Pictures not set ·");
     expect(admin).toContain("Setup complete");
     expect(admin).toContain("with photo");
-    expect(admin).toContain("A status beside each color shows whether its photo has already been added.");
+    expect(admin).not.toContain("A status beside each color shows whether its photo has already been added.");
     expect(admin).toContain("No photo yet");
     expect(admin).toContain("color-photo-status is-ready");
     expect(stylesheet).toContain(".color-photo-status.is-ready");
-    expect(admin).toContain("catalogue-editor-workspace");
+    expect(admin).toContain("catalogue-editor-workspace catalogue-editor-workflow");
+    expect(admin).toContain('className="catalogue-editor-top"');
     expect(admin).toContain("catalogue-settings-panel");
     expect(admin).toContain("catalogue-editor-details");
-    expect(admin).toContain("Storefront details");
+    expect(admin).toContain("<h4>Item details</h4>");
+    expect(admin).not.toContain("Storefront details");
+    expect(admin).toContain('className="batch-photo-panel" aria-labelledby="batch-photo-heading" hidden aria-hidden="true"');
+    expect(admin).toContain('className="attribute-panel archive-reuse-panel" hidden aria-hidden="true"');
+    expect(admin.indexOf("<h4>Item details</h4>")).toBeLessThan(admin.indexOf("<h4>Choose a color</h4>"));
+    expect(admin.indexOf("<h4>Choose a color</h4>")).toBeLessThan(admin.indexOf("Photos for {selectedColor.englishName}"));
+    expect(admin.indexOf("Photos for {selectedColor.englishName}")).toBeLessThan(admin.lastIndexOf("DELETE ITEM"));
     expect(stylesheet).toContain(".catalogue-editor-workspace");
+    expect(stylesheet).toContain("Catalogue editor — single selected-item workflow");
+    expect(stylesheet).toContain(".catalogue-editor-workflow");
+    expect(stylesheet).toContain("display: contents;");
+    expect(stylesheet).toContain(".batch-photo-panel[hidden]");
     expect(stylesheet).toContain(".catalogue-settings-panel");
     expect(stylesheet).toContain("Catalogue editor — aligned setup workflow and completion states");
     expect(stylesheet).toContain(".setup-status-tag.is-missing");

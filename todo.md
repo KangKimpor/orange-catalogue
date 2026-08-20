@@ -413,3 +413,7 @@
 - [x] Reverse the Catalogue Editor picker hierarchy so missing-name and missing-photo setup tags use the red-and-white treatment, while the color count and lifecycle appear as plain supporting text below the cleaned code.
 - [x] Extend category resolution without changing established prefix mappings: route `JJ` to Jeans, preserve `SP` as Shorts, route `HD` and otherwise alphanumeric cleaned-code patterns to Tops, and retain manual category choices.
 - [x] Add regression coverage and an idempotent category backfill migration for existing rule-managed and unassigned catalogue items, then validate and submit through a pull request.
+
+- [x] Consolidate the selected-item Catalogue Editor into one responsive bordered workflow: item details and POS Attribute color choice at the top, single-photo upload below, and the confirmed delete action at the bottom.
+- [x] Remove explanatory copy from the selected-item editor and temporarily hide the batch photo intake interface while preserving its underlying filename-matching capability.
+- [x] Add responsive editor regression coverage, validate desktop and phone layout behavior, and submit the simplification through a pull request.
