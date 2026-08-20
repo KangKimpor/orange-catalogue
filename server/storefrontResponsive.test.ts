@@ -56,7 +56,10 @@ describe("public storefront branding and responsiveness", () => {
     expect(storefront).toContain("saveStorefrontReturnPosition(window.sessionStorage, window.location, window.scrollY)");
     expect(storefront).toContain("readStorefrontReturnPosition(window.sessionStorage)");
     expect(storefront).toContain("clearStorefrontReturnPosition(window.sessionStorage)");
-    expect(storefront).toContain('window.scrollTo({ top: savedPosition.scrollY, left: 0, behavior: "auto" })');
+    expect(storefront).toContain("useLayoutEffect");
+    expect(storefront).toContain("window.scrollTo(0, savedPosition.scrollY)");
+    expect(storefront).toContain('root.style.scrollBehavior = "auto"');
+    expect(storefront).not.toContain("requestAnimationFrame(() => window.scrollTo");
     expect(detail).toContain("const storefrontReturnHref = readStorefrontReturnPosition(window.sessionStorage)?.href ?? \"/\";");
     expect(detail).toContain('href={storefrontReturnHref} className="back-link"');
   });

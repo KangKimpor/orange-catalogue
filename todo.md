@@ -383,3 +383,6 @@
 - [x] Preserve the shopper’s active storefront category and vertical position when a product card opens its detail page, including the in-app Back to shop link and browser back navigation.
 - [x] Restore the saved position only after catalogue data is ready, without adding a visible layout transition or delaying product-detail navigation.
 - [x] Add regression coverage, validate the return flow, type safety, and production build, then submit the correction through a dedicated pull request.
+
+- [x] Restore the saved storefront position synchronously before the first return paint so shoppers never see a post-navigation scroll movement.
+- [ ] Add timing regression coverage, validate the follow-up correction, and submit it through a dedicated pull request.
