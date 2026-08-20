@@ -2,6 +2,7 @@ import { type ChangeEvent, type DragEvent, type FormEvent, useEffect, useMemo, u
 import { Link, useLocation } from "wouter";
 import {
   CheckCircle2,
+  ChevronRight,
   CircleAlert,
   CloudUpload,
   FileSpreadsheet,
@@ -470,11 +471,18 @@ export default function Admin() {
       </div>
       <div className="model-results" role="listbox" aria-label="Matching items">
         {filteredItems.length ? filteredItems.map(product => (
-          <button type="button" key={product.id} onClick={() => chooseItem(product.id)} className={product.id === selectedProductId ? "is-selected" : ""}>
-            <strong>{product.cleanedCode}</strong>
-            {product.displayName && <span className="model-result-name">{product.displayName}</span>}
-            <span className="model-result-tags">{!itemSetupStatus.get(product.id)?.hasName && <b className="setup-status-tag is-missing">Name not set</b>}{itemSetupStatus.get(product.id)?.colorCount && !itemSetupStatus.get(product.id)?.hasCompletePhotoCoverage && <b className="setup-status-tag is-missing">Pictures not set · {itemSetupStatus.get(product.id)?.colorsWithPhotos}/{itemSetupStatus.get(product.id)?.colorCount} colors</b>}</span>
-            <small>{product.colors.length} color{product.colors.length === 1 ? "" : "s"} · {product.lifecycleStatus === "out_of_stock" ? "Out of stock" : product.lifecycleStatus === "discontinued" ? "Discontinued" : "Active"}</small>
+          <button type="button" key={product.id} onClick={() => chooseItem(product.id)} className={"aw-row aw-row-select" + (product.id === selectedProductId ? " is-selected" : "")}>
+            <div className="aw-row-main">
+              <div className="aw-row-heading">
+                <strong className="aw-row-title">{product.cleanedCode}</strong>
+                {product.displayName && <span className="aw-row-desc">{product.displayName}</span>}
+              </div>
+              <div className="aw-row-meta-line">
+                <small className="aw-row-meta">{product.colors.length} color{product.colors.length === 1 ? "" : "s"} · {product.lifecycleStatus === "out_of_stock" ? "Out of stock" : product.lifecycleStatus === "discontinued" ? "Discontinued" : "Active"}</small>
+                <span className="model-result-tags">{!itemSetupStatus.get(product.id)?.hasName && <b className="setup-status-tag is-missing">Name not set</b>}{itemSetupStatus.get(product.id)?.colorCount && !itemSetupStatus.get(product.id)?.hasCompletePhotoCoverage && <b className="setup-status-tag is-missing">Pictures not set · {itemSetupStatus.get(product.id)?.colorsWithPhotos}/{itemSetupStatus.get(product.id)?.colorCount} colors</b>}</span>
+              </div>
+            </div>
+            <ChevronRight className="aw-row-chevron" aria-hidden="true" />
           </button>
         )) : <p className="picker-empty">No items yet. Import your new POS file to begin.</p>}
       </div>
@@ -571,14 +579,34 @@ export default function Admin() {
             <section className="history-card import-history-card">
               <div><p className="eyebrow">IMPORT HISTORY</p><h3>Open an import to see every cleaned-code change group</h3><p>Each imported model brings its color, size, price, and quantity changes together. Any selected POS dataset can be removed safely by rebuilding from the remaining snapshots.</p></div>
               {history.data?.length ? <div className="import-history-layout">
-                <section className="import-history-list" aria-label="POS import history">{history.data.map(item => <button type="button" key={item.id} className={item.id === selectedImportId ? "is-selected" : ""} onClick={() => setSelectedImportId(item.id)}><span><b>{item.originalFilename}</b><small>{item.sourceExportDate ? `POS export ${item.sourceExportDate} · ` : ""}{new Date(item.createdAt).toLocaleString()} · {item.parsedRows} POS row{item.parsedRows === 1 ? "" : "s"}</small></span><strong>{item.status}</strong></button>)}</section>
+                <section className="import-history-list" aria-label="POS import history">{history.data.map(item => <button type="button" key={item.id} className={"aw-row aw-row-select" + (item.id === selectedImportId ? " is-selected" : "")} onClick={() => setSelectedImportId(item.id)}>
+                  <div className="aw-row-main">
+                    <div className="aw-row-heading">
+                      <span className="aw-row-title">{item.originalFilename}</span>
+                      <span className={"aw-row-status is-" + item.status}>{item.status}</span>
+                    </div>
+                    <small className="aw-row-meta">{item.sourceExportDate ? `POS export ${item.sourceExportDate} · ` : ""}{new Date(item.createdAt).toLocaleString()} · {item.parsedRows} POS row{item.parsedRows === 1 ? "" : "s"}</small>
+                  </div>
+                  <ChevronRight className="aw-row-chevron" aria-hidden="true" />
+                </button>)}</section>
                 <section className="import-history-detail">{importDetails.isLoading ? <div className="empty-workspace">Loading this import’s changes…</div> : importDetails.error ? <p className="form-error">{importDetails.error.message}</p> : importDetails.data ? <><div className="import-detail-heading"><div><p className="eyebrow">SELECTED IMPORT</p><h3>{importDetails.data.originalFilename}</h3><p>{importDetails.data.sourceExportDate ? `POS export ${importDetails.data.sourceExportDate} · ` : ""}{new Date(importDetails.data.createdAt).toLocaleString()} · {importDetails.data.changeGroups.length} cleaned-code item{importDetails.data.changeGroups.length === 1 ? "" : "s"} changed</p></div><span>{importDetails.data.status}</span></div>{importDetails.data.canRemove && <div className="import-removal-panel"><div><p className="eyebrow">REMOVE THIS IMPORT</p><p>Remove any selected POS dataset only when needed. The catalogue is rebuilt from the remaining retained snapshots in chronological order; website-managed names, categories, lifecycle choices, and remote photos are preserved.</p></div><button type="button" className="quiet-action danger-action" onClick={removeSelectedImport} disabled={removeImport.isPending}>{removeImport.isPending ? "Rebuilding catalogue…" : "Remove this POS dataset"}</button></div>}{importRemovalFeedback && <p className={removeImport.error ? "form-error" : "form-success"}>{importRemovalFeedback}</p>}<div className="import-change-list"><ImportChangeGroups groups={importDetails.data.changeGroups as ImportChangeGroupView[]} /></div></> : <div className="empty-workspace">Choose an import to see its changes.</div>}</section>
               </div> : <p className="empty-media">No import history yet.</p>}
             </section>
           </section>
         )}
 
-        {workspace === "settings" && <section className="admin-view settings-view"><div className="workspace-intro"><div><p>Update the shared admin password when store staff or access requirements change.</p></div></div><section className="security-card"><div><p className="eyebrow">ADMIN PASSWORD</p><h3>Change workspace password</h3><p>The active session will be renewed after a successful update.</p></div><form onSubmit={async event => { event.preventDefault(); await changePassword.mutateAsync({ currentPassword, newPassword }); setCurrentPassword(""); setNewPassword(""); }}><label>Current password<input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} autoComplete="current-password" /></label><label>New password<input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} minLength={4} autoComplete="new-password" /></label><button type="submit" className="primary-action" disabled={changePassword.isPending}>{changePassword.isPending ? "Updating…" : "Update password"}</button>{changePassword.error && <p className="form-error">{changePassword.error.message}</p>}</form></section></section>}
+        {workspace === "settings" && <section className="admin-view settings-view"><div className="workspace-intro"><div><p>Update the shared admin password when store staff or access requirements change.</p></div></div>
+          <details className="security-card aw-collapsible-row" open>
+            <summary className="aw-collapsible-summary">
+              <div className="aw-row-heading"><span className="aw-row-title">Password</span></div>
+              <p className="aw-row-desc">Change the admin workspace password. The active session renews after a successful update.</p>
+              <ChevronRight className="aw-row-chevron" aria-hidden="true" />
+            </summary>
+            <div className="aw-collapsible-body">
+              <form onSubmit={async event => { event.preventDefault(); await changePassword.mutateAsync({ currentPassword, newPassword }); setCurrentPassword(""); setNewPassword(""); }}><label>Current password<input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} autoComplete="current-password" /></label><label>New password<input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} minLength={4} autoComplete="new-password" /></label><button type="submit" className="primary-action" disabled={changePassword.isPending}>{changePassword.isPending ? "Updating…" : "Update password"}</button>{changePassword.error && <p className="form-error">{changePassword.error.message}</p>}</form>
+            </div>
+          </details>
+        </section>}
       </main>
     </div>
   );
