@@ -189,7 +189,7 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("function importGroupSummary");
     expect(admin).toContain("<details className=\"import-change-group\"");
     expect(admin).toContain("className=\"import-change-summary\"");
-    expect(admin).toContain("<h4>Item <span>{group.code}</span>");
+    expect(admin).toContain('<h4>Item <strong className="import-item-code">{group.code}</strong>');
     expect(admin).not.toContain("CLEANED-CODE ITEM");
     expect(admin).toContain("className=\"import-change-group-body\"");
     expect(admin).toContain("quantity update");
@@ -221,6 +221,17 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("<b>{importInlineChangeTitle(change)}</b>");
     expect(stylesheet).toContain(".import-new-item-tag");
     expect(stylesheet).toContain("background: #276b3c;");
+    expect(stylesheet).toContain(".import-variant-change-row.is-stock_changed .eyebrow");
+    expect(stylesheet).toContain(".import-change-summary .import-item-code");
+  });
+
+  it("keeps each Catalogue picker result visible and aligned in its fixed-width column", () => {
+    expect(stylesheet).toContain("Catalogue picker repair");
+    expect(stylesheet).toContain('grid-template-areas:\n    "identity"\n    "name"\n    "tags";');
+    expect(stylesheet).toContain(".catalogue-layout .model-results button > * { min-width: 0; }");
+    expect(stylesheet).toContain(".catalogue-layout .model-results button .model-result-tags");
+    expect(stylesheet).toContain("white-space: normal;");
+    expect(stylesheet).toContain("grid-area: auto;");
   });
 
   it("shows staged POS import feedback before reading, previewing, applying, succeeding, or failing", () => {
