@@ -392,3 +392,6 @@
 
 - [x] Revert the four unwanted direct-main Claude design commits after PR #53, restoring the approved Admin presentation without rolling back the POS, category, media, feedback, or storefront reliability work.
 - [ ] Validate the scoped restoration, preserve checklist history, and submit it through a focused pull request.
+
+- [x] Refine only existing Admin collapsible and expandable rows into consistent rounded editorial cards, preserving their current data, disclosure behavior, and every non-accordion surface.
+- [ ] Cover the shared accordion presentation contract, validate desktop and mobile disclosure behavior, and submit the refinement through a focused pull request.
