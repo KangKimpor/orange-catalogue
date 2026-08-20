@@ -388,4 +388,4 @@
 - [x] Add timing regression coverage, validate the follow-up correction, and submit it through a dedicated pull request.
 
 - [x] Replace the import-preview CLEANED-CODE ITEM row label with the compact “Item {code}” heading while keeping new-item badges and summary text intact.
-- [ ] Add regression coverage, validate the compact import-row presentation, and submit the refinement through a dedicated pull request.
+- [x] Add regression coverage, validate the compact import-row presentation, and submit the refinement through a dedicated pull request.
