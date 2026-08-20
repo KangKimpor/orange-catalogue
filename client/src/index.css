@@ -5253,22 +5253,17 @@ html {
 }
 
 .import-change-summary {
-  min-height: 72px;
-  padding: 12px 16px;
-}
-
-.import-change-summary .eyebrow {
-  margin-bottom: 3px;
-  color: var(--inventory-ink);
-  letter-spacing: .08em;
+  min-height: 64px;
+  padding: 11px 16px;
 }
 
 .import-change-summary h4 {
+  margin: 0;
   font-size: 14px;
 }
 
 .import-change-summary-text {
-  margin-top: 4px;
+  margin-top: 3px;
   font-size: 10px;
 }
 
