@@ -448,3 +448,4 @@
 - [x] Extend the storefront pink header treatment continuously across the complete viewport, including the category divider, at desktop and phone widths.
 - [x] Remove only the selected-color Photo Upload explanatory description panel while preserving the established file picker, upload action, feedback, and current-color media library.
 - [x] Enclose the mobile Admin rail without horizontal clipping and align the one-line Sign out control cleanly, then validate with regression coverage and a focused pull request.
+- [x] Restore the logo and category-navigation surface to the prior white storefront treatment without reintroducing a width cutoff, misaligned divider, or responsive regression.
