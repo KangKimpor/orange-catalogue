@@ -444,3 +444,7 @@
 
 - [x] Consolidate the public Shorts and Pants taxonomy into Legwear, moving every existing item safely and routing future SP and LP imports to Legwear.
 - [x] Preserve legacy `?category=shorts` and `?category=pants` storefront links by opening Legwear, then validate category rules, migration results, and responsive navigation through a dedicated pull request.
+
+- [x] Extend the storefront pink header treatment continuously across the complete viewport, including the category divider, at desktop and phone widths.
+- [x] Remove only the selected-color Photo Upload explanatory description panel while preserving the established file picker, upload action, feedback, and current-color media library.
+- [x] Enclose the mobile Admin rail without horizontal clipping and align the one-line Sign out control cleanly, then validate with regression coverage and a focused pull request.

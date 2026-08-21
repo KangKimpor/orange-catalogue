@@ -34,6 +34,15 @@ describe("public storefront branding and responsiveness", () => {
     expect(stylesheet).toContain("overflow-x: auto");
   });
 
+  it("keeps the pink header surface continuous behind the logo and category navigation", () => {
+    expect(storefront).toContain('className="store-header-surface"');
+    expect(stylesheet).toContain(".store-header-surface {");
+    expect(stylesheet).toContain("background: var(--orange-pink-deep);");
+    expect(stylesheet).toContain(".store-header-surface .store-header");
+    expect(stylesheet).toContain(".store-header-surface .category-nav");
+    expect(stylesheet).toContain("border-bottom: 1px solid var(--orange-line);");
+  });
+
   it("uses the requested compact copy, Messenger footer link, and sold-out-only product labels", () => {
     expect(storefront).not.toContain("WOMEN&apos;S CLOTHING");
     expect(storefront).not.toContain("ORANGE COLLECTION");

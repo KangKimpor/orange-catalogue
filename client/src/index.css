@@ -7033,3 +7033,71 @@ html {
     border-top-color: var(--orange-line);
   }
 }
+
+/* ============================================================================
+   USER-REQUESTED LAYOUT REPAIRS — continuous storefront pink and enclosed
+   mobile Admin rail. Keep the visual change structural and do not alter the
+   approved product-grid, editor, or upload interaction design.
+   ============================================================================ */
+.store-header-surface {
+  width: 100%;
+  background: var(--orange-pink-deep);
+  border-bottom: 1px solid var(--orange-line);
+}
+
+.store-header-surface .store-header {
+  background: transparent;
+  border-bottom: 0;
+}
+
+.store-header-surface .category-nav {
+  background: transparent;
+  border-bottom: 0;
+}
+
+@media (max-width: 820px) {
+  .admin-app {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  .admin-app .admin-rail {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    border-right: 0;
+    border-bottom: 1px solid var(--aw-line);
+    overflow: hidden;
+  }
+
+  .admin-app .admin-rail nav {
+    min-width: 0;
+  }
+
+  .admin-app .admin-rail-footer {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .admin-app .admin-logout {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    gap: 6px;
+    width: auto;
+    min-width: 0;
+    padding: 9px 10px;
+    font-size: 11px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .admin-app .admin-logout svg {
+    width: 16px;
+    height: 16px;
+    flex: none;
+  }
+}

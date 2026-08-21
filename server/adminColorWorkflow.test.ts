@@ -52,6 +52,16 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".admin-rail-footer");
   });
 
+  it("keeps the mobile Admin rail enclosed and the Sign out control on one aligned line", () => {
+    expect(admin).toContain('className="admin-logout"><LogOut aria-hidden="true" />Log out</button>');
+    expect(stylesheet).toContain(".admin-app .admin-rail {");
+    expect(stylesheet).toContain("overflow-x: clip;");
+    expect(stylesheet).toContain("box-sizing: border-box;");
+    expect(stylesheet).toContain(".admin-app .admin-logout {");
+    expect(stylesheet).toContain("white-space: nowrap;");
+    expect(stylesheet).toContain("font-size: 11px;");
+  });
+
   it("loads the versioned Supabase logo before application rendering and falls back to the packaged same-origin asset", () => {
     expect(brandLogo).toContain('https://ccaavswuaeqdkgvetlai.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png');
     expect(brandLogo).toContain('export const LOCAL_BRAND_LOGO_URL = "/orange-logo.png"');
@@ -196,12 +206,13 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("min-height: 64px;");
   });
 
-  it("guides a photo upload through validation, Cloudinary transfer, saving, and confirmation", () => {
+  it("keeps the photo uploader and real upload feedback while removing its idle explanatory panel", () => {
     expect(admin).toContain("Choose a JPG, PNG, or WebP image");
     expect(admin).toContain("Preparing a secure Cloudinary upload");
     expect(admin).toContain("Uploading ${uploadingFile.name} to Cloudinary");
     expect(admin).toContain("Saving the ${selectedColor.englishName} photo");
-    expect(admin).toContain("photo-upload-feedback");
+    expect(admin).toContain("Drag a photo here, or click to browse");
+    expect(admin).toContain('photoUploadFeedback.status !== "idle" && <div className={`photo-upload-feedback');
     expect(admin).toContain("Photo saved");
     expect(admin).toContain("upload-completion-mark");
     expect(stylesheet).toContain(".photo-upload-feedback.is-success");
@@ -340,7 +351,7 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("admin-session-status");
     expect(admin).not.toContain("overview-hero");
     expect(admin).not.toContain("Start with your first POS import.");
-    expect(admin).toContain("<article><span>Items</span>");
+    expect(admin).toContain('<article><PackageSearch aria-hidden="true" /><span>Items</span>');
     expect(admin).toContain("VERCEL ANALYTICS");
     expect(admin).toContain("Storefront visitors");
     expect(admin).toContain("vercelAnalyticsSnapshot.storefrontVisitors");
