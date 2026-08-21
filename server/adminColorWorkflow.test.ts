@@ -91,11 +91,17 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".catalogue-layout .model-search span {");
   });
 
-  it("uses a continuous full-width picker search surface without a divider above the item results", () => {
+  it("keeps the Catalogue picker unpadded and free of the former result-list divider", () => {
     expect(stylesheet).toContain("Continuous Catalogue picker surface — make search a full-width picker band");
     expect(stylesheet).toContain(".catalogue-layout .model-picker {\n  padding: 0;\n  overflow: hidden;");
-    expect(stylesheet).toContain(".catalogue-layout .model-search {\n  width: 100%;\n  margin: 0;\n  border-radius: 0;");
     expect(stylesheet).toContain(".catalogue-layout .model-results {\n  border-top: 0;");
+  });
+
+  it("uses a card-aligned Catalogue pill search with an intentional gap before results", () => {
+    expect(stylesheet).toContain("Catalogue pill search — match the item-card measure and use calm whitespace,");
+    expect(stylesheet).toContain(".catalogue-layout .model-picker > label {\n  display: block;\n  padding: 16px 16px 10px;");
+    expect(stylesheet).toContain(".catalogue-layout .model-search {\n  width: calc(100% - 24px);\n  margin: 0 12px 12px;\n  padding: 7px 14px;\n  border: 1px solid var(--aw-line);\n  border-radius: 999px;");
+    expect(stylesheet).toContain(".catalogue-layout .model-results {\n  padding: 0 12px 14px;\n  border-top: 0;");
   });
 
   it("loads the versioned Supabase logo before application rendering and falls back to the packaged same-origin asset", () => {

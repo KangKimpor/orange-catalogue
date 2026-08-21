@@ -7328,3 +7328,29 @@ html {
 .catalogue-layout .model-results {
   border-top: 0;
 }
+
+/* Catalogue pill search — match the item-card measure and use calm whitespace,
+   rather than a divider, to separate the search action from the result list. */
+.catalogue-layout .model-picker > label {
+  display: block;
+  padding: 16px 16px 10px;
+}
+
+.catalogue-layout .model-search {
+  width: calc(100% - 24px);
+  margin: 0 12px 12px;
+  padding: 7px 14px;
+  border: 1px solid var(--aw-line);
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.catalogue-layout .model-results {
+  padding: 0 12px 14px;
+  border-top: 0;
+  background: #ffffff;
+}
+
+.catalogue-layout .model-results button:last-child {
+  margin-bottom: 0;
+}
