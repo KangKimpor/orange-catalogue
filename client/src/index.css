@@ -6960,3 +6960,76 @@ html {
 }
 .delete-photo-action:hover:not(:disabled) { background: #96332D; border-color: #96332D; }
 .delete-photo-action svg { color: #FFFFFF; }
+
+/* ============================================================================
+   ITEM CODE READABILITY (Aug 2026 follow-up)
+   Every cleaned-code / POS code display — storefront and admin — gets a
+   slightly larger size and a clearer sans font instead of cramped mono.
+   ============================================================================ */
+.product-code,
+.detail-code {
+  font: 600 12px "DM Sans", sans-serif;
+  letter-spacing: .01em;
+}
+.detail-code { font-size: 13px; }
+
+.import-item-code,
+.import-change-summary h4 {
+  font: 700 16px "DM Sans", sans-serif;
+  letter-spacing: 0;
+}
+
+.model-results button .model-result-identity strong,
+.catalogue-layout .model-results button .model-result-identity strong {
+  font: 700 14px "DM Sans", sans-serif;
+  letter-spacing: 0;
+}
+
+/* ============================================================================
+   STOREFRONT — BORDER, SPACING, AND SOLID-COLOR CORRECTIONS (Aug 2026)
+   Fixes: muted text token collapsed to pure black (killed text hierarchy),
+   leftover backdrop-filter blur/glass on nav, availability tag, gallery
+   arrows and pips, and a stray gradient background — all against the solid-
+   color design rule. Borders are unified on --orange-line throughout.
+   ============================================================================ */
+.store-shell {
+  --orange-muted: #6F6B66;
+}
+
+/* No blur/glass anywhere on the storefront — solid, slightly higher-opacity
+   backgrounds stand in for the translucency the blur was masking. */
+.category-nav {
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.availability {
+  background: #ffffff;
+  backdrop-filter: none;
+}
+.gallery-arrow {
+  background: var(--orange-pink-deep);
+  border-color: var(--orange-pink);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.gallery-photo-pips {
+  background: #ffffff;
+  backdrop-filter: none;
+}
+
+/* Solid color instead of gradient */
+@media (max-width: 850px) {
+  .catalogue-intro {
+    background: var(--orange-soft-blush);
+  }
+}
+
+/* Border alignment: keep every storefront divider on the same pink line
+   token at every width, including the narrow product-detail layout where a
+   stale tan border previously reappeared. */
+@media (max-width: 850px) {
+  .detail-content {
+    border-top-color: var(--orange-line);
+  }
+}

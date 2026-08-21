@@ -37,7 +37,7 @@ export default function ProductDetail() {
     setPhotoIndex(current => nextGalleryPhotoIndex(current, colorMedia.length, direction));
   };
 
-  if (isLoading) return <div className="min-h-screen bg-[#f6f1e8]" />;
+  if (isLoading) return <div className="min-h-screen bg-white" />;
   if (!product) return <div className="store-shell p-10">Product not found.</div>;
 
   return (
