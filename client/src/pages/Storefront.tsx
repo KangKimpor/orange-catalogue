@@ -64,24 +64,26 @@ export default function Storefront() {
 
   return (
     <div className="store-shell">
-      <header className="store-header">
-        <Link href="/" className="brand-mark" aria-label="Orange home">
-          <img {...BRAND_IMAGE} alt="Orange" decoding="async" fetchPriority="high" onError={fallbackToLocalBrandLogo} />
-        </Link>
-      </header>
+      <div className="store-header-surface">
+        <header className="store-header">
+          <Link href="/" className="brand-mark" aria-label="Orange home">
+            <img {...BRAND_IMAGE} alt="Orange" decoding="async" fetchPriority="high" onError={fallbackToLocalBrandLogo} />
+          </Link>
+        </header>
 
-      <nav className="category-nav" aria-label="Product categories">
-        {categories.map(category => (
-          <button key={category.slug} className={activeCategory === category.slug ? "is-active" : ""} onClick={() => {
-                setActiveCategory(category.slug);
-                const url = new URL(window.location.href);
-                url.searchParams.set("category", category.slug);
-                window.history.replaceState({}, "", url);
-              }}>
-            {category.label}
-          </button>
-        ))}
-      </nav>
+        <nav className="category-nav" aria-label="Product categories">
+          {categories.map(category => (
+            <button key={category.slug} className={activeCategory === category.slug ? "is-active" : ""} onClick={() => {
+                  setActiveCategory(category.slug);
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("category", category.slug);
+                  window.history.replaceState({}, "", url);
+                }}>
+              {category.label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       <main>
         <section className="catalogue-intro">
