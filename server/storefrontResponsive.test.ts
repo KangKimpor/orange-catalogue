@@ -34,10 +34,11 @@ describe("public storefront branding and responsiveness", () => {
     expect(stylesheet).toContain("overflow-x: auto");
   });
 
-  it("keeps the pink header surface continuous behind the logo and category navigation", () => {
+  it("keeps the white header surface continuous behind the logo and category navigation", () => {
     expect(storefront).toContain('className="store-header-surface"');
     expect(stylesheet).toContain(".store-header-surface {");
-    expect(stylesheet).toContain("background: var(--orange-pink-deep);");
+    expect(stylesheet).toContain("background: #ffffff;");
+    expect(stylesheet).not.toContain(".store-header-surface {\n  width: 100%;\n  background: var(--orange-pink-deep);");
     expect(stylesheet).toContain(".store-header-surface .store-header");
     expect(stylesheet).toContain(".store-header-surface .category-nav");
     expect(stylesheet).toContain("border-bottom: 1px solid var(--orange-line);");
