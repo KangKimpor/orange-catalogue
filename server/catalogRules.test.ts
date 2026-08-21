@@ -32,6 +32,23 @@ describe("Orange catalogue rules", () => {
     expect(parseAttributes("-ពណ៌សាកល្បង -L").colorKey).toMatch(/^attribute-/);
   });
 
+  it("maps the owner-approved Khmer color spellings to stable English storefront labels", () => {
+    const cases = [
+      ["-ប្រផេះដិត -M", "ប្រផេះដិត", "Dark Grey", "dark-grey"],
+      ["-ក្រហមដឹត", "ក្រហមដឹត", "Dark Red", "dark-red"],
+      ["-ប្រផេះស្រាល -S", "ប្រផេះស្រាល", "Light Grey", "light-grey"],
+      ["-ផ្ទៃំមេឃ", "ផ្ទៃំមេឃ", "Sky Blue", "sky-blue"],
+      ["-ទិកបិច", "ទិកបិច", "Ink Blue", "ink-blue"],
+      ["-ទឹកប៊ិក -L", "ទឹកប៊ិក", "Ink Blue", "ink-blue"],
+      ["-ទឺកបិច", "ទឺកបិច", "Ink Blue", "ink-blue"],
+      ["-ទីកសណ្តែក", "ទីកសណ្តែក", "Beige", "beige"],
+    ] as const;
+
+    for (const [attribute, colorKhmer, colorEnglish, colorKey] of cases) {
+      expect(parseAttributes(attribute)).toMatchObject({ colorKhmer, colorEnglish, colorKey });
+    }
+  });
+
   it("creates the required Messenger link with the selected product information", () => {
     const link = buildMessengerOrderUrl({ productCode: "P0006297", color: "Black", size: "M" });
     expect(link).toContain("https://m.me/OfficiallyDavit?text=");
