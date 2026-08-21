@@ -52,14 +52,20 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".admin-rail-footer");
   });
 
-  it("keeps the mobile Admin rail enclosed and the Sign out control on one aligned line", () => {
+  it("keeps the mobile Admin rail enclosed with a balanced brand-and-logout row and equal workspace controls", () => {
     expect(admin).toContain('className="admin-logout"><LogOut aria-hidden="true" />Log out</button>');
     expect(stylesheet).toContain(".admin-app .admin-rail {");
     expect(stylesheet).toContain("overflow-x: clip;");
     expect(stylesheet).toContain("box-sizing: border-box;");
+    expect(stylesheet).toContain("Mobile Admin rail — give the wordmark and Sign out their own balanced row");
+    expect(stylesheet).toContain('grid-template-areas:\n      "brand logout"\n      "nav nav";');
+    expect(stylesheet).toContain("grid-template-columns: repeat(4, minmax(0, 1fr));");
+    expect(stylesheet).toContain(".admin-app .admin-wordmark {");
+    expect(stylesheet).toContain("min-height: 62px;");
     expect(stylesheet).toContain(".admin-app .admin-logout {");
     expect(stylesheet).toContain("white-space: nowrap;");
-    expect(stylesheet).toContain("font-size: 11px;");
+    expect(stylesheet).toContain("font-size: 12px;");
+    expect(stylesheet).toContain("border-radius: 12px;");
   });
 
   it("loads the versioned Supabase logo before application rendering and falls back to the packaged same-origin asset", () => {

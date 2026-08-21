@@ -7101,3 +7101,70 @@ html {
     flex: none;
   }
 }
+
+/* Mobile Admin rail — give the wordmark and Sign out their own balanced row,
+   then lay the four icon-only workspaces out as equal, fully visible targets.
+   This prevents the footer from being squeezed off the right edge on phones. */
+@media (max-width: 540px) {
+  .admin-app .admin-rail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand logout"
+      "nav nav";
+    align-items: center;
+    gap: 10px 12px;
+    padding: max(12px, env(safe-area-inset-top)) 14px 12px;
+    overflow: visible;
+  }
+
+  .admin-app .admin-wordmark {
+    grid-area: brand;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 62px;
+    margin: 0;
+    padding: 0;
+  }
+
+  .admin-app .admin-wordmark img {
+    width: 62px;
+    height: 62px;
+  }
+
+  .admin-app .admin-rail nav {
+    grid-area: nav;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+    min-width: 0;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .admin-app .admin-rail nav button {
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 10px 0;
+    border-radius: 12px;
+  }
+
+  .admin-app .admin-rail-footer {
+    grid-area: logout;
+    display: block;
+    margin: 0;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .admin-app .admin-logout {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
