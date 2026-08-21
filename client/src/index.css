@@ -6364,3 +6364,63 @@ html {
     gap: 8px;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Catalogue editor — wide photo-studio alignment
+   Keep the photo count and every photo action in one intentional left-aligned
+   working column on large screens, rather than spreading controls to the edge.
+   -------------------------------------------------------------------------- */
+@media (min-width: 1366px) {
+  .catalogue-layout .catalogue-editor-workflow .catalogue-photo-studio {
+    padding: 24px 30px 26px 26px;
+  }
+
+  .catalogue-layout .catalogue-editor-workflow .catalogue-photo-heading {
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .catalogue-layout .catalogue-editor-workflow .catalogue-photo-heading > span {
+    padding-top: 2px;
+  }
+
+  .catalogue-layout .catalogue-editor-workflow .photo-association,
+  .catalogue-layout .catalogue-editor-workflow .photo-upload-feedback,
+  .catalogue-layout .catalogue-editor-workflow .upload-progress,
+  .catalogue-layout .catalogue-editor-workflow .catalogue-photo-studio > .form-actions,
+  .catalogue-layout .catalogue-editor-workflow .photo-library {
+    width: min(100%, 680px);
+    margin-right: auto;
+    margin-left: 0;
+  }
+
+  .catalogue-layout .catalogue-editor-workflow .catalogue-photo-studio > .form-actions {
+    justify-content: flex-start;
+  }
+}
+
+.catalogue-layout .catalogue-editor-workflow .simple-item-form .just-in-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  gap: 8px;
+}
+
+.catalogue-layout .catalogue-editor-workflow .simple-item-form .just-in-toggle > span {
+  flex: 0 1 auto;
+}
+
+@media (max-width: 540px) {
+  .catalogue-layout .catalogue-editor-workflow .simple-item-form .just-in-toggle {
+    min-height: 42px;
+    padding: 8px 10px;
+    gap: 7px;
+  }
+}
+
+.catalogue-layout .catalogue-editor-workflow .simple-item-form .just-in-toggle {
+  grid-column: 1 / -1;
+}

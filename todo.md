@@ -422,3 +422,7 @@
 - [x] Verify the rebalanced selected-item editor at desktop and phone widths, then submit the refinement through a pull request.
 
 - [x] Replace the superseded conflicted pull request with a fresh branch from current main after verifying that its intended picker and editor behavior is already present in main.
+
+- [x] Align the photo-studio heading, count, upload controls, feedback, action, and current-photo section to one consistent left inset on wide laptop screens.
+- [x] Make Feature in Just In more compact and center its label-and-switch group precisely inside its light-pink control.
+- [x] Add responsive Admin regression coverage, validate representative laptop and phone layouts, and submit the alignment refinement through a pull request.
