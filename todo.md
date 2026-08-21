@@ -434,3 +434,7 @@
 - [x] Normalize the approved Attribute spellings to canonical English storefront colors: Dark Grey, Dark Red, Light Grey, Sky Blue, Ink Blue, and Beige.
 - [x] Add future-import parser coverage and idempotent Supabase migrations that consolidate existing variants into canonical color records without changing raw POS Attribute text.
 - [x] Verify every affected live variant resolves to one canonical English color record, then update and validate the Orange Catalogue operations skill with the reusable workflow.
+
+- [x] Investigate the Supabase Security Advisor warning for publicly executable `SECURITY DEFINER` POS import procedures and confirm that anonymous and authenticated API roles could invoke all three functions.
+- [x] Revoke `PUBLIC`, `anon`, and `authenticated` execution on the privileged POS import, rollback, and import-rebuild functions; retain explicit `service_role` execution for the authenticated Orange server workflow.
+- [x] Add service-role-only RPC regression coverage, apply the live migration, and verify every hardened function now denies `anon` and `authenticated` while preserving service-role access.
