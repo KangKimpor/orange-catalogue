@@ -7280,3 +7280,34 @@ html {
     width: 100%;
   }
 }
+
+/* Desktop Catalogue search alignment — keep the search shell flush with the
+   full-width item-result rows and place the count beneath its example line. */
+@media (min-width: 541px) {
+  .catalogue-layout .model-search {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "icon input"
+      ". count";
+    width: 100%;
+    min-width: 0;
+    margin: 0 0 16px;
+    padding: 8px 12px;
+  }
+
+  .catalogue-layout .model-search svg {
+    grid-area: icon;
+  }
+
+  .catalogue-layout .model-search input {
+    grid-area: input;
+    min-width: 0;
+  }
+
+  .catalogue-layout .model-search span {
+    grid-area: count;
+    justify-self: start;
+    padding-top: 2px;
+  }
+}

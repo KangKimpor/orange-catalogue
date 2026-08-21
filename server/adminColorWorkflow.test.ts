@@ -83,6 +83,14 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("grid-template-columns: minmax(0, 1fr);");
   });
 
+  it("aligns the desktop Catalogue search exactly to its item-result column and places the count beneath the example", () => {
+    expect(stylesheet).toContain("Desktop Catalogue search alignment — keep the search shell flush with the");
+    expect(stylesheet).toContain("@media (min-width: 541px) {");
+    expect(stylesheet).toContain('grid-template-areas:\n      "icon input"\n      ". count";');
+    expect(stylesheet).toContain("margin: 0 0 16px;");
+    expect(stylesheet).toContain(".catalogue-layout .model-search span {");
+  });
+
   it("loads the versioned Supabase logo before application rendering and falls back to the packaged same-origin asset", () => {
     expect(brandLogo).toContain('https://ccaavswuaeqdkgvetlai.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png');
     expect(brandLogo).toContain('export const LOCAL_BRAND_LOGO_URL = "/orange-logo.png"');
