@@ -6368,9 +6368,10 @@ html {
 /* --------------------------------------------------------------------------
    Catalogue editor — wide photo-studio alignment
    Keep the photo count and every photo action in one intentional left-aligned
-   working column on large screens, rather than spreading controls to the edge.
+   working column whenever the editor has side-by-side desktop panels, rather
+   than spreading controls to the edge at intermediate laptop widths.
    -------------------------------------------------------------------------- */
-@media (min-width: 1366px) {
+@media (min-width: 821px) {
   .catalogue-layout .catalogue-editor-workflow .catalogue-photo-studio {
     padding: 24px 30px 26px 26px;
   }
