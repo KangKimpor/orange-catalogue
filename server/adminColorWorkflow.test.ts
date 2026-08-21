@@ -174,6 +174,7 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".catalogue-color-picker-inline");
     expect(stylesheet).toContain("grid-template-columns: auto auto;");
     expect(stylesheet).toContain("Catalogue editor — wide photo-studio alignment");
+    expect(stylesheet).toContain("@media (min-width: 821px)");
     expect(stylesheet).toContain("width: min(100%, 680px);");
     expect(stylesheet).toContain(".catalogue-photo-heading > span");
     expect(stylesheet).toContain("min-height: 44px;");

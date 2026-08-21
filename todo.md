@@ -426,3 +426,6 @@
 - [x] Align the photo-studio heading, count, upload controls, feedback, action, and current-photo section to one consistent left inset on wide laptop screens.
 - [x] Make Feature in Just In more compact and center its label-and-switch group precisely inside its light-pink control.
 - [x] Add responsive Admin regression coverage, validate representative laptop and phone layouts, and submit the alignment refinement through a pull request.
+
+- [x] Match the selected-color photo studio to the approved reference at all desktop editor widths: photo count immediately beside the title, stable shared insets, balanced upload zone, and aligned feedback/action/current-photo sections.
+- [x] Add regression coverage, validate the reference geometry at laptop and phone breakpoints, and submit the correction through a pull request.
