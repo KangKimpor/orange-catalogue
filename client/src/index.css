@@ -6425,3 +6425,10 @@ html {
 .catalogue-layout .catalogue-editor-workflow .simple-item-form .just-in-toggle {
   grid-column: 1 / -1;
 }
+
+/* Storefront performance: defer far-below-the-fold card rendering without changing
+   card data, photo quality, responsive grid behavior, or return-position semantics. */
+.product-grid > .product-card:not(.product-card-skeleton) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 32rem;
+}

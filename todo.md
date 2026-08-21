@@ -438,3 +438,6 @@
 - [x] Investigate the Supabase Security Advisor warning for publicly executable `SECURITY DEFINER` POS import procedures and confirm that anonymous and authenticated API roles could invoke all three functions.
 - [x] Revoke `PUBLIC`, `anon`, and `authenticated` execution on the privileged POS import, rollback, and import-rebuild functions; retain explicit `service_role` execution for the authenticated Orange server workflow.
 - [x] Add service-role-only RPC regression coverage, apply the live migration, and verify every hardened function now denies `anon` and `authenticated` while preserving service-role access.
+
+- [x] Add a Cloudinary preconnect hint, prioritize the first photo-bearing catalogue cards, and defer far-below-the-fold grid rendering without changing the current `q_auto` photo quality.
+- [x] Add regression coverage, validate desktop and phone storefront behavior, and deliver the image-loading improvement through a dedicated pull request.
