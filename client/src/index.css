@@ -6935,3 +6935,28 @@ html {
 /* login */
 .admin-login { background: var(--aw-bg); }
 .login-card { background: var(--aw-surface); border-color: var(--aw-line); color: var(--aw-text); }
+
+/* ============================================================================
+   ORANGE ADMIN — DELETE/DANGER BUTTON CONTRAST FIX (Aug 2026 follow-up)
+   Solid danger-red pill with white lettering, so it reads clearly instead of
+   red-on-red. Applies to every quiet-action.danger-action (Delete this item,
+   Remove this POS dataset, Delete photo).
+   ============================================================================ */
+.quiet-action.danger-action {
+  background: var(--aw-danger);
+  color: #FFFFFF;
+  border: 1px solid var(--aw-danger);
+}
+.quiet-action.danger-action:hover:not(:disabled) {
+  background: #96332D;
+  border-color: #96332D;
+  color: #FFFFFF;
+}
+.quiet-action.danger-action:disabled { background: var(--aw-danger); opacity: .5; color: #FFFFFF; }
+.delete-photo-action {
+  background: var(--aw-danger);
+  color: #FFFFFF;
+  border: 1px solid var(--aw-danger);
+}
+.delete-photo-action:hover:not(:disabled) { background: #96332D; border-color: #96332D; }
+.delete-photo-action svg { color: #FFFFFF; }
