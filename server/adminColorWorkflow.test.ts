@@ -91,6 +91,13 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".catalogue-layout .model-search span {");
   });
 
+  it("uses a continuous full-width picker search surface without a divider above the item results", () => {
+    expect(stylesheet).toContain("Continuous Catalogue picker surface — make search a full-width picker band");
+    expect(stylesheet).toContain(".catalogue-layout .model-picker {\n  padding: 0;\n  overflow: hidden;");
+    expect(stylesheet).toContain(".catalogue-layout .model-search {\n  width: 100%;\n  margin: 0;\n  border-radius: 0;");
+    expect(stylesheet).toContain(".catalogue-layout .model-results {\n  border-top: 0;");
+  });
+
   it("loads the versioned Supabase logo before application rendering and falls back to the packaged same-origin asset", () => {
     expect(brandLogo).toContain('https://ccaavswuaeqdkgvetlai.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png');
     expect(brandLogo).toContain('export const LOCAL_BRAND_LOGO_URL = "/orange-logo.png"');

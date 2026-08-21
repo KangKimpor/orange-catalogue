@@ -453,3 +453,4 @@
 - [x] Complete a mobile Admin containment pass: enclose the Overview title context, align the Catalogue search field to its result column, and prevent the photo-upload/editor panel from clipping at iPhone-class widths.
 - [x] Match the mobile Catalogue search field’s left and right edges exactly to the item-result boxes, while positioning the shown-item count beneath the example text.
 - [x] Match the desktop Catalogue search field’s left and right edges exactly to the item-result boxes, with the shown-item count displayed beneath the example text.
+- [x] Expand the Catalogue search shell to the complete picker surface and remove the separator between it and the item-result list without reducing result-row readability.

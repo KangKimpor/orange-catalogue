@@ -7311,3 +7311,20 @@ html {
     padding-top: 2px;
   }
 }
+
+/* Continuous Catalogue picker surface — make search a full-width picker band
+   and remove the retired divider above the individual item-result cards. */
+.catalogue-layout .model-picker {
+  padding: 0;
+  overflow: hidden;
+}
+
+.catalogue-layout .model-search {
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
+}
+
+.catalogue-layout .model-results {
+  border-top: 0;
+}
