@@ -52,6 +52,10 @@ export default function Storefront() {
     () => (data?.products ?? []).filter(product => belongsInStorefrontCategory(product, activeCategory)),
     [activeCategory, data],
   );
+  const priorityMediaProductIds = useMemo(
+    () => products.filter(product => product.media.length > 0).slice(0, 2).map(product => product.id),
+    [products],
+  );
 
   return (
     <div className="store-shell">
@@ -86,14 +90,15 @@ export default function Storefront() {
               <div className="product-image" />
               <div className="product-meta"><span /><span /><span /></div>
             </div>
-          )) : products.map((product, index) => {
+          )) : products.map(product => {
             const primary = product.media.find(media => media.isPrimary) ?? product.media[0];
             const primaryImage = primary ? responsiveCatalogueMedia(primary.url, "grid") : null;
+            const imagePriority = priorityMediaProductIds.indexOf(product.id);
             const firstColor = product.colors[0];
             return (
               <Link href={`/product/${product.slug}`} className="product-card" key={product.id} onClick={rememberStorefrontPosition} onPointerEnter={() => preloadProductDetail(product.slug)} onFocus={() => preloadProductDetail(product.slug)} onTouchStart={() => preloadProductDetail(product.slug)}>
                 <div className="product-image">
-                  {primaryImage ? <img {...primaryImage} alt={primary?.altText || product.displayName || product.cleanedCode} loading={index < 2 ? "eager" : "lazy"} fetchPriority={index === 0 ? "high" : "auto"} decoding="async" onLoad={event => event.currentTarget.classList.add("is-loaded")} onError={event => event.currentTarget.classList.add("is-loaded")} /> : <span>{firstColor?.englishName || "Orange"}</span>}
+                  {primaryImage ? <img {...primaryImage} alt={primary?.altText || product.displayName || product.cleanedCode} loading={imagePriority >= 0 ? "eager" : "lazy"} fetchPriority={imagePriority === 0 ? "high" : "auto"} decoding="async" onLoad={event => event.currentTarget.classList.add("is-loaded")} onError={event => event.currentTarget.classList.add("is-loaded")} /> : <span>{firstColor?.englishName || "Orange"}</span>}
                   {!product.available && <span className="availability soldout">Sold Out</span>}
                 </div>
                 <div className="product-meta">

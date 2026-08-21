@@ -5,6 +5,8 @@ const storefront = readFileSync(new URL("../client/src/pages/Storefront.tsx", im
 const detail = readFileSync(new URL("../client/src/pages/ProductDetail.tsx", import.meta.url), "utf8");
 const brandLogo = readFileSync(new URL("../client/src/lib/brandLogo.ts", import.meta.url), "utf8");
 const stylesheet = readFileSync(new URL("../client/src/index.css", import.meta.url), "utf8");
+const indexHtml = readFileSync(new URL("../client/index.html", import.meta.url), "utf8");
+const catalogueMedia = readFileSync(new URL("../client/src/lib/catalogueMedia.ts", import.meta.url), "utf8");
 
 describe("public storefront branding and responsiveness", () => {
   it("uses the Supabase-hosted Orange logo and a resilient same-origin fallback in both public navigation surfaces", () => {
@@ -49,6 +51,18 @@ describe("public storefront branding and responsiveness", () => {
     expect(stylesheet).toContain("scale(.985)");
     expect(stylesheet).toContain(".product-image img,");
     expect(stylesheet).toContain(".message-button {");
+  });
+
+  it("connects to Cloudinary early, prioritizes real catalogue photos, and defers only offscreen card rendering", () => {
+    expect(indexHtml).toContain('rel="preconnect" href="https://res.cloudinary.com" crossorigin');
+    expect(storefront).toContain("priorityMediaProductIds");
+    expect(storefront).toContain("products.filter(product => product.media.length > 0).slice(0, 2)");
+    expect(storefront).toContain('loading={imagePriority >= 0 ? "eager" : "lazy"}');
+    expect(storefront).toContain('fetchPriority={imagePriority === 0 ? "high" : "auto"}');
+    expect(stylesheet).toContain("content-visibility: auto;");
+    expect(stylesheet).toContain("contain-intrinsic-size: auto 32rem;");
+    expect(catalogueMedia).toContain("f_auto,q_auto,c_limit");
+    expect(catalogueMedia).not.toContain("q_auto:eco");
   });
 
   it("returns shoppers to the saved catalogue category and vertical position after viewing an item", () => {
