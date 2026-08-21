@@ -6837,3 +6837,101 @@ html {
   .overview-view .metric-grid article { padding: 16px; }
   .overview-view .metric-grid article strong { font-size: 26px; }
 }
+
+/* ============================================================================
+   ORANGE ADMIN — PALETTE PASS: white main surfaces, pink as the only accent
+   (Aug 2026 follow-up). Supersedes the warm multi-hue pass above by source
+   order. Keep semantic red (errors/missing) distinct from decorative pink;
+   everything else — active states, primary actions, hints, badges — uses one
+   restrained pink family only. No new hues introduced.
+   ============================================================================ */
+
+:root {
+  --aw-bg: #FFFFFF;
+  --aw-surface: #FFFFFF;
+  --aw-sunken: #FFF7FA;
+  --aw-active: #FFF0F5;
+  --aw-line: #F7DBE5;
+  --aw-accent-dot: #F7C4D3;
+  --aw-accent-icon: #D98BA3;
+  --aw-text: #111111;
+  --aw-muted: #6F6B66;
+}
+
+.admin-app { background: var(--aw-bg); }
+.admin-view .eyebrow, .admin-topbar .eyebrow, .login-card .eyebrow { color: var(--aw-accent-icon); }
+
+/* sidebar */
+.admin-rail { background: var(--aw-surface); border-right-color: var(--aw-line); }
+.admin-rail nav button:hover, .admin-rail nav button:focus-visible { background: var(--aw-sunken); color: var(--aw-text); }
+.admin-rail nav button.is-active { background: var(--aw-active); color: var(--aw-text); box-shadow: none; }
+.admin-user-chip { background: var(--aw-sunken); }
+.admin-user-avatar { background: var(--aw-accent-dot); color: var(--aw-text); }
+.admin-logout:hover { background: var(--aw-sunken); }
+
+/* topbar */
+.admin-topbar { border-bottom-color: var(--aw-line); }
+.admin-session { background: var(--aw-surface); border-color: var(--aw-line); color: var(--aw-text); }
+.admin-session-status svg { color: var(--aw-accent-icon); }
+.admin-topbar-logout:hover, .admin-topbar-logout:focus-visible { background: var(--aw-sunken); }
+
+/* stat cards: one white-and-pink family, no rotating hues */
+.overview-view .metric-grid article,
+.overview-view .metric-grid article:nth-child(4n+2),
+.overview-view .metric-grid article:nth-child(4n+3),
+.overview-view .metric-grid article:nth-child(4n+4) {
+  background: var(--aw-surface);
+  border: 1px solid var(--aw-line);
+  color: var(--aw-text);
+}
+.overview-view .metric-grid article svg { background: var(--aw-active); color: var(--aw-accent-icon); }
+.overview-view .metric-grid article span,
+.overview-view .metric-grid article small { color: var(--aw-muted); }
+.overview-view .metric-grid article strong { color: var(--aw-text); }
+
+/* cards */
+.history-card, .security-card, .import-workbench, .model-editor, .model-picker,
+.vercel-analytics-panel, .catalogue-settings-panel, .catalogue-photo-studio,
+.attribute-panel { background: var(--aw-surface); border-color: var(--aw-line); }
+.preview-card, .import-history-detail, .import-removal-panel, .item-delete-panel,
+.batch-photo-panel, .archive-reuse-panel { background: var(--aw-sunken); border-color: var(--aw-line); }
+.vercel-analytics-panel header span { background: var(--aw-active); color: var(--aw-text); }
+.analytics-metrics article { background: var(--aw-sunken); }
+.analytics-metrics strong { color: var(--aw-text); }
+
+/* buttons */
+.primary-action, .login-card button, .password-form button {
+  background: var(--aw-active);
+  color: var(--aw-text);
+  border: 1px solid var(--aw-accent-dot);
+}
+.primary-action:hover:not(:disabled) { background: var(--aw-accent-dot); }
+.secondary-action { border-color: var(--aw-line); color: var(--aw-text); }
+.secondary-action:hover:not(:disabled) { background: var(--aw-sunken); }
+.quiet-action:hover:not(:disabled) { background: var(--aw-sunken); color: var(--aw-text); }
+
+/* inputs */
+.model-search, .login-card input, .password-form input, .login-password-label input {
+  background: var(--aw-sunken);
+  border-color: var(--aw-line);
+}
+.login-card input:focus-visible, .password-form input:focus-visible, .model-search:focus-within {
+  border-color: var(--aw-accent-dot);
+  box-shadow: 0 0 0 3px var(--aw-active);
+}
+
+/* rows */
+.model-results button, .import-history-list button { background: var(--aw-surface); border-color: var(--aw-line); }
+.model-results button:hover, .import-history-list button:hover { background: var(--aw-sunken); }
+.model-results button.is-selected, .import-history-list button.is-selected {
+  background: var(--aw-active);
+  border-color: var(--aw-accent-dot);
+}
+
+/* badges: pink for neutral/positive info, red stays reserved for problems that need fixing */
+.setup-status-tag.is-ready { background: var(--aw-active); color: var(--aw-text); }
+.import-new-item-tag { background: var(--aw-active); color: var(--aw-text); }
+
+/* login */
+.admin-login { background: var(--aw-bg); }
+.login-card { background: var(--aw-surface); border-color: var(--aw-line); color: var(--aw-text); }
