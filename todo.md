@@ -429,3 +429,8 @@
 
 - [x] Match the selected-color photo studio to the approved reference at all desktop editor widths: photo count immediately beside the title, stable shared insets, balanced upload zone, and aligned feedback/action/current-photo sections.
 - [x] Add regression coverage, validate the reference geometry at laptop and phone breakpoints, and submit the correction through a pull request.
+
+- [x] Audit every distinct live Khmer POS Attribute color, preserve raw source text, and confirm the only ambiguous bean-color spelling with the owner.
+- [x] Normalize the approved Attribute spellings to canonical English storefront colors: Dark Grey, Dark Red, Light Grey, Sky Blue, Ink Blue, and Beige.
+- [x] Add future-import parser coverage and idempotent Supabase migrations that consolidate existing variants into canonical color records without changing raw POS Attribute text.
+- [x] Verify every affected live variant resolves to one canonical English color record, then update and validate the Orange Catalogue operations skill with the reusable workflow.
