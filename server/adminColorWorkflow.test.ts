@@ -74,8 +74,9 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("border: 1px solid var(--aw-line);");
     expect(stylesheet).toContain("border-radius: 6px;");
     expect(stylesheet).toContain(".catalogue-layout .model-search {");
-    expect(stylesheet).toContain('grid-template-areas:\n      "icon input"\n      "count count";');
-    expect(stylesheet).toContain("width: calc(100% - 24px);");
+    expect(stylesheet).toContain('grid-template-areas:\n      "icon input"\n      ". count";');
+    expect(stylesheet).toContain("width: 100%;");
+    expect(stylesheet).toContain("margin: 0 0 14px;");
     expect(stylesheet).toContain(".catalogue-layout .catalogue-photo-studio,");
     expect(stylesheet).toContain("overflow: visible;");
     expect(stylesheet).toContain("overflow-wrap: anywhere;");

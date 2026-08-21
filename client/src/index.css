@@ -7212,10 +7212,10 @@ html {
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas:
       "icon input"
-      "count count";
-    width: calc(100% - 24px);
+      ". count";
+    width: 100%;
     min-width: 0;
-    margin: 0 12px 14px;
+    margin: 0 0 14px;
     padding: 8px 12px;
   }
 
