@@ -7035,13 +7035,13 @@ html {
 }
 
 /* ============================================================================
-   USER-REQUESTED LAYOUT REPAIRS — continuous storefront pink and enclosed
-   mobile Admin rail. Keep the visual change structural and do not alter the
-   approved product-grid, editor, or upload interaction design.
+   USER-REQUESTED LAYOUT REPAIRS — continuous white storefront header and
+   enclosed mobile Admin rail. Keep the visual change structural and do not
+   alter the approved product-grid, editor, or upload interaction design.
    ============================================================================ */
 .store-header-surface {
   width: 100%;
-  background: var(--orange-pink-deep);
+  background: #ffffff;
   border-bottom: 1px solid var(--orange-line);
 }
 
