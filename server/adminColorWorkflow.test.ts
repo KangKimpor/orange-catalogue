@@ -68,6 +68,20 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("border-radius: 12px;");
   });
 
+  it("keeps the Overview title, Catalogue search, and photo editor fully contained at iPhone widths", () => {
+    expect(stylesheet).toContain("Mobile Admin containment pass — preserve one consistent inset");
+    expect(stylesheet).toContain(".admin-app .admin-topbar {");
+    expect(stylesheet).toContain("border: 1px solid var(--aw-line);");
+    expect(stylesheet).toContain("border-radius: 6px;");
+    expect(stylesheet).toContain(".catalogue-layout .model-search {");
+    expect(stylesheet).toContain('grid-template-areas:\n      "icon input"\n      "count count";');
+    expect(stylesheet).toContain("width: calc(100% - 24px);");
+    expect(stylesheet).toContain(".catalogue-layout .catalogue-photo-studio,");
+    expect(stylesheet).toContain("overflow: visible;");
+    expect(stylesheet).toContain("overflow-wrap: anywhere;");
+    expect(stylesheet).toContain("grid-template-columns: minmax(0, 1fr);");
+  });
+
   it("loads the versioned Supabase logo before application rendering and falls back to the packaged same-origin asset", () => {
     expect(brandLogo).toContain('https://ccaavswuaeqdkgvetlai.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png');
     expect(brandLogo).toContain('export const LOCAL_BRAND_LOGO_URL = "/orange-logo.png"');

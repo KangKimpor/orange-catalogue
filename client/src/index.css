@@ -7168,3 +7168,115 @@ html {
     font-size: 12px;
   }
 }
+
+/* Mobile Admin containment pass — preserve one consistent inset and fully
+   enclosed surface for every phone-width workspace. Search, editor, and upload
+   content must shrink within their panel instead of losing a right edge. */
+@media (max-width: 540px) {
+  .admin-app .admin-workspace {
+    padding: 0 14px calc(34px + env(safe-area-inset-bottom));
+  }
+
+  .admin-app .admin-topbar {
+    box-sizing: border-box;
+    width: 100%;
+    margin: 14px 0 0;
+    padding: 18px 16px;
+    border: 1px solid var(--aw-line);
+    border-radius: 6px;
+    background: var(--aw-surface);
+  }
+
+  .admin-app .admin-page-context {
+    min-width: 0;
+    padding: 0;
+  }
+
+  .admin-app .admin-page-description {
+    max-width: none;
+    overflow-wrap: anywhere;
+  }
+
+  .catalogue-layout .model-picker {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .catalogue-layout .model-picker > label {
+    padding: 15px 12px 9px;
+  }
+
+  .catalogue-layout .model-search {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "icon input"
+      "count count";
+    width: calc(100% - 24px);
+    min-width: 0;
+    margin: 0 12px 14px;
+    padding: 8px 12px;
+  }
+
+  .catalogue-layout .model-search svg {
+    grid-area: icon;
+  }
+
+  .catalogue-layout .model-search input {
+    grid-area: input;
+    min-width: 0;
+  }
+
+  .catalogue-layout .model-search span {
+    grid-area: count;
+    justify-self: start;
+    padding-top: 2px;
+  }
+
+  .catalogue-layout .catalogue-editor,
+  .catalogue-layout .catalogue-editor-workflow,
+  .catalogue-layout .catalogue-photo-studio,
+  .catalogue-layout .photo-association,
+  .catalogue-layout .photo-association .upload-dropzone,
+  .catalogue-layout .photo-upload-feedback,
+  .catalogue-layout .upload-progress,
+  .catalogue-layout .photo-library,
+  .catalogue-layout .catalogue-photo-studio > .form-actions {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .catalogue-layout .catalogue-editor-workflow {
+    overflow: visible;
+  }
+
+  .catalogue-layout .catalogue-photo-studio {
+    border-top: 1px solid var(--aw-line);
+  }
+
+  .catalogue-layout .photo-association .upload-dropzone {
+    display: grid;
+    min-height: 176px;
+    padding: 16px;
+  }
+
+  .catalogue-layout .photo-association .upload-dropzone span,
+  .catalogue-layout .photo-association .upload-dropzone small,
+  .catalogue-layout .catalogue-photo-studio > .form-actions button {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .catalogue-layout .catalogue-photo-studio > .form-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .catalogue-layout .catalogue-photo-studio > .form-actions button {
+    width: 100%;
+  }
+}

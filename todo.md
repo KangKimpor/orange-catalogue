@@ -450,3 +450,4 @@
 - [x] Enclose the mobile Admin rail without horizontal clipping and align the one-line Sign out control cleanly, then validate with regression coverage and a focused pull request.
 - [x] Restore the logo and category-navigation surface to the prior white storefront treatment without reintroducing a width cutoff, misaligned divider, or responsive regression.
 - [x] Rebalance the mobile Admin rail so every workspace control and the Sign out action remain fully visible, evenly spaced, and enclosed on iPhone-class viewports.
+- [x] Complete a mobile Admin containment pass: enclose the Overview title context, align the Catalogue search field to its result column, and prevent the photo-upload/editor panel from clipping at iPhone-class widths.
