@@ -29,7 +29,7 @@ describe("public storefront branding and responsiveness", () => {
   });
 
   it("centers the mobile category picker while retaining safe horizontal navigation behavior", () => {
-    expect(stylesheet).toContain("Center the five categories when they fit");
+    expect(stylesheet).toContain("Center the category links when they fit");
     expect(stylesheet).toContain("justify-content: center;");
     expect(stylesheet).toContain("overflow-x: auto");
   });
@@ -40,6 +40,14 @@ describe("public storefront branding and responsiveness", () => {
     expect(storefront).toContain('href="https://m.me/OfficiallyDavit"');
     expect(storefront).toContain("!product.available && <span className=\"availability soldout\">Sold Out</span>");
     expect(detail).toContain("!selectedVariant?.available && <p className=\"detail-status soldout\">Sold Out</p>");
+  });
+
+  it("exposes Legwear and normalizes historical Shorts and Pants storefront links", () => {
+    expect(storefront).toContain('{ slug: "legwear", label: "Legwear" }');
+    expect(storefront).not.toContain('{ slug: "shorts", label: "Shorts" }');
+    expect(storefront).not.toContain('{ slug: "pants", label: "Pants" }');
+    expect(storefront).toContain("canonicalStorefrontCategorySlug");
+    expect(storefront).toContain('url.searchParams.set("category", canonical)');
   });
 
   it("confirms product-card image readiness and the Messenger handoff without unnecessary navigation delay", () => {

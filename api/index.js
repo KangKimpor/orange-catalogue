@@ -724,8 +724,7 @@ var PUBLIC_CATEGORIES = [
   { slug: "just-in", label: "Just In" },
   { slug: "tops", label: "Tops" },
   { slug: "jeans", label: "Jeans" },
-  { slug: "shorts", label: "Shorts" },
-  { slug: "pants", label: "Pants" }
+  { slug: "legwear", label: "Legwear" }
 ];
 var COLOR_MAP = {
   "\u1791\u17B9\u1780\u1794\u17CA\u17B7\u1785": { english: "Ink Blue", hex: "#2C3E5C", key: "ink-blue" },
@@ -775,8 +774,7 @@ function classifyProduct(cleanedCode) {
   const prefixed = (prefixes) => new RegExp(`^(${prefixes})(?:\\b|(?=\\d))`).test(upper);
   if (prefixed("ZS|ZL")) return "tops";
   if (prefixed("SK|SJ|WJ|FJ|JJ")) return "jeans";
-  if (prefixed("SP")) return "shorts";
-  if (prefixed("LP")) return "pants";
+  if (prefixed("SP|LP")) return "legwear";
   if (prefixed("HD")) return "tops";
   if (/^[A-Z0-9\s-]+$/.test(upper) && /\d/.test(upper)) return "tops";
   return null;
