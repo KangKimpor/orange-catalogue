@@ -5,9 +5,11 @@ import {
   CircleAlert,
   CloudUpload,
   FileSpreadsheet,
+  Image as ImageIcon,
   LayoutDashboard,
   LoaderCircle,
   LogOut,
+  Palette,
   PackageSearch,
   Search,
   Settings,
@@ -165,6 +167,13 @@ function posImportErrorMessage(error: unknown, action: "preview" | "apply") {
       : "The preview server returned an interrupted response. Choose the file again and create a new preview.";
   }
   return message || (action === "apply" ? "The POS import could not be applied. Your existing catalogue is unchanged." : "The POS preview could not be prepared. Please try again.");
+}
+
+function formatAdminTodayLabel() {
+  const now = new Date();
+  const day = now.getDate();
+  const suffix = day % 10 === 1 && day !== 11 ? "st" : day % 10 === 2 && day !== 12 ? "nd" : day % 10 === 3 && day !== 13 ? "rd" : "th";
+  return `${day}${suffix} ${now.toLocaleDateString(undefined, { month: "long", year: "numeric" })}`;
 }
 
 function AdminLogin() {
@@ -584,22 +593,25 @@ export default function Admin() {
             return <button type="button" key={item.id} className={workspace === item.id ? "is-active" : ""} onClick={() => openWorkspace(item.id)} aria-label={`${item.label}: ${item.hint}`}><Icon aria-hidden="true" /><span>{item.label}</span></button>;
           })}
         </nav>
-        <div className="admin-rail-footer"><p>Orange admin</p><button type="button" onClick={() => logout.mutate()} className="admin-logout"><LogOut aria-hidden="true" />Sign out</button></div>
+        <div className="admin-rail-footer">
+          <div className="admin-user-chip"><span className="admin-user-avatar" aria-hidden="true">O</span><span><b>Orange admin</b><small>Store workspace</small></span></div>
+          <button type="button" onClick={() => logout.mutate()} className="admin-logout"><LogOut aria-hidden="true" />Log out</button>
+        </div>
       </aside>
 
       <main className="admin-workspace">
         <header className="admin-topbar">
-          <div className="admin-page-context"><p className="eyebrow">ORANGE INVENTORY</p><h1>{workspaceMeta.find(item => item.id === workspace)?.label}</h1><p className="admin-page-description">{workspaceMeta.find(item => item.id === workspace)?.hint}</p></div>
+          <div className="admin-page-context"><p className="eyebrow">ORANGE INVENTORY</p><h1>{workspaceMeta.find(item => item.id === workspace)?.label}</h1><p className="admin-page-description">{workspaceMeta.find(item => item.id === workspace)?.hint} · <span className="admin-page-date">{formatAdminTodayLabel()}</span></p></div>
           <div className="admin-session"><span className="admin-session-status"><ShieldCheck aria-hidden="true" />Secure session</span><button type="button" className="admin-topbar-logout" onClick={() => logout.mutate()}><LogOut aria-hidden="true" />Sign out</button></div>
         </header>
 
         {workspace === "overview" && (
           <section className="admin-view overview-view">
             <div className="metric-grid">
-              <article><span>Items</span><strong>{products.length}</strong><small>Cleaned-code groups</small></article>
-              <article><span>Photos ready</span><strong>{photoReadyCount}</strong><small>Items with media</small></article>
-              <article><span>Applied imports</span><strong>{appliedImportCount}</strong><small>Snapshot history</small></article>
-              <article><span>Attribute colors</span><strong>{products.reduce((total, product) => total + product.colors.length, 0)}</strong><small>Imported color groups</small></article>
+              <article><PackageSearch aria-hidden="true" /><span>Items</span><strong>{products.length}</strong><small>Cleaned-code groups</small></article>
+              <article><ImageIcon aria-hidden="true" /><span>Photos ready</span><strong>{photoReadyCount}</strong><small>Items with media</small></article>
+              <article><FileSpreadsheet aria-hidden="true" /><span>Applied imports</span><strong>{appliedImportCount}</strong><small>Snapshot history</small></article>
+              <article><Palette aria-hidden="true" /><span>Attribute colors</span><strong>{products.reduce((total, product) => total + product.colors.length, 0)}</strong><small>Imported color groups</small></article>
             </div>
             <section className="vercel-analytics-panel" aria-label="Vercel Analytics storefront visitor snapshot"><header><div><p className="eyebrow">VERCEL ANALYTICS</p><h3>Storefront visitors</h3><p>{vercelAnalyticsSnapshot.source} · {vercelAnalyticsSnapshot.reportingPeriod}</p></div><span>Snapshot</span></header><div className="analytics-metrics analytics-visitors-only"><article><span>Storefront visitors</span><strong>{vercelAnalyticsSnapshot.storefrontVisitors}</strong><small>Visitors to the public shop</small></article></div></section>
           </section>
