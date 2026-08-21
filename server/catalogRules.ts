@@ -2,8 +2,7 @@ export const PUBLIC_CATEGORIES = [
   { slug: "just-in", label: "Just In" },
   { slug: "tops", label: "Tops" },
   { slug: "jeans", label: "Jeans" },
-  { slug: "shorts", label: "Shorts" },
-  { slug: "pants", label: "Pants" },
+  { slug: "legwear", label: "Legwear" },
 ] as const;
 
 export type CategorySlug = (typeof PUBLIC_CATEGORIES)[number]["slug"];
@@ -71,8 +70,7 @@ export function classifyProduct(cleanedCode: string): AssignedCategorySlug | nul
 
   if (prefixed("ZS|ZL")) return "tops";
   if (prefixed("SK|SJ|WJ|FJ|JJ")) return "jeans";
-  if (prefixed("SP")) return "shorts";
-  if (prefixed("LP")) return "pants";
+  if (prefixed("SP|LP")) return "legwear";
   if (prefixed("HD")) return "tops";
 
   // Keep non-product labels such as "Plastic bag" unassigned, while routing

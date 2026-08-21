@@ -1064,7 +1064,7 @@ html {
   }
 
   .category-nav {
-    /* Center the five categories when they fit; flex safely falls back
+    /* Center the category links when they fit; flex safely falls back
        to start alignment when a narrower screen needs horizontal scroll. */
     justify-content: center;
     gap: 30px;

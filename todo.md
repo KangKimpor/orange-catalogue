@@ -441,3 +441,6 @@
 
 - [x] Add a Cloudinary preconnect hint, prioritize the first photo-bearing catalogue cards, and defer far-below-the-fold grid rendering without changing the current `q_auto` photo quality.
 - [x] Add regression coverage, validate desktop and phone storefront behavior, and deliver the image-loading improvement through a dedicated pull request.
+
+- [x] Consolidate the public Shorts and Pants taxonomy into Legwear, moving every existing item safely and routing future SP and LP imports to Legwear.
+- [x] Preserve legacy `?category=shorts` and `?category=pants` storefront links by opening Legwear, then validate category rules, migration results, and responsive navigation through a dedicated pull request.

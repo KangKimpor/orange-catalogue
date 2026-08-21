@@ -4,7 +4,7 @@ import { buildMessengerOrderUrl, classifyProduct, cleanProductCode, parseAttribu
 import { MAX_POS_IMPORT_BYTES, MAX_POS_IMPORT_ROWS, MAX_POS_IMPORT_SHEETS, parsePosWorkbook } from "./posImport";
 
 describe("Orange catalogue rules", () => {
-  it("applies the owner-approved five-category code rules", () => {
+  it("applies the owner-approved four-category code rules", () => {
     expect(classifyProduct("ZS 00255")).toBe("tops");
     expect(classifyProduct("ZL 0047")).toBe("tops");
     expect(classifyProduct("SK 0024-A")).toBe("jeans");
@@ -12,9 +12,9 @@ describe("Orange catalogue rules", () => {
     expect(classifyProduct("WJ 0046")).toBe("jeans");
     expect(classifyProduct("FJ 220")).toBe("jeans");
     expect(classifyProduct("JJ 634")).toBe("jeans");
-    expect(classifyProduct("SP 009")).toBe("shorts");
-    expect(classifyProduct("SP412")).toBe("shorts");
-    expect(classifyProduct("LP 6020")).toBe("pants");
+    expect(classifyProduct("SP 009")).toBe("legwear");
+    expect(classifyProduct("SP412")).toBe("legwear");
+    expect(classifyProduct("LP 6020")).toBe("legwear");
     expect(classifyProduct("HD 0010")).toBe("tops");
     expect(classifyProduct("60215")).toBe("tops");
     expect(classifyProduct("Y0237-1")).toBe("tops");

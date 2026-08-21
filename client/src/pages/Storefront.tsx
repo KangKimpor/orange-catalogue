@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { belongsInStorefrontCategory } from "@/lib/storefrontCategories";
+import { belongsInStorefrontCategory, canonicalStorefrontCategorySlug } from "@/lib/storefrontCategories";
 import { responsiveCatalogueMedia } from "@/lib/catalogueMedia";
 import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
 import { clearStorefrontReturnPosition, readStorefrontReturnPosition, saveStorefrontReturnPosition, storefrontHref } from "@/lib/storefrontReturnPosition";
@@ -11,8 +11,7 @@ const FALLBACK_CATEGORIES = [
   { slug: "just-in", label: "Just In" },
   { slug: "tops", label: "Tops" },
   { slug: "jeans", label: "Jeans" },
-  { slug: "shorts", label: "Shorts" },
-  { slug: "pants", label: "Pants" },
+  { slug: "legwear", label: "Legwear" },
 ] as const;
 
 function money(value: number) {
@@ -27,11 +26,17 @@ export default function Storefront() {
     void utils.store.catalogue.getBySlug.prefetch({ slug });
   };
   const rememberStorefrontPosition = () => saveStorefrontReturnPosition(window.sessionStorage, window.location, window.scrollY);
-  const [activeCategory, setActiveCategory] = useState(() => {
-    const requested = new URLSearchParams(window.location.search).get("category");
-    return requested || "just-in";
-  });
+  const [activeCategory, setActiveCategory] = useState(() => canonicalStorefrontCategorySlug(new URLSearchParams(window.location.search).get("category")));
   const categories = data?.categories?.length ? data.categories : FALLBACK_CATEGORIES;
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const requested = url.searchParams.get("category");
+    const canonical = canonicalStorefrontCategorySlug(requested);
+    if (requested && requested !== canonical) {
+      url.searchParams.set("category", canonical);
+      window.history.replaceState({}, "", url);
+    }
+  }, []);
   useEffect(() => {
     for (const product of data?.products ?? []) {
       utils.store.catalogue.getBySlug.setData({ slug: product.slug }, product.detail);
