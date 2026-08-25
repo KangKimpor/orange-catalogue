@@ -457,3 +457,4 @@
 - [x] Redesign the Catalogue editor search as a pill control matching the item-result-card width, with a clear gap before the results at phone and desktop widths.
 - [x] Refine the desktop Catalogue pill so the icon, example text, and shown-item count are fully visible and evenly aligned without clipping.
 - [x] Standardize staff-facing cleaned-code and POS-code typography around a readable bold sans treatment with clear numeric figures across the Catalogue and import workspaces.
+- [x] Remediate all reproducible Dependabot dependency alerts, including transitive tar and Babel advisories and the vulnerable Vite/esbuild chain, then re-audit the resolved lockfile.
