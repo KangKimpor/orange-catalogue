@@ -104,6 +104,16 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".catalogue-layout .model-results {\n  padding: 0 12px 14px;\n  border-top: 0;");
   });
 
+  it("keeps all desktop pill-search content visible on one aligned row", () => {
+    expect(stylesheet).toContain("Desktop pill content visibility — keep every search affordance on one");
+    expect(stylesheet).toContain("@media (min-width: 821px) {");
+    expect(stylesheet).toContain('grid-template-areas: "icon input count";');
+    expect(stylesheet).toContain("min-height: 52px;");
+    expect(stylesheet).toContain("white-space: nowrap;");
+    expect(stylesheet).toContain("@media (min-width: 1120px) {");
+    expect(stylesheet).toContain("grid-template-columns: minmax(360px, .72fr) minmax(0, 1.28fr);");
+  });
+
   it("loads the versioned Supabase logo before application rendering and falls back to the packaged same-origin asset", () => {
     expect(brandLogo).toContain('https://ccaavswuaeqdkgvetlai.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png');
     expect(brandLogo).toContain('export const LOCAL_BRAND_LOGO_URL = "/orange-logo.png"');

@@ -7354,3 +7354,32 @@ html {
 .catalogue-layout .model-results button:last-child {
   margin-bottom: 0;
 }
+
+/* Desktop pill content visibility — keep every search affordance on one
+   comfortably sized row instead of allowing the count to fall below the pill. */
+@media (min-width: 821px) {
+  .catalogue-layout .model-search {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "icon input count";
+    align-items: center;
+    min-height: 52px;
+    padding: 6px 16px;
+  }
+
+  .catalogue-layout .model-search span {
+    grid-area: count;
+    justify-self: end;
+    margin: 0;
+    padding: 0;
+    white-space: nowrap;
+  }
+}
+
+/* Desktop pill content width — give the Catalogue picker enough room for the
+   full example string and its shown-item count without crowding the editor. */
+@media (min-width: 1120px) {
+  .catalogue-layout {
+    grid-template-columns: minmax(360px, .72fr) minmax(0, 1.28fr);
+  }
+}
