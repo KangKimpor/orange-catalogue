@@ -203,12 +203,15 @@ function AdminLogin() {
 
 export default function Admin() {
   const [location, setLocation] = useLocation();
+  const workspace = workspaceFromPath(location, window.location.search);
   const utils = trpc.useUtils();
   const { data: isAdmin, isLoading } = trpc.store.admin.session.useQuery();
-  const overview = trpc.store.admin.overview.useQuery(undefined, { enabled: Boolean(isAdmin) });
+  const requiresOverview = workspace === "overview" || workspace === "catalogue";
+  const requiresImportHistory = workspace === "overview" || workspace === "imports";
+  const overview = trpc.store.admin.overview.useQuery(undefined, { enabled: Boolean(isAdmin && requiresOverview) });
   const [selectedImportId, setSelectedImportId] = useState<number | null>(null);
-  const history = trpc.store.admin.importHistory.useQuery(undefined, { enabled: Boolean(isAdmin) });
-  const importDetails = trpc.store.admin.importDetails.useQuery({ importId: selectedImportId ?? 0 }, { enabled: Boolean(isAdmin && selectedImportId) });
+  const history = trpc.store.admin.importHistory.useQuery(undefined, { enabled: Boolean(isAdmin && requiresImportHistory) });
+  const importDetails = trpc.store.admin.importDetails.useQuery({ importId: selectedImportId ?? 0 }, { enabled: Boolean(isAdmin && workspace === "imports" && selectedImportId) });
   const logout = trpc.store.admin.logout.useMutation({ onSuccess: () => utils.store.admin.session.invalidate() });
   const updateProduct = trpc.store.admin.updateProduct.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
   const reuseArchivedContent = trpc.store.admin.reuseArchivedContent.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
@@ -221,7 +224,6 @@ export default function Admin() {
   const deleteMedia = trpc.store.admin.deleteMedia.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
   const deleteProduct = trpc.store.admin.deleteProduct.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
 
-  const workspace = workspaceFromPath(location, window.location.search);
   const [itemSearch, setItemSearch] = useState("");
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
@@ -276,7 +278,13 @@ export default function Admin() {
   const readyBatchPhotoCount = batchPhotoMatches.filter(match => match.status === "ready").length;
   const importWorkflowStage: ImportWorkflowStage = importFeedback.status === "success" ? "complete" : importFeedback.status === "applying" ? "apply" : importFeedback.status === "preview_ready" || (importFeedback.status === "ready" && Boolean(preview)) ? "confirm" : importFeedback.status === "error" && Boolean(preview) ? "apply" : importFeedback.status === "error" && !importBase64 ? "file" : importFeedback.status === "reading" || importFeedback.status === "idle" ? "file" : "preview";
 
-  useEffect(() => { if (!history.data?.length) { setSelectedImportId(null); return; } setSelectedImportId(current => history.data.some(item => item.id === current) ? current : history.data[0].id); }, [history.data]);
+  useEffect(() => {
+    if (!history.data?.length) {
+      if (selectedImportId !== null) setSelectedImportId(null);
+      return;
+    }
+    if (selectedImportId && !history.data.some(item => item.id === selectedImportId)) setSelectedImportId(null);
+  }, [history.data, selectedImportId]);
   useEffect(() => {
     if (!selectedProduct && products[0]) setSelectedProductId(products[0].id);
   }, [products, selectedProduct]);

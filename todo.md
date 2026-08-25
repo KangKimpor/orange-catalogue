@@ -458,3 +458,4 @@
 - [x] Refine the desktop Catalogue pill so the icon, example text, and shown-item count are fully visible and evenly aligned without clipping.
 - [x] Standardize staff-facing cleaned-code and POS-code typography around a readable bold sans treatment with clear numeric figures across the Catalogue and import workspaces.
 - [x] Remediate all reproducible Dependabot dependency alerts, including transitive tar and Babel advisories and the vulnerable Vite/esbuild chain, then re-audit the resolved lockfile.
+- [x] Audit and optimize the deployed Orange Catalogue for storefront/admin performance, public payload efficiency, data-access safety, responsive usability, and operational reliability; deploy only validated low-risk improvements.

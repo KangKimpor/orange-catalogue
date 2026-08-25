@@ -71,10 +71,7 @@ function cardProduct(product: ProductRow, variants: VariantRow[], primaryMedia: 
     cleanedCode: product.cleaned_code,
     category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" },
     isJustIn: product.is_just_in,
-    isPublished: product.is_published,
     lifecycleStatus: product.lifecycle_status,
-    isRemovedFromLatestImport: product.is_removed_from_latest_import,
-    reviewStatus: product.review_status,
     available: product.lifecycle_status === "active" && variants.some(variant => variant.stock_quantity > 0),
     priceMin: prices.length ? Math.min(...prices) : 0,
     priceMax: prices.length ? Math.max(...prices) : 0,
@@ -84,7 +81,7 @@ function cardProduct(product: ProductRow, variants: VariantRow[], primaryMedia: 
 }
 
 /**
- * Public detail data shared by the list-cache and the dedicated detail route.
+ * Public detail data for the dedicated detail route.
  * It intentionally maps availability but never serializes stock_quantity.
  */
 function publicDetailProduct(product: ProductRow, variants: VariantRow[], mediaRows: ProductMediaRow[], categoriesById: ReturnType<typeof categoryMap>, colorsById: ReturnType<typeof colorMap>) {
@@ -125,26 +122,21 @@ function publicDetailProduct(product: ProductRow, variants: VariantRow[], mediaR
 
 export async function fetchStorefrontCards() {
   const [categoryRows, productRows, variantRows, mediaRows, colorRows] = await Promise.all([
-    supabaseRequest<CategoryRow[]>("categories?select=id,slug,label,sort_order,is_visible&order=sort_order.asc"),
-    supabaseRequest<ProductRow[]>("products?select=id,slug,cleaned_code,display_name,category_id,category_source,is_just_in,is_published,lifecycle_status,is_removed_from_latest_import,review_status&is_published=eq.true&lifecycle_status=neq.discontinued"),
-    supabaseRequest<VariantRow[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,is_visible,last_seen_import_id&is_visible=eq.true"),
-    supabaseRequest<ProductMediaRow[]>("product_media?select=id,product_id,variant_id,cloudinary_public_id,optimized_url,alt_text,color_tag,sort_order,is_primary&order=sort_order.asc"),
-    supabaseRequest<ColorRow[]>("colors?select=id,khmer_name,english_name,hex,normalized_key,sort_order&order=sort_order.asc"),
+    supabaseRequest<CategoryRow[]>("categories?select=id,slug,label,is_visible&order=sort_order.asc"),
+    supabaseRequest<ProductRow[]>("products?select=id,slug,cleaned_code,display_name,category_id,is_just_in,lifecycle_status&is_published=eq.true&lifecycle_status=neq.discontinued"),
+    supabaseRequest<VariantRow[]>("variants?select=id,product_id,color_id,price,stock_quantity&is_visible=eq.true"),
+    supabaseRequest<ProductMediaRow[]>("product_media?select=id,product_id,optimized_url,alt_text,is_primary&is_primary=eq.true&order=sort_order.asc"),
+    supabaseRequest<ColorRow[]>("colors?select=id,english_name,hex&order=sort_order.asc"),
   ]);
   const categoriesById = categoryMap(categoryRows);
   const colorsById = colorMap(colorRows);
   const variantsByProduct = groupByProduct(variantRows);
-  const mediaByProduct = groupByProduct(mediaRows);
-  const primaryMediaByProduct = new Map(mediaRows.filter(media => media.is_primary).map(media => [media.product_id, media]));
+  const primaryMediaByProduct = new Map(mediaRows.map(media => [media.product_id, media]));
   return {
     categories: categoryRows.filter(category => category.is_visible).map(category => ({ slug: category.slug, label: category.label })),
     products: productRows
       .filter(product => Boolean(product.category_id && categoriesById.has(product.category_id)))
-      .map(product => {
-        const variants = variantsByProduct.get(product.id) ?? [];
-        const media = mediaByProduct.get(product.id) ?? [];
-        return { ...cardProduct(product, variants, primaryMediaByProduct.get(product.id), categoriesById, colorsById), detail: publicDetailProduct(product, variants, media, categoriesById, colorsById) };
-      }),
+      .map(product => cardProduct(product, variantsByProduct.get(product.id) ?? [], primaryMediaByProduct.get(product.id), categoriesById, colorsById)),
   };
 }
 

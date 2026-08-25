@@ -37,11 +37,6 @@ export default function Storefront() {
       window.history.replaceState({}, "", url);
     }
   }, []);
-  useEffect(() => {
-    for (const product of data?.products ?? []) {
-      utils.store.catalogue.getBySlug.setData({ slug: product.slug }, product.detail);
-    }
-  }, [data?.products, utils]);
   useLayoutEffect(() => {
     if (isLoading || !data) return;
     const savedPosition = readStorefrontReturnPosition(window.sessionStorage);
@@ -103,7 +98,7 @@ export default function Storefront() {
             const imagePriority = priorityMediaProductIds.indexOf(product.id);
             const firstColor = product.colors[0];
             return (
-              <Link href={`/product/${product.slug}`} className="product-card" key={product.id} onClick={rememberStorefrontPosition} onPointerEnter={() => preloadProductDetail(product.slug)} onFocus={() => preloadProductDetail(product.slug)} onTouchStart={() => preloadProductDetail(product.slug)}>
+              <Link href={`/product/${product.slug}`} className="product-card" key={product.id} onClick={rememberStorefrontPosition} onPointerEnter={() => preloadProductDetail(product.slug)} onFocus={() => preloadProductDetail(product.slug)}>
                 <div className="product-image">
                   {primaryImage ? <img {...primaryImage} alt={primary?.altText || product.displayName || product.cleanedCode} loading={imagePriority >= 0 ? "eager" : "lazy"} fetchPriority={imagePriority === 0 ? "high" : "auto"} decoding="async" onLoad={event => event.currentTarget.classList.add("is-loaded")} onError={event => event.currentTarget.classList.add("is-loaded")} /> : <span>{firstColor?.englishName || "Orange"}</span>}
                   {!product.available && <span className="availability soldout">Sold Out</span>}

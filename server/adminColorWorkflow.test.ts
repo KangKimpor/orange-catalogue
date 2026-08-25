@@ -10,6 +10,7 @@ const detail = readFileSync(resolve(root, "client/src/pages/ProductDetail.tsx"),
 const storefront = readFileSync(resolve(root, "client/src/pages/Storefront.tsx"), "utf8");
 const brandLogo = readFileSync(resolve(root, "client/src/lib/brandLogo.ts"), "utf8");
 const indexHtml = readFileSync(resolve(root, "client/index.html"), "utf8");
+const main = readFileSync(resolve(root, "client/src/main.tsx"), "utf8");
 const router = readFileSync(resolve(root, "server/storeRouter.ts"), "utf8");
 const stylesheet = readFileSync(resolve(root, "client/src/index.css"), "utf8");
 
@@ -134,6 +135,12 @@ describe("cleaned-code admin and color media workflow", () => {
       expect(page).toContain("SUPABASE_BRAND_LOGO_URL");
       expect(page).toContain("onError={fallbackToLocalBrandLogo}");
     }
+  });
+
+  it("keeps recently loaded data stable during ordinary focus changes", () => {
+    expect(main).toContain("staleTime: 60_000");
+    expect(main).toContain("gcTime: 5 * 60_000");
+    expect(main).toContain("refetchOnWindowFocus: false");
   });
 
   it("keeps deliberate separation between the login password label and its input", () => {
@@ -429,15 +436,25 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("grid-template-columns: minmax(0, 1fr) auto;");
   });
 
-  it("prewarms product-detail code and data from storefront cards without changing the public product-detail flow", () => {
+  it("prefetches product details only from deliberate pointer or keyboard intent", () => {
     expect(storefront).toContain("const utils = trpc.useUtils();");
-    expect(storefront).toContain("useEffect(() => {");
-    expect(storefront).toContain("utils.store.catalogue.getBySlug.setData({ slug: product.slug }, product.detail);");
+    expect(storefront).not.toContain("product.detail");
+    expect(storefront).not.toContain("utils.store.catalogue.getBySlug.setData");
     expect(storefront).toContain('void import("./ProductDetail");');
     expect(storefront).toContain("utils.store.catalogue.getBySlug.prefetch({ slug })");
     expect(storefront).toContain("onPointerEnter={() => preloadProductDetail(product.slug)}");
-    expect(storefront).toContain("onTouchStart={() => preloadProductDetail(product.slug)}");
+    expect(storefront).toContain("onFocus={() => preloadProductDetail(product.slug)}");
+    expect(storefront).not.toContain("onTouchStart={() => preloadProductDetail(product.slug)}");
     expect(detail).toContain("trpc.store.catalogue.getBySlug.useQuery");
+  });
+
+  it("loads Admin payloads only for workspaces that need them and opens import details on selection", () => {
+    expect(admin).toContain('const requiresOverview = workspace === "overview" || workspace === "catalogue";');
+    expect(admin).toContain('const requiresImportHistory = workspace === "overview" || workspace === "imports";');
+    expect(admin).toContain('enabled: Boolean(isAdmin && requiresOverview)');
+    expect(admin).toContain('enabled: Boolean(isAdmin && requiresImportHistory)');
+    expect(admin).toContain('enabled: Boolean(isAdmin && workspace === "imports" && selectedImportId)');
+    expect(admin).not.toContain('history.data[0].id');
   });
 
   it("keeps selected POS import details in the current neutral workspace rather than the legacy nested-card treatment", () => {
