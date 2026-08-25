@@ -114,6 +114,15 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain("grid-template-columns: minmax(360px, .72fr) minmax(0, 1.28fr);");
   });
 
+  it("uses the readable bold sans treatment for staff-facing item identifiers", () => {
+    expect(stylesheet).toContain("Readable staff identifiers — mirror the supplied ZT 0021 reference with");
+    expect(stylesheet).toContain("font-variant-numeric: lining-nums tabular-nums;");
+    expect(stylesheet).toContain('font-feature-settings: "lnum" 1, "tnum" 1;');
+    expect(stylesheet).toContain(".import-item-code,");
+    expect(stylesheet).toContain(".batch-photo-panel code,");
+    expect(stylesheet).toContain("font-size: clamp(18px, 1.55vw, 22px);");
+  });
+
   it("loads the versioned Supabase logo before application rendering and falls back to the packaged same-origin asset", () => {
     expect(brandLogo).toContain('https://ccaavswuaeqdkgvetlai.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png');
     expect(brandLogo).toContain('export const LOCAL_BRAND_LOGO_URL = "/orange-logo.png"');

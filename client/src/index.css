@@ -7383,3 +7383,27 @@ html {
     grid-template-columns: minmax(360px, .72fr) minmax(0, 1.28fr);
   }
 }
+
+/* Readable staff identifiers — mirror the supplied ZT 0021 reference with
+   bold sans figures, normal tracking, and tabular numerals across Admin codes. */
+.model-editor-heading h3,
+.photo-model-summary h3,
+.model-results button .model-result-identity strong,
+.catalogue-layout .model-results button .model-result-identity strong,
+.import-item-code,
+.import-change-summary h4,
+.import-change-group > header h4,
+.batch-photo-panel code,
+.batch-photo-match-list b {
+  font-family: "DM Sans", sans-serif;
+  font-weight: 700;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-feature-settings: "lnum" 1, "tnum" 1;
+  letter-spacing: 0;
+}
+
+.model-editor-heading h3,
+.photo-model-summary h3 {
+  font-size: clamp(18px, 1.55vw, 22px);
+  line-height: 1.15;
+}
