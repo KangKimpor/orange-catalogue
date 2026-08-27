@@ -33,6 +33,9 @@ describe("CodeQL security hardening", () => {
     expect(existsSync(genericOAuthRoute)).toBe(false);
     expect(existsSync(genericCookieHelper)).toBe(false);
     expect(admin).not.toContain("mediaFile ? mediaFile.name");
+    expect(admin).not.toContain("URL.createObjectURL(file)");
+    expect(admin).not.toContain("`${file.name} is ready");
+    expect(admin).not.toContain("`${uploadingFile.name} is now linked");
   });
 
   it("uses parsed Cloudinary hosts rather than substring URL trust checks", () => {

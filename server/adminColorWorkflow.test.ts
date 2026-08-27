@@ -277,7 +277,7 @@ describe("cleaned-code admin and color media workflow", () => {
   it("keeps the photo uploader and real upload feedback while removing its idle explanatory panel", () => {
     expect(admin).toContain("Choose a JPG, PNG, or WebP image");
     expect(admin).toContain("Preparing a secure Cloudinary upload");
-    expect(admin).toContain("Uploading ${uploadingFile.name} to Cloudinary");
+    expect(admin).toContain("Uploading photo to Cloudinary… Keep this page open until it finishes.");
     expect(admin).toContain("Saving the ${selectedColor.englishName} photo");
     expect(admin).toContain("Drag a photo here, or click to browse");
     expect(admin).toContain('photoUploadFeedback.status !== "idle" && <div className={`photo-upload-feedback');
@@ -340,7 +340,7 @@ describe("cleaned-code admin and color media workflow", () => {
 
   it("shows staged POS import feedback before reading, previewing, applying, succeeding, or failing", () => {
     expect(admin).toContain("ImportFeedbackStatus");
-    expect(admin).toContain("Reading ${file.name} securely in your browser");
+    expect(admin).toContain("Reading the selected POS file securely in your browser…");
     expect(admin).toContain("Comparing this POS file with the current catalogue");
     expect(admin).toContain("Complete preview ready");
     expect(admin).toContain("Applying verified changes");
@@ -379,10 +379,12 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(stylesheet).toContain(".item-save-feedback.is-error");
   });
 
-  it("adds drag-and-drop selection, local preview, removable selection, and measurable upload progress", () => {
+  it("adds drag-and-drop selection, removable selection, and measurable upload progress without rendering a local file URL", () => {
     expect(admin).toContain("selectPhotoFile");
     expect(admin).toContain("Drag a photo here, or click to browse");
-    expect(admin).toContain('className="upload-preview"');
+    expect(admin).toContain('mediaFile ? "Photo selected. Ready to upload." : "Drag a photo here, or click to browse"');
+    expect(admin).not.toContain('className="upload-preview"');
+    expect(admin).not.toContain("URL.createObjectURL(file)");
     expect(admin).toContain("uploadFileToCloudinary");
     expect(admin).toContain("new XMLHttpRequest()");
     expect(admin).toContain("setUploadProgress");
@@ -390,7 +392,6 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain("Remove selected");
     expect(stylesheet).toContain(".upload-dropzone.is-dragover");
     expect(stylesheet).toContain(".upload-progress-bar");
-    expect(stylesheet).toContain(".upload-preview");
   });
 
   it("links an uploaded photo to the selected Attribute-derived color variant", () => {

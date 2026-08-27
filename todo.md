@@ -461,3 +461,4 @@
 - [x] Audit and optimize the deployed Orange Catalogue for storefront/admin performance, public payload efficiency, data-access safety, responsive usability, and operational reliability; deploy only validated low-risk improvements.
 - [x] Remediate GitHub CodeQL findings by removing unused generic OAuth code, enforcing rate limits on Vite/static request paths, upgrading Cloudinary request signatures to SHA-256, and removing untrusted filenames from visible Admin markup.
 - [x] Perform a deeper post-remediation security audit across remaining source, dependencies, database advisories, deployment configuration, and GitHub CodeQL status; deploy only verified low-risk hardening.
+- [x] Clear the final authenticated CodeQL DOM-XSS data-flow alert by removing selected-file object URLs and filename-bearing Admin feedback from rendered status content; preserve signed uploads and revalidate the scan.
