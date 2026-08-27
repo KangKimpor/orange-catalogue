@@ -2,230 +2,21 @@
 import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 
-// server/_core/env.ts
-var ENV = {
-  appId: process.env.VITE_APP_ID ?? "",
-  cookieSecret: process.env.JWT_SECRET ?? "",
-  databaseUrl: process.env.DATABASE_URL ?? "",
-  oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
-  ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
-  isProduction: process.env.NODE_ENV === "production",
-  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? ""
-};
-
-// server/_core/storageProxy.ts
-function registerStorageProxy(app) {
-  app.get("/manus-storage/*key", async (req, res) => {
-    const wildcard = req.params.key;
-    const key = Array.isArray(wildcard) ? wildcard.join("/") : wildcard;
-    if (!key) {
-      res.status(400).send("Missing storage key");
-      return;
-    }
-    if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
-      res.status(500).send("Storage proxy not configured");
-      return;
-    }
-    try {
-      const forgeUrl = new URL(
-        "v1/storage/presign/get",
-        ENV.forgeApiUrl.replace(/\/+$/, "") + "/"
-      );
-      forgeUrl.searchParams.set("path", key);
-      const forgeResp = await fetch(forgeUrl, {
-        headers: { Authorization: `Bearer ${ENV.forgeApiKey}` }
-      });
-      if (!forgeResp.ok) {
-        const body = await forgeResp.text().catch(() => "");
-        console.error(`[StorageProxy] forge error: ${forgeResp.status} ${body}`);
-        res.status(502).send("Storage backend error");
-        return;
-      }
-      const { url } = await forgeResp.json();
-      if (!url) {
-        res.status(502).send("Empty signed URL from backend");
-        return;
-      }
-      res.set("Cache-Control", "no-store");
-      res.redirect(307, url);
-    } catch (err) {
-      console.error("[StorageProxy] failed:", err);
-      res.status(502).send("Storage proxy error");
-    }
-  });
-}
-
-// server/_core/systemRouter.ts
-import { z } from "zod";
-
-// server/_core/notification.ts
-import { TRPCError } from "@trpc/server";
-var TITLE_MAX_LENGTH = 1200;
-var CONTENT_MAX_LENGTH = 2e4;
-var trimValue = (value) => value.trim();
-var isNonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
-var buildEndpointUrl = (baseUrl) => {
-  const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
-  return new URL(
-    "webdevtoken.v1.WebDevService/SendNotification",
-    normalizedBase
-  ).toString();
-};
-var validatePayload = (input) => {
-  if (!isNonEmptyString(input.title)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Notification title is required."
-    });
-  }
-  if (!isNonEmptyString(input.content)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Notification content is required."
-    });
-  }
-  const title = trimValue(input.title);
-  const content = trimValue(input.content);
-  if (title.length > TITLE_MAX_LENGTH) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `Notification title must be at most ${TITLE_MAX_LENGTH} characters.`
-    });
-  }
-  if (content.length > CONTENT_MAX_LENGTH) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: `Notification content must be at most ${CONTENT_MAX_LENGTH} characters.`
-    });
-  }
-  return { title, content };
-};
-async function notifyOwner(payload) {
-  const { title, content } = validatePayload(payload);
-  if (!ENV.forgeApiUrl) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service URL is not configured."
-    });
-  }
-  if (!ENV.forgeApiKey) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Notification service API key is not configured."
-    });
-  }
-  const endpoint = buildEndpointUrl(ENV.forgeApiUrl);
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        authorization: `Bearer ${ENV.forgeApiKey}`,
-        "content-type": "application/json",
-        "connect-protocol-version": "1"
-      },
-      body: JSON.stringify({ title, content })
-    });
-    if (!response.ok) {
-      const detail = await response.text().catch(() => "");
-      console.warn(
-        `[Notification] Failed to notify owner (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`
-      );
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.warn("[Notification] Error calling notification service:", error);
-    return false;
-  }
-}
-
-// shared/const.ts
-var COOKIE_NAME = "app_session_id";
-var ONE_YEAR_MS = 1e3 * 60 * 60 * 24 * 365;
-var AXIOS_TIMEOUT_MS = 3e4;
-var UNAUTHED_ERR_MSG = "Please login (10001)";
-var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
-var decodeOAuthState = (state) => {
-  let decoded;
-  try {
-    decoded = atob(state);
-  } catch {
-    return { redirectUri: "" };
-  }
-  try {
-    const parsed = JSON.parse(decoded);
-    if (parsed && typeof parsed.redirectUri === "string") return parsed;
-  } catch {
-  }
-  return { redirectUri: decoded };
-};
-
 // server/_core/trpc.ts
-import { initTRPC, TRPCError as TRPCError2 } from "@trpc/server";
+import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
 var t = initTRPC.context().create({
   transformer: superjson
 });
 var router = t.router;
 var publicProcedure = t.procedure;
-var requireUser = t.middleware(async (opts) => {
-  const { ctx, next } = opts;
-  if (!ctx.user) {
-    throw new TRPCError2({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
-  }
-  return next({
-    ctx: {
-      ...ctx,
-      user: ctx.user
-    }
-  });
-});
-var protectedProcedure = t.procedure.use(requireUser);
-var adminProcedure = t.procedure.use(
-  t.middleware(async (opts) => {
-    const { ctx, next } = opts;
-    if (!ctx.user || ctx.user.role !== "admin") {
-      throw new TRPCError2({ code: "FORBIDDEN", message: NOT_ADMIN_ERR_MSG });
-    }
-    return next({
-      ctx: {
-        ...ctx,
-        user: ctx.user
-      }
-    });
-  })
-);
-
-// server/_core/systemRouter.ts
-var systemRouter = router({
-  health: publicProcedure.input(
-    z.object({
-      timestamp: z.number().min(0, "timestamp cannot be negative")
-    })
-  ).query(() => ({
-    ok: true
-  })),
-  notifyOwner: adminProcedure.input(
-    z.object({
-      title: z.string().min(1, "title is required"),
-      content: z.string().min(1, "content is required")
-    })
-  ).mutation(async ({ input }) => {
-    const delivered = await notifyOwner(input);
-    return {
-      success: delivered
-    };
-  })
-});
 
 // server/storeRouter.ts
 import crypto4 from "node:crypto";
-import { TRPCError as TRPCError4 } from "@trpc/server";
+import { TRPCError as TRPCError2 } from "@trpc/server";
 import { SignJWT, jwtVerify } from "jose";
 import { parse as parseCookie } from "cookie";
-import { z as z2 } from "zod";
+import { z } from "zod";
 
 // server/catalogRules.ts
 var PUBLIC_CATEGORIES = [
@@ -306,22 +97,22 @@ function parseAttributes(value) {
   };
 }
 function buildMessengerOrderUrl(input) {
-  const text2 = [
+  const text = [
     "Hi Orange, I would like to order:",
     `Product code: ${input.productCode}`,
     `Color: ${input.color}`,
     input.size ? `Size: ${input.size}` : null
   ].filter(Boolean).join("\n");
-  return `https://m.me/OfficiallyDavit?text=${encodeURIComponent(text2)}`;
+  return `https://m.me/OfficiallyDavit?text=${encodeURIComponent(text)}`;
 }
 
 // server/supabase.ts
-import { TRPCError as TRPCError3 } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 var supabaseUrl = process.env.VITE_SUPABASE_URL;
 var serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 function assertSupabaseConfig() {
   if (!supabaseUrl || !serviceRoleKey) {
-    throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "The Supabase server configuration is unavailable." });
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The Supabase server configuration is unavailable." });
   }
   return { url: supabaseUrl, serviceRoleKey };
 }
@@ -338,8 +129,12 @@ async function supabaseRequest(path, init = {}) {
     }
   });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: `Supabase request failed: ${detail}` });
+    console.error("[Supabase] REST request failed", {
+      method: init.method ?? "GET",
+      path: path.split("?", 1)[0],
+      status: response.status
+    });
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The catalogue service is temporarily unavailable. Please try again." });
   }
   if (response.status === 204) return void 0;
   return response.json();
@@ -416,9 +211,9 @@ function groupByProduct(rows) {
   for (const row of rows) grouped.set(row.product_id, [...grouped.get(row.product_id) ?? [], row]);
   return grouped;
 }
-function cardColors(variants2, colorsById, lifecycleStatus) {
+function cardColors(variants, colorsById, lifecycleStatus) {
   const grouped = /* @__PURE__ */ new Map();
-  for (const variant of variants2) grouped.set(variant.color_id, [...grouped.get(variant.color_id) ?? [], variant]);
+  for (const variant of variants) grouped.set(variant.color_id, [...grouped.get(variant.color_id) ?? [], variant]);
   return Array.from(grouped.entries()).map(([colorId, groupedVariants]) => {
     const color = colorId ? colorsById.get(colorId) : void 0;
     return {
@@ -429,9 +224,9 @@ function cardColors(variants2, colorsById, lifecycleStatus) {
     };
   });
 }
-function cardProduct(product, variants2, primaryMedia, categoriesById, colorsById) {
+function cardProduct(product, variants, primaryMedia, categoriesById, colorsById) {
   const category = product.category_id ? categoriesById.get(product.category_id) : void 0;
-  const prices = variants2.map((variant) => Number(variant.price));
+  const prices = variants.map((variant) => Number(variant.price));
   return {
     id: product.id,
     slug: product.slug,
@@ -440,18 +235,18 @@ function cardProduct(product, variants2, primaryMedia, categoriesById, colorsByI
     category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" },
     isJustIn: product.is_just_in,
     lifecycleStatus: product.lifecycle_status,
-    available: product.lifecycle_status === "active" && variants2.some((variant) => variant.stock_quantity > 0),
+    available: product.lifecycle_status === "active" && variants.some((variant) => variant.stock_quantity > 0),
     priceMin: prices.length ? Math.min(...prices) : 0,
     priceMax: prices.length ? Math.max(...prices) : 0,
-    colors: cardColors(variants2, colorsById, product.lifecycle_status),
+    colors: cardColors(variants, colorsById, product.lifecycle_status),
     media: primaryMedia ? [{ id: primaryMedia.id, url: primaryMedia.optimized_url, altText: primaryMedia.alt_text, isPrimary: primaryMedia.is_primary }] : []
   };
 }
-function publicDetailProduct(product, variants2, mediaRows, categoriesById, colorsById) {
+function publicDetailProduct(product, variants, mediaRows, categoriesById, colorsById) {
   const category = product.category_id && categoriesById.get(product.category_id) ? { slug: categoriesById.get(product.category_id).slug, label: categoriesById.get(product.category_id).label } : { slug: "unassigned", label: "Not in storefront" };
   const grouped = /* @__PURE__ */ new Map();
-  for (const variant of variants2) grouped.set(variant.color_id, [...grouped.get(variant.color_id) ?? [], variant]);
-  const colors2 = Array.from(grouped.entries()).map(([colorId, colorVariants]) => {
+  for (const variant of variants) grouped.set(variant.color_id, [...grouped.get(variant.color_id) ?? [], variant]);
+  const colors = Array.from(grouped.entries()).map(([colorId, colorVariants]) => {
     const color = colorId ? colorsById.get(colorId) : void 0;
     return {
       id: colorId,
@@ -473,10 +268,10 @@ function publicDetailProduct(product, variants2, mediaRows, categoriesById, colo
     lifecycleStatus: product.lifecycle_status,
     isRemovedFromLatestImport: product.is_removed_from_latest_import,
     reviewStatus: product.review_status,
-    available: product.lifecycle_status === "active" && variants2.some((variant) => variant.stock_quantity > 0),
-    priceMin: variants2.length ? Math.min(...variants2.map((variant) => Number(variant.price))) : 0,
-    priceMax: variants2.length ? Math.max(...variants2.map((variant) => Number(variant.price))) : 0,
-    colors: colors2,
+    available: product.lifecycle_status === "active" && variants.some((variant) => variant.stock_quantity > 0),
+    priceMin: variants.length ? Math.min(...variants.map((variant) => Number(variant.price))) : 0,
+    priceMax: variants.length ? Math.max(...variants.map((variant) => Number(variant.price))) : 0,
+    colors,
     media: mediaRows.map((media) => ({ id: media.id, url: media.optimized_url, altText: media.alt_text, isPrimary: media.is_primary, variantId: media.variant_id, colorTag: media.color_tag }))
   };
 }
@@ -568,13 +363,13 @@ function parsePosWorkbook(buffer) {
   const items = [];
   const exportDate = extractExportDate(rawRows);
   let missingNameRows = 0;
-  rows.forEach((row, index2) => {
+  rows.forEach((row, index) => {
     const posCode = valueAsString(row.Code);
     const sourceName = valueAsString(row.Name);
     const rawAttribute = valueAsString(row.Attributes);
     const price = asNumber(row.Price);
     const stockQuantity = asNumber(row["Stock Qty."]);
-    const sourceRow = headerIndex + index2 + 2;
+    const sourceRow = headerIndex + index + 2;
     if (!posCode && !sourceName) return;
     if (!sourceName) {
       missingNameRows += 1;
@@ -654,17 +449,17 @@ function assertOrangeProductPublicId(publicId) {
     throw new Error("The media asset is outside the approved Orange product folder.");
   }
 }
-function cloudinaryDestroySignature(publicId, timestamp2, apiSecret) {
-  return crypto3.createHash("sha256").update(`public_id=${publicId}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
+function cloudinaryDestroySignature(publicId, timestamp, apiSecret) {
+  return crypto3.createHash("sha256").update(`public_id=${publicId}&timestamp=${timestamp}${apiSecret}`).digest("hex");
 }
 async function destroyCloudinaryProductImage(publicId, config, request = fetch) {
   assertOrangeProductPublicId(publicId);
-  const timestamp2 = Math.floor(Date.now() / 1e3);
+  const timestamp = Math.floor(Date.now() / 1e3);
   const body = new URLSearchParams({
     public_id: publicId,
-    timestamp: String(timestamp2),
+    timestamp: String(timestamp),
     api_key: config.apiKey,
-    signature: cloudinaryDestroySignature(publicId, timestamp2, config.apiSecret)
+    signature: cloudinaryDestroySignature(publicId, timestamp, config.apiSecret)
   });
   const response = await request(`https://api.cloudinary.com/v1_1/${config.cloudName}/image/destroy`, {
     method: "POST",
@@ -683,13 +478,13 @@ var ADMIN_COOKIE = "orange_admin_session";
 var ADMIN_PASSWORD_KEY = "admin_password_hash";
 var DAY_SECONDS = 60 * 60 * 12;
 var ADMIN_PASSWORD_MIN_LENGTH = 4;
-var adminPasswordChangeInput = z2.object({
-  currentPassword: z2.string().min(1),
-  newPassword: z2.string().min(ADMIN_PASSWORD_MIN_LENGTH)
+var adminPasswordChangeInput = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(ADMIN_PASSWORD_MIN_LENGTH)
 });
 function tokenKey() {
   const secret = process.env.JWT_SECRET;
-  if (!secret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "The secure session key is unavailable." });
+  if (!secret) throw new TRPCError2({ code: "INTERNAL_SERVER_ERROR", message: "The secure session key is unavailable." });
   return new TextEncoder().encode(secret);
 }
 function hashPassword(password) {
@@ -728,7 +523,7 @@ async function hasAdminSession(ctx) {
   }
 }
 async function requireAdmin(ctx) {
-  if (!await hasAdminSession(ctx)) throw new TRPCError4({ code: "UNAUTHORIZED", message: "Admin access is required." });
+  if (!await hasAdminSession(ctx)) throw new TRPCError2({ code: "UNAUTHORIZED", message: "Admin access is required." });
 }
 var publicAvailability = (quantity) => quantity > 0;
 function testOnlyAdminPassword() {
@@ -747,17 +542,17 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
     products: productRows.filter((product) => includeHidden || Boolean(product.categoryId && categoriesById.has(product.categoryId))).map((product) => {
       const grouped = /* @__PURE__ */ new Map();
       for (const variant of variantsByProduct.get(product.id) ?? []) grouped.set(variant.colorId, [...grouped.get(variant.colorId) ?? [], variant]);
-      const colors2 = Array.from(grouped.entries()).map(([colorId, variants3]) => {
+      const colors = Array.from(grouped.entries()).map(([colorId, variants2]) => {
         const color = colorId ? colorsById.get(colorId) : void 0;
-        return { id: colorId, khmerName: color?.khmerName ?? null, englishName: color?.englishName ?? "One Color", hex: color?.hex ?? "#9A9A94", available: variants3.some((v) => publicAvailability(v.stockQuantity)), variants: variants3.map((v) => ({ id: v.id, posCode: v.posCode, size: v.size, price: Number(v.price), available: publicAvailability(v.stockQuantity), ...includeExactStock ? { stockQuantity: v.stockQuantity } : {} })) };
+        return { id: colorId, khmerName: color?.khmerName ?? null, englishName: color?.englishName ?? "One Color", hex: color?.hex ?? "#9A9A94", available: variants2.some((v) => publicAvailability(v.stockQuantity)), variants: variants2.map((v) => ({ id: v.id, posCode: v.posCode, size: v.size, price: Number(v.price), available: publicAvailability(v.stockQuantity), ...includeExactStock ? { stockQuantity: v.stockQuantity } : {} })) };
       });
-      const variants2 = variantsByProduct.get(product.id) ?? [];
+      const variants = variantsByProduct.get(product.id) ?? [];
       const category = product.categoryId ? categoriesById.get(product.categoryId) : void 0;
-      return { id: product.id, slug: product.slug, displayName: product.displayName, cleanedCode: product.cleanedCode, category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" }, isJustIn: product.isJustIn, isPublished: product.isPublished, lifecycleStatus: product.lifecycleStatus, isRemovedFromLatestImport: product.isRemovedFromLatestImport, reviewStatus: product.reviewStatus, available: product.lifecycleStatus === "active" && variants2.some((v) => publicAvailability(v.stockQuantity)), priceMin: variants2.length ? Math.min(...variants2.map((v) => Number(v.price))) : 0, priceMax: variants2.length ? Math.max(...variants2.map((v) => Number(v.price))) : 0, colors: colors2, media: (mediaByProduct.get(product.id) ?? []).map((media) => ({ id: media.id, url: media.optimizedUrl, altText: media.altText, isPrimary: media.isPrimary, variantId: media.variantId, colorTag: media.colorTag })) };
+      return { id: product.id, slug: product.slug, displayName: product.displayName, cleanedCode: product.cleanedCode, category: category ? { slug: category.slug, label: category.label } : { slug: "unassigned", label: "Not in storefront" }, isJustIn: product.isJustIn, isPublished: product.isPublished, lifecycleStatus: product.lifecycleStatus, isRemovedFromLatestImport: product.isRemovedFromLatestImport, reviewStatus: product.reviewStatus, available: product.lifecycleStatus === "active" && variants.some((v) => publicAvailability(v.stockQuantity)), priceMin: variants.length ? Math.min(...variants.map((v) => Number(v.price))) : 0, priceMax: variants.length ? Math.max(...variants.map((v) => Number(v.price))) : 0, colors, media: (mediaByProduct.get(product.id) ?? []).map((media) => ({ id: media.id, url: media.optimizedUrl, altText: media.altText, isPrimary: media.isPrimary, variantId: media.variantId, colorTag: media.colorTag })) };
     })
   };
 }
-var importInput = z2.object({ filename: z2.string().min(1).max(255), base64: z2.string().min(16).max(MAX_POS_IMPORT_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/, "The POS workbook payload is not valid base64.") });
+var importInput = z.object({ filename: z.string().min(1).max(255), base64: z.string().min(16).max(MAX_POS_IMPORT_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/, "The POS workbook payload is not valid base64.") });
 function importDetailChange(row) {
   const after = row.after_json ?? {};
   const before = row.before_json ?? {};
@@ -778,7 +573,7 @@ function groupImportChanges(changes) {
 }
 async function createPreview(input) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
-  if (parsed.validation.duplicatePosCodes.length) throw new TRPCError4({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
+  if (parsed.validation.duplicatePosCodes.length) throw new TRPCError2({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
   const [existingVariants, existingProducts, existingColors, appliedImports] = await Promise.all([
     supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,raw_name,raw_attribute"),
     supabaseRequest("products?select=id,cleaned_code,slug,category_source"),
@@ -852,11 +647,11 @@ async function createPreview(input) {
     method: "POST",
     body: JSON.stringify({ original_filename: input.filename, digest: parsed.digest, status: "preview", parsed_rows: parsed.items.length, source_export_date: parsed.exportDate, source_items_json: parsed.items, summary_json: summary, validation_json: { ...parsed.validation, productCount: parsed.productCount, exportDate: parsed.exportDate } })
   });
-  return { importId: importRow.id, summary, validation: parsed.validation, changes, changeGroups: groupImportChanges(changes.map((change, index2) => ({ id: -(index2 + 1), ...change }))), alreadyApplied: false };
+  return { importId: importRow.id, summary, validation: parsed.validation, changes, changeGroups: groupImportChanges(changes.map((change, index) => ({ id: -(index + 1), ...change }))), alreadyApplied: false };
 }
 async function applyImport(input) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
-  if (parsed.validation.invalidRows.length || parsed.validation.duplicatePosCodes.length) throw new TRPCError4({ code: "BAD_REQUEST", message: "Resolve invalid or duplicate POS rows before applying the import." });
+  if (parsed.validation.invalidRows.length || parsed.validation.duplicatePosCodes.length) throw new TRPCError2({ code: "BAD_REQUEST", message: "Resolve invalid or duplicate POS rows before applying the import." });
   try {
     const summary = await supabaseRequest("rpc/apply_pos_import", {
       method: "POST",
@@ -868,8 +663,8 @@ async function applyImport(input) {
     }
     return summary;
   } catch (error) {
-    if (error instanceof TRPCError4) throw error;
-    throw new TRPCError4({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The POS import could not be applied. No catalogue changes were saved." });
+    if (error instanceof TRPCError2) throw error;
+    throw new TRPCError2({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The POS import could not be applied. No catalogue changes were saved." });
   }
 }
 async function removeImportAndRebuild(importId) {
@@ -878,16 +673,16 @@ async function removeImportAndRebuild(importId) {
     if (!summary) throw new Error("The import rebuild did not return a result.");
     return summary;
   } catch (error) {
-    throw new TRPCError4({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The selected POS import could not be removed and rebuilt safely." });
+    throw new TRPCError2({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The selected POS import could not be removed and rebuilt safely." });
   }
 }
 async function deleteProductAndMedia(productId) {
-  const [products2, mediaRows] = await Promise.all([
+  const [products, mediaRows] = await Promise.all([
     supabaseRequest(`products?select=id,cleaned_code&${supabaseEq("id", productId)}&limit=1`),
     supabaseRequest(`product_media?select=id,cloudinary_public_id&${supabaseEq("product_id", productId)}&limit=500`)
   ]);
-  const product = products2[0];
-  if (!product) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected item no longer exists." });
+  const product = products[0];
+  if (!product) throw new TRPCError2({ code: "NOT_FOUND", message: "The selected item no longer exists." });
   const uniquePublicIds = Array.from(new Set(mediaRows.map((media) => media.cloudinary_public_id)));
   let destroyedCloudinaryAssets = 0;
   let retainedSharedAssets = 0;
@@ -895,7 +690,7 @@ async function deleteProductAndMedia(productId) {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
-    if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+    if (!cloudName || !apiKey || !apiSecret) throw new TRPCError2({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
     for (const publicId of uniquePublicIds) {
       const otherAssociations = await supabaseRequest(`product_media?select=id&${supabaseEq("cloudinary_public_id", publicId)}&product_id=neq.${productId}&limit=1`);
       if (otherAssociations.length) {
@@ -906,7 +701,7 @@ async function deleteProductAndMedia(productId) {
         await destroyCloudinaryProductImage(publicId, { cloudName, apiKey, apiSecret });
         destroyedCloudinaryAssets += 1;
       } catch (error) {
-        throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove this item\u2019s photo." });
+        throw new TRPCError2({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove this item\u2019s photo." });
       }
     }
   }
@@ -914,16 +709,16 @@ async function deleteProductAndMedia(productId) {
   return { deletedProductId: product.id, cleanedCode: product.cleaned_code, deletedMediaRecords: mediaRows.length, destroyedCloudinaryAssets, retainedSharedAssets };
 }
 async function copyArchivedWebsiteContent(sourceProductId, targetProductId) {
-  if (sourceProductId === targetProductId) throw new TRPCError4({ code: "BAD_REQUEST", message: "Choose a different archived item to reuse its website content." });
+  if (sourceProductId === targetProductId) throw new TRPCError2({ code: "BAD_REQUEST", message: "Choose a different archived item to reuse its website content." });
   const [sourceRows, targetRows] = await Promise.all([
     supabaseRequest(`products?select=id,display_name,category_id,category_source,is_just_in,lifecycle_status&${supabaseEq("id", sourceProductId)}&limit=1`),
     supabaseRequest(`products?select=id,display_name,category_id,category_source,is_just_in,lifecycle_status&${supabaseEq("id", targetProductId)}&limit=1`)
   ]);
   const source = sourceRows[0];
   const target = targetRows[0];
-  if (!source || !target) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected source or target item no longer exists." });
-  if (source.lifecycle_status !== "discontinued") throw new TRPCError4({ code: "BAD_REQUEST", message: "Website content can be reused only from a discontinued item." });
-  if (target.lifecycle_status === "discontinued") throw new TRPCError4({ code: "BAD_REQUEST", message: "Restore the target item before reusing archived content." });
+  if (!source || !target) throw new TRPCError2({ code: "NOT_FOUND", message: "The selected source or target item no longer exists." });
+  if (source.lifecycle_status !== "discontinued") throw new TRPCError2({ code: "BAD_REQUEST", message: "Website content can be reused only from a discontinued item." });
+  if (target.lifecycle_status === "discontinued") throw new TRPCError2({ code: "BAD_REQUEST", message: "Restore the target item before reusing archived content." });
   await supabaseRequest(`products?${supabaseEq("id", target.id)}`, {
     method: "PATCH",
     body: JSON.stringify({ display_name: source.display_name, category_id: source.category_id, category_source: source.category_source, is_just_in: source.is_just_in })
@@ -933,32 +728,32 @@ async function copyArchivedWebsiteContent(sourceProductId, targetProductId) {
     supabaseRequest(`product_media?select=product_id,variant_id,cloudinary_public_id,optimized_url,alt_text,color_tag,sort_order,is_primary&${supabaseEq("product_id", target.id)}&order=sort_order.asc`)
   ]);
   const existingMedia = new Set(targetMedia.map((media) => `${media.cloudinary_public_id}:${media.color_tag ?? ""}`));
-  const copiedRows = sourceMedia.filter((media) => !existingMedia.has(`${media.cloudinary_public_id}:${media.color_tag ?? ""}`)).map((media, index2) => ({ product_id: target.id, variant_id: null, cloudinary_public_id: media.cloudinary_public_id, optimized_url: media.optimized_url, alt_text: media.alt_text, color_tag: media.color_tag, sort_order: targetMedia.length + index2, is_primary: targetMedia.length === 0 && index2 === 0 }));
+  const copiedRows = sourceMedia.filter((media) => !existingMedia.has(`${media.cloudinary_public_id}:${media.color_tag ?? ""}`)).map((media, index) => ({ product_id: target.id, variant_id: null, cloudinary_public_id: media.cloudinary_public_id, optimized_url: media.optimized_url, alt_text: media.alt_text, color_tag: media.color_tag, sort_order: targetMedia.length + index, is_primary: targetMedia.length === 0 && index === 0 }));
   if (copiedRows.length) await supabaseRequest("product_media", { method: "POST", body: JSON.stringify(copiedRows) });
   return { copiedMediaCount: copiedRows.length };
 }
 var storeRouter = router({
-  catalogue: router({ list: publicProcedure.query(() => fetchStorefrontCards()), getBySlug: publicProcedure.input(z2.object({ slug: z2.string().min(1) })).query(async ({ input }) => {
+  catalogue: router({ list: publicProcedure.query(() => fetchStorefrontCards()), getBySlug: publicProcedure.input(z.object({ slug: z.string().min(1) })).query(async ({ input }) => {
     const product = await fetchStorefrontProduct(input.slug);
-    if (!product) throw new TRPCError4({ code: "NOT_FOUND", message: "Product not found." });
+    if (!product) throw new TRPCError2({ code: "NOT_FOUND", message: "Product not found." });
     return product;
-  }), categories: publicProcedure.query(() => PUBLIC_CATEGORIES), messengerUrl: publicProcedure.input(z2.object({ productCode: z2.string(), color: z2.string(), size: z2.string().nullable().optional() })).query(({ input }) => buildMessengerOrderUrl(input)) }),
+  }), categories: publicProcedure.query(() => PUBLIC_CATEGORIES), messengerUrl: publicProcedure.input(z.object({ productCode: z.string(), color: z.string(), size: z.string().nullable().optional() })).query(({ input }) => buildMessengerOrderUrl(input)) }),
   admin: router({
     session: publicProcedure.query(({ ctx }) => hasAdminSession(ctx)),
-    login: publicProcedure.input(z2.object({ password: z2.string().min(1).max(1024) })).mutation(async ({ ctx, input }) => {
+    login: publicProcedure.input(z.object({ password: z.string().min(1).max(1024) })).mutation(async ({ ctx, input }) => {
       const clientKey = adminLoginClientKey(ctx.req.headers);
       const testPassword = testOnlyAdminPassword();
       const preflight = testPassword ? { allowed: true } : await checkAdminLoginRateLimit(clientKey, "check");
-      if (!preflight.allowed) throw new TRPCError4({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
+      if (!preflight.allowed) throw new TRPCError2({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
       const stored = await readStoredPasswordHash();
       const initial = process.env.ADMIN_PASSWORD;
       const valid = testPassword ? safeTextEqual(input.password, testPassword) : stored ? passwordMatches(input.password, stored) : Boolean(initial && safeTextEqual(input.password, initial));
       const result = testPassword ? { allowed: true } : await checkAdminLoginRateLimit(clientKey, valid ? "success" : "failure");
       if (!valid) {
-        if (!result.allowed) throw new TRPCError4({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
-        throw new TRPCError4({ code: "UNAUTHORIZED", message: "Unable to sign in with those credentials." });
+        if (!result.allowed) throw new TRPCError2({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
+        throw new TRPCError2({ code: "UNAUTHORIZED", message: "Unable to sign in with those credentials." });
       }
-      if (!result.allowed) throw new TRPCError4({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
+      if (!result.allowed) throw new TRPCError2({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
       if (!stored && !testPassword) await savePasswordHash(hashPassword(input.password));
       await issueAdminSession(ctx);
       return { success: true };
@@ -971,7 +766,7 @@ var storeRouter = router({
       await requireAdmin(ctx);
       const stored = await readStoredPasswordHash();
       const valid = stored ? passwordMatches(input.currentPassword, stored) : input.currentPassword === process.env.ADMIN_PASSWORD;
-      if (!valid) throw new TRPCError4({ code: "UNAUTHORIZED", message: "Current password is incorrect." });
+      if (!valid) throw new TRPCError2({ code: "UNAUTHORIZED", message: "Current password is incorrect." });
       await savePasswordHash(hashPassword(input.newPassword));
       await issueAdminSession(ctx);
       return { success: true };
@@ -980,16 +775,16 @@ var storeRouter = router({
       await requireAdmin(ctx);
       return cataloguePayload(true, true);
     }),
-    updateProduct: publicProcedure.input(z2.object({ id: z2.number().int(), displayName: z2.string().max(255).nullable(), categoryId: z2.number().int().nullable(), isJustIn: z2.boolean().optional(), lifecycleStatus: z2.enum(["active", "out_of_stock", "discontinued"]).optional() })).mutation(async ({ ctx, input }) => {
+    updateProduct: publicProcedure.input(z.object({ id: z.number().int(), displayName: z.string().max(255).nullable(), categoryId: z.number().int().nullable(), isJustIn: z.boolean().optional(), lifecycleStatus: z.enum(["active", "out_of_stock", "discontinued"]).optional() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...input.isJustIn === void 0 ? {} : { is_just_in: input.isJustIn }, ...input.lifecycleStatus === void 0 ? {} : { lifecycle_status: input.lifecycleStatus } }) });
       return { success: true };
     }),
-    deleteProduct: publicProcedure.input(z2.object({ productId: z2.number().int().positive() })).mutation(async ({ ctx, input }) => {
+    deleteProduct: publicProcedure.input(z.object({ productId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       return deleteProductAndMedia(input.productId);
     }),
-    reuseArchivedContent: publicProcedure.input(z2.object({ sourceProductId: z2.number().int().positive(), targetProductId: z2.number().int().positive() })).mutation(async ({ ctx, input }) => {
+    reuseArchivedContent: publicProcedure.input(z.object({ sourceProductId: z.number().int().positive(), targetProductId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       return copyArchivedWebsiteContent(input.sourceProductId, input.targetProductId);
     }),
@@ -997,11 +792,11 @@ var storeRouter = router({
       await requireAdmin(ctx);
       return createPreview(input);
     }),
-    applyImport: publicProcedure.input(importInput.extend({ importId: z2.number().int() })).mutation(async ({ ctx, input }) => {
+    applyImport: publicProcedure.input(importInput.extend({ importId: z.number().int() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       return applyImport(input);
     }),
-    removeImport: publicProcedure.input(z2.object({ importId: z2.number().int().positive() })).mutation(async ({ ctx, input }) => {
+    removeImport: publicProcedure.input(z.object({ importId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       return removeImportAndRebuild(input.importId);
     }),
@@ -1010,50 +805,50 @@ var storeRouter = router({
       const rows = await supabaseRequest("imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&status=eq.applied&order=applied_at.desc,id.desc&limit=100");
       return rows.map((row) => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, sourceExportDate: row.source_export_date ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {}, canRemove: true }));
     }),
-    importDetails: publicProcedure.input(z2.object({ importId: z2.number().int().positive() })).query(async ({ ctx, input }) => {
+    importDetails: publicProcedure.input(z.object({ importId: z.number().int().positive() })).query(async ({ ctx, input }) => {
       await requireAdmin(ctx);
-      const [imports2, changes] = await Promise.all([supabaseRequest(`imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`)]);
-      const importRow = imports2[0];
-      if (!importRow) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected import was not found." });
+      const [imports, changes] = await Promise.all([supabaseRequest(`imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`)]);
+      const importRow = imports[0];
+      if (!importRow) throw new TRPCError2({ code: "NOT_FOUND", message: "The selected import was not found." });
       const detailChanges = reviewableImportChanges(changes.map(importDetailChange));
       return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, sourceExportDate: importRow.source_export_date ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), canRemove: importRow.status === "applied" };
     }),
-    signMediaUpload: publicProcedure.input(z2.object({ productCode: z2.string().min(1), categorySlug: z2.string().min(1), colorTag: z2.string().min(1) })).mutation(async ({ ctx, input }) => {
+    signMediaUpload: publicProcedure.input(z.object({ productCode: z.string().min(1), categorySlug: z.string().min(1), colorTag: z.string().min(1) })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
       const apiKey = process.env.CLOUDINARY_API_KEY;
       const apiSecret = process.env.CLOUDINARY_API_SECRET;
-      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError2({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
       const normalized = input.productCode.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-      const timestamp2 = Math.floor(Date.now() / 1e3);
+      const timestamp = Math.floor(Date.now() / 1e3);
       const folder = `orange/products/${normalized}`;
       const tags = `orange,product:${normalized},category:${input.categorySlug},color:${input.colorTag}`;
-      const signature = crypto4.createHash("sha256").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
-      return { uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp: timestamp2, folder, tags, signature };
+      const signature = crypto4.createHash("sha256").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp}${apiSecret}`).digest("hex");
+      return { uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp, folder, tags, signature };
     }),
-    registerMedia: publicProcedure.input(z2.object({ productId: z2.number().int(), variantId: z2.number().int().nullable().optional(), publicId: z2.string().min(1), secureUrl: z2.string().url(), altText: z2.string().max(255).nullable().optional(), colorTag: z2.string().max(128).nullable().optional(), isPrimary: z2.boolean().default(false) })).mutation(async ({ ctx, input }) => {
+    registerMedia: publicProcedure.input(z.object({ productId: z.number().int(), variantId: z.number().int().nullable().optional(), publicId: z.string().min(1), secureUrl: z.string().url(), altText: z.string().max(255).nullable().optional(), colorTag: z.string().max(128).nullable().optional(), isPrimary: z.boolean().default(false) })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
-      if (!input.publicId.startsWith("orange/products/")) throw new TRPCError4({ code: "BAD_REQUEST", message: "The uploaded media is not in an approved Orange product folder." });
+      if (!input.publicId.startsWith("orange/products/")) throw new TRPCError2({ code: "BAD_REQUEST", message: "The uploaded media is not in an approved Orange product folder." });
       const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
       if (input.isPrimary) await supabaseRequest(`product_media?${supabaseEq("product_id", input.productId)}`, { method: "PATCH", body: JSON.stringify({ is_primary: false }) });
       await supabaseRequest("product_media", { method: "POST", body: JSON.stringify({ product_id: input.productId, variant_id: input.variantId ?? null, cloudinary_public_id: input.publicId, optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${input.publicId}`, alt_text: input.altText ?? null, color_tag: input.colorTag ?? null, is_primary: input.isPrimary }) });
       return { success: true };
     }),
-    deleteMedia: publicProcedure.input(z2.object({ mediaId: z2.number().int().positive() })).mutation(async ({ ctx, input }) => {
+    deleteMedia: publicProcedure.input(z.object({ mediaId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       const mediaRows = await supabaseRequest(`product_media?select=id,cloudinary_public_id&${supabaseEq("id", input.mediaId)}&limit=1`);
       const media = mediaRows[0];
-      if (!media) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected photo record was not found." });
+      if (!media) throw new TRPCError2({ code: "NOT_FOUND", message: "The selected photo record was not found." });
       const otherAssociations = await supabaseRequest(`product_media?select=id&${supabaseEq("cloudinary_public_id", media.cloudinary_public_id)}&id=neq.${media.id}&limit=1`);
       if (!otherAssociations.length) {
         const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
         const apiKey = process.env.CLOUDINARY_API_KEY;
         const apiSecret = process.env.CLOUDINARY_API_SECRET;
-        if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+        if (!cloudName || !apiKey || !apiSecret) throw new TRPCError2({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
         try {
           await destroyCloudinaryProductImage(media.cloudinary_public_id, { cloudName, apiKey, apiSecret });
         } catch (error) {
-          throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
+          throw new TRPCError2({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
         }
       }
       await supabaseRequest(`product_media?${supabaseEq("id", media.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });
@@ -1064,465 +859,22 @@ var storeRouter = router({
 
 // server/routers.ts
 var appRouter = router({
-  // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
-  system: systemRouter,
   store: storeRouter
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
 });
-
-// shared/_core/errors.ts
-var HttpError = class extends Error {
-  constructor(statusCode, message) {
-    super(message);
-    this.statusCode = statusCode;
-    this.name = "HttpError";
-  }
-  statusCode;
-};
-var ForbiddenError = (msg) => new HttpError(403, msg);
-
-// server/_core/sdk.ts
-import axios from "axios";
-import { parse as parseCookieHeader } from "cookie";
-import { SignJWT as SignJWT2, jwtVerify as jwtVerify2 } from "jose";
-
-// server/db.ts
-import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
-
-// drizzle/schema.ts
-import { boolean, decimal, index, int, json, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
-var users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull()
-});
-var categories = mysqlTable("categories", {
-  id: int("id").autoincrement().primaryKey(),
-  slug: varchar("slug", { length: 64 }).notNull(),
-  label: varchar("label", { length: 128 }).notNull(),
-  sortOrder: int("sortOrder").notNull(),
-  isVisible: boolean("isVisible").default(true).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-}, (table) => [uniqueIndex("categories_slug_unique").on(table.slug)]);
-var colors = mysqlTable("colors", {
-  id: int("id").autoincrement().primaryKey(),
-  khmerName: varchar("khmerName", { length: 128 }),
-  englishName: varchar("englishName", { length: 128 }).notNull(),
-  hex: varchar("hex", { length: 16 }).notNull(),
-  normalizedKey: varchar("normalizedKey", { length: 160 }).notNull(),
-  sortOrder: int("sortOrder").default(0).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-}, (table) => [uniqueIndex("colors_normalized_key_unique").on(table.normalizedKey)]);
-var products = mysqlTable("products", {
-  id: int("id").autoincrement().primaryKey(),
-  slug: varchar("slug", { length: 160 }).notNull(),
-  cleanedCode: varchar("cleanedCode", { length: 255 }).notNull(),
-  displayName: varchar("displayName", { length: 255 }),
-  categoryId: int("categoryId").references(() => categories.id),
-  categorySource: mysqlEnum("categorySource", ["rule", "manual", "unassigned"]).default("unassigned").notNull(),
-  isJustIn: boolean("isJustIn").default(false).notNull(),
-  isPublished: boolean("isPublished").default(true).notNull(),
-  isRemovedFromLatestImport: boolean("isRemovedFromLatestImport").default(false).notNull(),
-  reviewStatus: mysqlEnum("reviewStatus", ["clean", "needs_review", "archived"]).default("clean").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-}, (table) => [uniqueIndex("products_slug_unique").on(table.slug), uniqueIndex("products_cleaned_code_unique").on(table.cleanedCode), index("products_category_id_idx").on(table.categoryId)]);
-var variants = mysqlTable("variants", {
-  id: int("id").autoincrement().primaryKey(),
-  productId: int("productId").notNull().references(() => products.id, { onDelete: "cascade" }),
-  colorId: int("colorId").references(() => colors.id, { onDelete: "set null" }),
-  posCode: varchar("posCode", { length: 255 }).notNull(),
-  size: varchar("size", { length: 64 }),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  stockQuantity: int("stockQuantity").notNull(),
-  isVisible: boolean("isVisible").default(true).notNull(),
-  lastSeenImportId: int("lastSeenImportId"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-}, (table) => [uniqueIndex("variants_pos_code_unique").on(table.posCode), index("variants_product_id_idx").on(table.productId), index("variants_color_id_idx").on(table.colorId)]);
-var productMedia = mysqlTable("product_media", {
-  id: int("id").autoincrement().primaryKey(),
-  productId: int("productId").notNull().references(() => products.id, { onDelete: "cascade" }),
-  variantId: int("variantId").references(() => variants.id, { onDelete: "set null" }),
-  cloudinaryPublicId: varchar("cloudinaryPublicId", { length: 500 }).notNull(),
-  optimizedUrl: text("optimizedUrl").notNull(),
-  altText: varchar("altText", { length: 255 }),
-  colorTag: varchar("colorTag", { length: 128 }),
-  sortOrder: int("sortOrder").default(0).notNull(),
-  isPrimary: boolean("isPrimary").default(false).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-}, (table) => [index("product_media_product_id_idx").on(table.productId), index("product_media_variant_id_idx").on(table.variantId), uniqueIndex("product_media_public_id_unique").on(table.cloudinaryPublicId)]);
-var imports = mysqlTable("imports", {
-  id: int("id").autoincrement().primaryKey(),
-  originalFilename: varchar("originalFilename", { length: 255 }).notNull(),
-  digest: varchar("digest", { length: 128 }).notNull(),
-  status: mysqlEnum("status", ["preview", "applied", "failed", "rolled_back"]).notNull(),
-  parsedRows: int("parsedRows").default(0).notNull(),
-  summaryJson: json("summaryJson"),
-  validationJson: json("validationJson"),
-  appliedAt: timestamp("appliedAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var importChanges = mysqlTable("import_changes", {
-  id: int("id").autoincrement().primaryKey(),
-  importId: int("importId").notNull().references(() => imports.id, { onDelete: "cascade" }),
-  productId: int("productId").references(() => products.id, { onDelete: "set null" }),
-  variantId: int("variantId").references(() => variants.id, { onDelete: "set null" }),
-  posCode: varchar("posCode", { length: 255 }),
-  changeType: mysqlEnum("changeType", ["new_product", "new_variant", "stock_price_update", "missing_from_import", "needs_review"]).notNull(),
-  beforeJson: json("beforeJson"),
-  afterJson: json("afterJson"),
-  reviewStatus: mysqlEnum("reviewStatus", ["pending", "accepted", "ignored"]).default("pending").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-}, (table) => [index("import_changes_import_id_idx").on(table.importId)]);
-var storeSettings = mysqlTable("store_settings", {
-  key: varchar("key", { length: 128 }).primaryKey(),
-  value: text("value").notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-
-// server/db.ts
-var _db = null;
-async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
-  }
-  return _db;
-}
-async function upsertUser(user) {
-  if (!user.openId) throw new Error("User openId is required for upsert");
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
-  }
-  try {
-    const values = { openId: user.openId };
-    const updateSet = {};
-    const textFields = ["name", "email", "loginMethod"];
-    const assignNullable = (field) => {
-      const value = user[field];
-      if (value === void 0) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-    textFields.forEach(assignNullable);
-    if (user.lastSignedIn !== void 0) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== void 0) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = "admin";
-      updateSet.role = "admin";
-    }
-    if (!values.lastSignedIn) values.lastSignedIn = /* @__PURE__ */ new Date();
-    if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = /* @__PURE__ */ new Date();
-    await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
-  }
-}
-async function getUserByOpenId(openId) {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return void 0;
-  }
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result.length > 0 ? result[0] : void 0;
-}
-
-// server/_core/sdk.ts
-var isNonEmptyString2 = (value) => typeof value === "string" && value.length > 0;
-var EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
-var GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
-var GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
-var OAuthService = class {
-  constructor(client) {
-    this.client = client;
-    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
-    if (!ENV.oAuthServerUrl) {
-      console.error(
-        "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable."
-      );
-    }
-  }
-  client;
-  decodeState(state) {
-    return decodeOAuthState(state).redirectUri;
-  }
-  async getTokenByCode(code, state) {
-    const payload = {
-      clientId: ENV.appId,
-      grantType: "authorization_code",
-      code,
-      redirectUri: this.decodeState(state)
-    };
-    const { data } = await this.client.post(
-      EXCHANGE_TOKEN_PATH,
-      payload
-    );
-    return data;
-  }
-  async getUserInfoByToken(token) {
-    const { data } = await this.client.post(
-      GET_USER_INFO_PATH,
-      {
-        accessToken: token.accessToken
-      }
-    );
-    return data;
-  }
-};
-var createOAuthHttpClient = () => axios.create({
-  baseURL: ENV.oAuthServerUrl,
-  timeout: AXIOS_TIMEOUT_MS
-});
-var SDKServer = class {
-  client;
-  oauthService;
-  constructor(client = createOAuthHttpClient()) {
-    this.client = client;
-    this.oauthService = new OAuthService(this.client);
-  }
-  deriveLoginMethod(platforms, fallback) {
-    if (fallback && fallback.length > 0) return fallback;
-    if (!Array.isArray(platforms) || platforms.length === 0) return null;
-    const set = new Set(
-      platforms.filter((p) => typeof p === "string")
-    );
-    if (set.has("REGISTERED_PLATFORM_EMAIL")) return "email";
-    if (set.has("REGISTERED_PLATFORM_GOOGLE")) return "google";
-    if (set.has("REGISTERED_PLATFORM_APPLE")) return "apple";
-    if (set.has("REGISTERED_PLATFORM_MICROSOFT") || set.has("REGISTERED_PLATFORM_AZURE"))
-      return "microsoft";
-    if (set.has("REGISTERED_PLATFORM_GITHUB")) return "github";
-    const first = Array.from(set)[0];
-    return first ? first.toLowerCase() : null;
-  }
-  /**
-   * Exchange OAuth authorization code for access token
-   * @example
-   * const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-   */
-  async exchangeCodeForToken(code, state) {
-    return this.oauthService.getTokenByCode(code, state);
-  }
-  /**
-   * Get user information using access token
-   * @example
-   * const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-   */
-  async getUserInfo(accessToken) {
-    const data = await this.oauthService.getUserInfoByToken({
-      accessToken
-    });
-    const loginMethod = this.deriveLoginMethod(
-      data?.platforms,
-      data?.platform ?? data.platform ?? null
-    );
-    return {
-      ...data,
-      platform: loginMethod,
-      loginMethod
-    };
-  }
-  parseCookies(cookieHeader) {
-    if (!cookieHeader) {
-      return /* @__PURE__ */ new Map();
-    }
-    const parsed = parseCookieHeader(cookieHeader);
-    return new Map(Object.entries(parsed));
-  }
-  getSessionSecret() {
-    const secret = ENV.cookieSecret;
-    return new TextEncoder().encode(secret);
-  }
-  /**
-   * Create a session token for a Manus user openId
-   * @example
-   * const sessionToken = await sdk.createSessionToken(userInfo.openId);
-   */
-  async createSessionToken(openId, options = {}) {
-    return this.signSession(
-      {
-        openId,
-        appId: ENV.appId,
-        name: options.name || ""
-      },
-      options
-    );
-  }
-  async signSession(payload, options = {}) {
-    const issuedAt = Date.now();
-    const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
-    const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1e3);
-    const secretKey = this.getSessionSecret();
-    return new SignJWT2({
-      openId: payload.openId,
-      appId: payload.appId,
-      name: payload.name
-    }).setProtectedHeader({ alg: "HS256", typ: "JWT" }).setExpirationTime(expirationSeconds).sign(secretKey);
-  }
-  async verifySession(cookieValue) {
-    if (!cookieValue) {
-      console.warn("[Auth] Missing session cookie");
-      return null;
-    }
-    try {
-      const secretKey = this.getSessionSecret();
-      const { payload } = await jwtVerify2(cookieValue, secretKey, {
-        algorithms: ["HS256"]
-      });
-      const { openId, appId, name } = payload;
-      if (!isNonEmptyString2(openId) || !isNonEmptyString2(appId) || !isNonEmptyString2(name)) {
-        console.warn("[Auth] Session payload missing required fields");
-        return null;
-      }
-      return {
-        openId,
-        appId,
-        name
-      };
-    } catch (error) {
-      console.warn("[Auth] Session verification failed", String(error));
-      return null;
-    }
-  }
-  async getUserInfoWithJwt(jwtToken) {
-    const payload = {
-      jwtToken,
-      projectId: ENV.appId
-    };
-    const { data } = await this.client.post(
-      GET_USER_INFO_WITH_JWT_PATH,
-      payload
-    );
-    const loginMethod = this.deriveLoginMethod(
-      data?.platforms,
-      data?.platform ?? data.platform ?? null
-    );
-    return {
-      ...data,
-      platform: loginMethod,
-      loginMethod
-    };
-  }
-  async authenticateRequest(req) {
-    const cookies = this.parseCookies(req.headers.cookie);
-    let sessionToken = cookies.get(COOKIE_NAME);
-    if (!sessionToken) {
-      const authHeader = req.headers.authorization;
-      if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
-        sessionToken = authHeader.slice(7);
-      }
-    }
-    const session = await this.verifySession(sessionToken);
-    if (!session) {
-      throw ForbiddenError("Invalid session cookie");
-    }
-    if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {
-      const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
-      const taskUid = userInfo.taskUid ?? null;
-      if (!taskUid) {
-        throw ForbiddenError("Cron session missing task_uid");
-      }
-      return buildCronUser(userInfo);
-    }
-    const sessionUserId = session.openId;
-    const signedInAt = /* @__PURE__ */ new Date();
-    let user = await getUserByOpenId(sessionUserId);
-    if (!user) {
-      try {
-        const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
-        await upsertUser({
-          openId: userInfo.openId,
-          name: userInfo.name || null,
-          email: userInfo.email ?? null,
-          loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-          lastSignedIn: signedInAt
-        });
-        user = await getUserByOpenId(userInfo.openId);
-      } catch (error) {
-        console.error("[Auth] Failed to sync user from OAuth:", error);
-        throw ForbiddenError("Failed to sync user info");
-      }
-    }
-    if (!user) {
-      throw ForbiddenError("User not found");
-    }
-    await upsertUser({
-      openId: user.openId,
-      lastSignedIn: signedInAt
-    });
-    return user;
-  }
-};
-var CRON_OPEN_ID_PREFIX = "cron_";
-function buildCronUser(userInfo) {
-  const now = /* @__PURE__ */ new Date();
-  return {
-    id: -1,
-    openId: userInfo.openId,
-    name: userInfo.name || "Manus Scheduled Task",
-    email: null,
-    loginMethod: null,
-    role: "user",
-    createdAt: now,
-    updatedAt: now,
-    lastSignedIn: now,
-    taskUid: userInfo.taskUid ?? void 0,
-    isCron: true
-  };
-}
-var sdk = new SDKServer();
 
 // server/_core/context.ts
-async function createContext(opts) {
-  let user = null;
-  try {
-    user = await sdk.authenticateRequest(opts.req);
-  } catch (error) {
-    user = null;
-  }
+function createContext(opts) {
   return {
     req: opts.req,
-    res: opts.res,
-    user
+    res: opts.res
   };
 }
 
 // server/apiApp.ts
 function createApiApp() {
   const app = express();
+  app.disable("x-powered-by");
   app.use(express.json({ limit: "8mb" }));
-  app.use(express.urlencoded({ limit: "8mb", extended: true }));
-  registerStorageProxy(app);
   app.use("/api/trpc", (req, res, next) => {
     const procedure = req.path.replace(/^\//, "");
     if (req.method === "GET" && (procedure === "store.catalogue.list" || procedure === "store.catalogue.getBySlug")) {

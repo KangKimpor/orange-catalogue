@@ -23,8 +23,12 @@ export async function supabaseRequest<T>(path: string, init: RequestInit = {}): 
     },
   });
   if (!response.ok) {
-    const detail = await response.text();
-    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Supabase request failed: ${detail}` });
+    console.error("[Supabase] REST request failed", {
+      method: init.method ?? "GET",
+      path: path.split("?", 1)[0],
+      status: response.status,
+    });
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The catalogue service is temporarily unavailable. Please try again." });
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

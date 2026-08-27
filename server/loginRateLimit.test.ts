@@ -1,5 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { adminLoginClientKey } from "./loginRateLimit";
+
+const originalJwtSecret = process.env.JWT_SECRET;
+
+beforeEach(() => {
+  process.env.JWT_SECRET = "test-only-login-rate-limit-key";
+});
+
+afterEach(() => {
+  if (originalJwtSecret === undefined) delete process.env.JWT_SECRET;
+  else process.env.JWT_SECRET = originalJwtSecret;
+});
 
 describe("admin login rate-limit client keys", () => {
   it("uses the first forwarded client address and never returns the raw address", () => {
