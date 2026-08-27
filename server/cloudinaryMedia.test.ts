@@ -25,7 +25,7 @@ describe("Cloudinary product-media deletion", () => {
     expect(url).toBe("https://api.cloudinary.com/v1_1/orange-test/image/destroy");
     expect(init).toMatchObject({ method: "POST" });
     expect(String(init.body)).toContain("public_id=orange%2Fproducts%2Fzl-0041%2Fblue-front");
-    expect(cloudinaryDestroySignature("orange/products/zl-0041/blue-front", 123, "test-secret")).toHaveLength(40);
+    expect(cloudinaryDestroySignature("orange/products/zl-0041/blue-front", 123, "test-secret")).toHaveLength(64);
   });
 
   it("confirms an uploaded workbook photo exists in the approved Cloudinary folder", async () => {

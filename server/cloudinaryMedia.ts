@@ -15,7 +15,7 @@ export function assertOrangeProductPublicId(publicId: string) {
 }
 
 export function cloudinaryDestroySignature(publicId: string, timestamp: number, apiSecret: string) {
-  return crypto.createHash("sha1").update(`public_id=${publicId}&timestamp=${timestamp}${apiSecret}`).digest("hex");
+  return crypto.createHash("sha256").update(`public_id=${publicId}&timestamp=${timestamp}${apiSecret}`).digest("hex");
 }
 
 export async function cloudinaryProductImageExists(

@@ -2,136 +2,6 @@
 import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 
-// shared/const.ts
-var COOKIE_NAME = "app_session_id";
-var ONE_YEAR_MS = 1e3 * 60 * 60 * 24 * 365;
-var AXIOS_TIMEOUT_MS = 3e4;
-var UNAUTHED_ERR_MSG = "Please login (10001)";
-var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
-var OAUTH_STATE_COOKIE = "__Host-oauth_state";
-var decodeOAuthState = (state) => {
-  let decoded;
-  try {
-    decoded = atob(state);
-  } catch {
-    return { redirectUri: "" };
-  }
-  try {
-    const parsed = JSON.parse(decoded);
-    if (parsed && typeof parsed.redirectUri === "string") return parsed;
-  } catch {
-  }
-  return { redirectUri: decoded };
-};
-
-// server/_core/oauth.ts
-import { parse as parseCookieHeader2 } from "cookie";
-
-// server/db.ts
-import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
-
-// drizzle/schema.ts
-import { boolean, decimal, index, int, json, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
-var users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull()
-});
-var categories = mysqlTable("categories", {
-  id: int("id").autoincrement().primaryKey(),
-  slug: varchar("slug", { length: 64 }).notNull(),
-  label: varchar("label", { length: 128 }).notNull(),
-  sortOrder: int("sortOrder").notNull(),
-  isVisible: boolean("isVisible").default(true).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-}, (table) => [uniqueIndex("categories_slug_unique").on(table.slug)]);
-var colors = mysqlTable("colors", {
-  id: int("id").autoincrement().primaryKey(),
-  khmerName: varchar("khmerName", { length: 128 }),
-  englishName: varchar("englishName", { length: 128 }).notNull(),
-  hex: varchar("hex", { length: 16 }).notNull(),
-  normalizedKey: varchar("normalizedKey", { length: 160 }).notNull(),
-  sortOrder: int("sortOrder").default(0).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-}, (table) => [uniqueIndex("colors_normalized_key_unique").on(table.normalizedKey)]);
-var products = mysqlTable("products", {
-  id: int("id").autoincrement().primaryKey(),
-  slug: varchar("slug", { length: 160 }).notNull(),
-  cleanedCode: varchar("cleanedCode", { length: 255 }).notNull(),
-  displayName: varchar("displayName", { length: 255 }),
-  categoryId: int("categoryId").references(() => categories.id),
-  categorySource: mysqlEnum("categorySource", ["rule", "manual", "unassigned"]).default("unassigned").notNull(),
-  isJustIn: boolean("isJustIn").default(false).notNull(),
-  isPublished: boolean("isPublished").default(true).notNull(),
-  isRemovedFromLatestImport: boolean("isRemovedFromLatestImport").default(false).notNull(),
-  reviewStatus: mysqlEnum("reviewStatus", ["clean", "needs_review", "archived"]).default("clean").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-}, (table) => [uniqueIndex("products_slug_unique").on(table.slug), uniqueIndex("products_cleaned_code_unique").on(table.cleanedCode), index("products_category_id_idx").on(table.categoryId)]);
-var variants = mysqlTable("variants", {
-  id: int("id").autoincrement().primaryKey(),
-  productId: int("productId").notNull().references(() => products.id, { onDelete: "cascade" }),
-  colorId: int("colorId").references(() => colors.id, { onDelete: "set null" }),
-  posCode: varchar("posCode", { length: 255 }).notNull(),
-  size: varchar("size", { length: 64 }),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  stockQuantity: int("stockQuantity").notNull(),
-  isVisible: boolean("isVisible").default(true).notNull(),
-  lastSeenImportId: int("lastSeenImportId"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-}, (table) => [uniqueIndex("variants_pos_code_unique").on(table.posCode), index("variants_product_id_idx").on(table.productId), index("variants_color_id_idx").on(table.colorId)]);
-var productMedia = mysqlTable("product_media", {
-  id: int("id").autoincrement().primaryKey(),
-  productId: int("productId").notNull().references(() => products.id, { onDelete: "cascade" }),
-  variantId: int("variantId").references(() => variants.id, { onDelete: "set null" }),
-  cloudinaryPublicId: varchar("cloudinaryPublicId", { length: 500 }).notNull(),
-  optimizedUrl: text("optimizedUrl").notNull(),
-  altText: varchar("altText", { length: 255 }),
-  colorTag: varchar("colorTag", { length: 128 }),
-  sortOrder: int("sortOrder").default(0).notNull(),
-  isPrimary: boolean("isPrimary").default(false).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-}, (table) => [index("product_media_product_id_idx").on(table.productId), index("product_media_variant_id_idx").on(table.variantId), uniqueIndex("product_media_public_id_unique").on(table.cloudinaryPublicId)]);
-var imports = mysqlTable("imports", {
-  id: int("id").autoincrement().primaryKey(),
-  originalFilename: varchar("originalFilename", { length: 255 }).notNull(),
-  digest: varchar("digest", { length: 128 }).notNull(),
-  status: mysqlEnum("status", ["preview", "applied", "failed", "rolled_back"]).notNull(),
-  parsedRows: int("parsedRows").default(0).notNull(),
-  summaryJson: json("summaryJson"),
-  validationJson: json("validationJson"),
-  appliedAt: timestamp("appliedAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var importChanges = mysqlTable("import_changes", {
-  id: int("id").autoincrement().primaryKey(),
-  importId: int("importId").notNull().references(() => imports.id, { onDelete: "cascade" }),
-  productId: int("productId").references(() => products.id, { onDelete: "set null" }),
-  variantId: int("variantId").references(() => variants.id, { onDelete: "set null" }),
-  posCode: varchar("posCode", { length: 255 }),
-  changeType: mysqlEnum("changeType", ["new_product", "new_variant", "stock_price_update", "missing_from_import", "needs_review"]).notNull(),
-  beforeJson: json("beforeJson"),
-  afterJson: json("afterJson"),
-  reviewStatus: mysqlEnum("reviewStatus", ["pending", "accepted", "ignored"]).default("pending").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-}, (table) => [index("import_changes_import_id_idx").on(table.importId)]);
-var storeSettings = mysqlTable("store_settings", {
-  key: varchar("key", { length: 128 }).primaryKey(),
-  value: text("value").notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-
 // server/_core/env.ts
 var ENV = {
   appId: process.env.VITE_APP_ID ?? "",
@@ -143,391 +13,6 @@ var ENV = {
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? ""
 };
-
-// server/db.ts
-var _db = null;
-async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
-  }
-  return _db;
-}
-async function upsertUser(user) {
-  if (!user.openId) throw new Error("User openId is required for upsert");
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
-  }
-  try {
-    const values = { openId: user.openId };
-    const updateSet = {};
-    const textFields = ["name", "email", "loginMethod"];
-    const assignNullable = (field) => {
-      const value = user[field];
-      if (value === void 0) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-    textFields.forEach(assignNullable);
-    if (user.lastSignedIn !== void 0) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== void 0) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = "admin";
-      updateSet.role = "admin";
-    }
-    if (!values.lastSignedIn) values.lastSignedIn = /* @__PURE__ */ new Date();
-    if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = /* @__PURE__ */ new Date();
-    await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
-  }
-}
-async function getUserByOpenId(openId) {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return void 0;
-  }
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result.length > 0 ? result[0] : void 0;
-}
-
-// server/_core/cookies.ts
-function isSecureRequest(req) {
-  if (req.protocol === "https") return true;
-  const forwardedProto = req.headers["x-forwarded-proto"];
-  if (!forwardedProto) return false;
-  const protoList = Array.isArray(forwardedProto) ? forwardedProto : forwardedProto.split(",");
-  return protoList.some((proto) => proto.trim().toLowerCase() === "https");
-}
-function getSessionCookieOptions(req) {
-  return {
-    httpOnly: true,
-    path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req)
-  };
-}
-
-// shared/_core/errors.ts
-var HttpError = class extends Error {
-  constructor(statusCode, message) {
-    super(message);
-    this.statusCode = statusCode;
-    this.name = "HttpError";
-  }
-  statusCode;
-};
-var ForbiddenError = (msg) => new HttpError(403, msg);
-
-// server/_core/sdk.ts
-import axios from "axios";
-import { parse as parseCookieHeader } from "cookie";
-import { SignJWT, jwtVerify } from "jose";
-var isNonEmptyString = (value) => typeof value === "string" && value.length > 0;
-var EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
-var GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
-var GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
-var OAuthService = class {
-  constructor(client) {
-    this.client = client;
-    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
-    if (!ENV.oAuthServerUrl) {
-      console.error(
-        "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable."
-      );
-    }
-  }
-  client;
-  decodeState(state) {
-    return decodeOAuthState(state).redirectUri;
-  }
-  async getTokenByCode(code, state) {
-    const payload = {
-      clientId: ENV.appId,
-      grantType: "authorization_code",
-      code,
-      redirectUri: this.decodeState(state)
-    };
-    const { data } = await this.client.post(
-      EXCHANGE_TOKEN_PATH,
-      payload
-    );
-    return data;
-  }
-  async getUserInfoByToken(token) {
-    const { data } = await this.client.post(
-      GET_USER_INFO_PATH,
-      {
-        accessToken: token.accessToken
-      }
-    );
-    return data;
-  }
-};
-var createOAuthHttpClient = () => axios.create({
-  baseURL: ENV.oAuthServerUrl,
-  timeout: AXIOS_TIMEOUT_MS
-});
-var SDKServer = class {
-  client;
-  oauthService;
-  constructor(client = createOAuthHttpClient()) {
-    this.client = client;
-    this.oauthService = new OAuthService(this.client);
-  }
-  deriveLoginMethod(platforms, fallback) {
-    if (fallback && fallback.length > 0) return fallback;
-    if (!Array.isArray(platforms) || platforms.length === 0) return null;
-    const set = new Set(
-      platforms.filter((p) => typeof p === "string")
-    );
-    if (set.has("REGISTERED_PLATFORM_EMAIL")) return "email";
-    if (set.has("REGISTERED_PLATFORM_GOOGLE")) return "google";
-    if (set.has("REGISTERED_PLATFORM_APPLE")) return "apple";
-    if (set.has("REGISTERED_PLATFORM_MICROSOFT") || set.has("REGISTERED_PLATFORM_AZURE"))
-      return "microsoft";
-    if (set.has("REGISTERED_PLATFORM_GITHUB")) return "github";
-    const first = Array.from(set)[0];
-    return first ? first.toLowerCase() : null;
-  }
-  /**
-   * Exchange OAuth authorization code for access token
-   * @example
-   * const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-   */
-  async exchangeCodeForToken(code, state) {
-    return this.oauthService.getTokenByCode(code, state);
-  }
-  /**
-   * Get user information using access token
-   * @example
-   * const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-   */
-  async getUserInfo(accessToken) {
-    const data = await this.oauthService.getUserInfoByToken({
-      accessToken
-    });
-    const loginMethod = this.deriveLoginMethod(
-      data?.platforms,
-      data?.platform ?? data.platform ?? null
-    );
-    return {
-      ...data,
-      platform: loginMethod,
-      loginMethod
-    };
-  }
-  parseCookies(cookieHeader) {
-    if (!cookieHeader) {
-      return /* @__PURE__ */ new Map();
-    }
-    const parsed = parseCookieHeader(cookieHeader);
-    return new Map(Object.entries(parsed));
-  }
-  getSessionSecret() {
-    const secret = ENV.cookieSecret;
-    return new TextEncoder().encode(secret);
-  }
-  /**
-   * Create a session token for a Manus user openId
-   * @example
-   * const sessionToken = await sdk.createSessionToken(userInfo.openId);
-   */
-  async createSessionToken(openId, options = {}) {
-    return this.signSession(
-      {
-        openId,
-        appId: ENV.appId,
-        name: options.name || ""
-      },
-      options
-    );
-  }
-  async signSession(payload, options = {}) {
-    const issuedAt = Date.now();
-    const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
-    const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1e3);
-    const secretKey = this.getSessionSecret();
-    return new SignJWT({
-      openId: payload.openId,
-      appId: payload.appId,
-      name: payload.name
-    }).setProtectedHeader({ alg: "HS256", typ: "JWT" }).setExpirationTime(expirationSeconds).sign(secretKey);
-  }
-  async verifySession(cookieValue) {
-    if (!cookieValue) {
-      console.warn("[Auth] Missing session cookie");
-      return null;
-    }
-    try {
-      const secretKey = this.getSessionSecret();
-      const { payload } = await jwtVerify(cookieValue, secretKey, {
-        algorithms: ["HS256"]
-      });
-      const { openId, appId, name } = payload;
-      if (!isNonEmptyString(openId) || !isNonEmptyString(appId) || !isNonEmptyString(name)) {
-        console.warn("[Auth] Session payload missing required fields");
-        return null;
-      }
-      return {
-        openId,
-        appId,
-        name
-      };
-    } catch (error) {
-      console.warn("[Auth] Session verification failed", String(error));
-      return null;
-    }
-  }
-  async getUserInfoWithJwt(jwtToken) {
-    const payload = {
-      jwtToken,
-      projectId: ENV.appId
-    };
-    const { data } = await this.client.post(
-      GET_USER_INFO_WITH_JWT_PATH,
-      payload
-    );
-    const loginMethod = this.deriveLoginMethod(
-      data?.platforms,
-      data?.platform ?? data.platform ?? null
-    );
-    return {
-      ...data,
-      platform: loginMethod,
-      loginMethod
-    };
-  }
-  async authenticateRequest(req) {
-    const cookies = this.parseCookies(req.headers.cookie);
-    let sessionToken = cookies.get(COOKIE_NAME);
-    if (!sessionToken) {
-      const authHeader = req.headers.authorization;
-      if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
-        sessionToken = authHeader.slice(7);
-      }
-    }
-    const session = await this.verifySession(sessionToken);
-    if (!session) {
-      throw ForbiddenError("Invalid session cookie");
-    }
-    if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {
-      const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
-      const taskUid = userInfo.taskUid ?? null;
-      if (!taskUid) {
-        throw ForbiddenError("Cron session missing task_uid");
-      }
-      return buildCronUser(userInfo);
-    }
-    const sessionUserId = session.openId;
-    const signedInAt = /* @__PURE__ */ new Date();
-    let user = await getUserByOpenId(sessionUserId);
-    if (!user) {
-      try {
-        const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
-        await upsertUser({
-          openId: userInfo.openId,
-          name: userInfo.name || null,
-          email: userInfo.email ?? null,
-          loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-          lastSignedIn: signedInAt
-        });
-        user = await getUserByOpenId(userInfo.openId);
-      } catch (error) {
-        console.error("[Auth] Failed to sync user from OAuth:", error);
-        throw ForbiddenError("Failed to sync user info");
-      }
-    }
-    if (!user) {
-      throw ForbiddenError("User not found");
-    }
-    await upsertUser({
-      openId: user.openId,
-      lastSignedIn: signedInAt
-    });
-    return user;
-  }
-};
-var CRON_OPEN_ID_PREFIX = "cron_";
-function buildCronUser(userInfo) {
-  const now = /* @__PURE__ */ new Date();
-  return {
-    id: -1,
-    openId: userInfo.openId,
-    name: userInfo.name || "Manus Scheduled Task",
-    email: null,
-    loginMethod: null,
-    role: "user",
-    createdAt: now,
-    updatedAt: now,
-    lastSignedIn: now,
-    taskUid: userInfo.taskUid ?? void 0,
-    isCron: true
-  };
-}
-var sdk = new SDKServer();
-
-// server/_core/oauth.ts
-function getQueryParam(req, key) {
-  const value = req.query[key];
-  return typeof value === "string" ? value : void 0;
-}
-function registerOAuthRoutes(app) {
-  app.get("/api/oauth/callback", async (req, res) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
-      return;
-    }
-    const { nonce } = decodeOAuthState(state);
-    const expectedNonce = parseCookieHeader2(req.headers.cookie ?? "")[OAUTH_STATE_COOKIE];
-    if (!nonce || nonce !== expectedNonce) {
-      res.status(403).json({ error: "invalid oauth state" });
-      return;
-    }
-    res.clearCookie(OAUTH_STATE_COOKIE, { path: "/", secure: true, sameSite: "none" });
-    try {
-      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-      if (!userInfo.openId) {
-        res.status(400).json({ error: "openId missing from user info" });
-        return;
-      }
-      await upsertUser({
-        openId: userInfo.openId,
-        name: userInfo.name || null,
-        email: userInfo.email ?? null,
-        loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-        lastSignedIn: /* @__PURE__ */ new Date()
-      });
-      const sessionToken = await sdk.createSessionToken(userInfo.openId, {
-        name: userInfo.name || "",
-        expiresInMs: ONE_YEAR_MS
-      });
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-      res.redirect(302, "/");
-    } catch (error) {
-      console.error("[OAuth] Callback failed", error);
-      res.status(500).json({ error: "OAuth callback failed" });
-    }
-  });
-}
 
 // server/_core/storageProxy.ts
 function registerStorageProxy(app) {
@@ -579,7 +64,7 @@ import { TRPCError } from "@trpc/server";
 var TITLE_MAX_LENGTH = 1200;
 var CONTENT_MAX_LENGTH = 2e4;
 var trimValue = (value) => value.trim();
-var isNonEmptyString2 = (value) => typeof value === "string" && value.trim().length > 0;
+var isNonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
 var buildEndpointUrl = (baseUrl) => {
   const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   return new URL(
@@ -588,13 +73,13 @@ var buildEndpointUrl = (baseUrl) => {
   ).toString();
 };
 var validatePayload = (input) => {
-  if (!isNonEmptyString2(input.title)) {
+  if (!isNonEmptyString(input.title)) {
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "Notification title is required."
     });
   }
-  if (!isNonEmptyString2(input.content)) {
+  if (!isNonEmptyString(input.content)) {
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "Notification content is required."
@@ -655,6 +140,27 @@ async function notifyOwner(payload) {
     return false;
   }
 }
+
+// shared/const.ts
+var COOKIE_NAME = "app_session_id";
+var ONE_YEAR_MS = 1e3 * 60 * 60 * 24 * 365;
+var AXIOS_TIMEOUT_MS = 3e4;
+var UNAUTHED_ERR_MSG = "Please login (10001)";
+var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
+var decodeOAuthState = (state) => {
+  let decoded;
+  try {
+    decoded = atob(state);
+  } catch {
+    return { redirectUri: "" };
+  }
+  try {
+    const parsed = JSON.parse(decoded);
+    if (parsed && typeof parsed.redirectUri === "string") return parsed;
+  } catch {
+  }
+  return { redirectUri: decoded };
+};
 
 // server/_core/trpc.ts
 import { initTRPC, TRPCError as TRPCError2 } from "@trpc/server";
@@ -717,7 +223,7 @@ var systemRouter = router({
 // server/storeRouter.ts
 import crypto4 from "node:crypto";
 import { TRPCError as TRPCError4 } from "@trpc/server";
-import { SignJWT as SignJWT2, jwtVerify as jwtVerify2 } from "jose";
+import { SignJWT, jwtVerify } from "jose";
 import { parse as parseCookie } from "cookie";
 import { z as z2 } from "zod";
 
@@ -1149,7 +655,7 @@ function assertOrangeProductPublicId(publicId) {
   }
 }
 function cloudinaryDestroySignature(publicId, timestamp2, apiSecret) {
-  return crypto3.createHash("sha1").update(`public_id=${publicId}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
+  return crypto3.createHash("sha256").update(`public_id=${publicId}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
 }
 async function destroyCloudinaryProductImage(publicId, config, request = fetch) {
   assertOrangeProductPublicId(publicId);
@@ -1209,14 +715,14 @@ async function savePasswordHash(value) {
   await supabaseRequest("store_settings?on_conflict=key", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=representation" }, body: JSON.stringify({ key: ADMIN_PASSWORD_KEY, value }) });
 }
 async function issueAdminSession(ctx) {
-  const token = await new SignJWT2({ role: "store_admin" }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime(`${DAY_SECONDS}s`).sign(tokenKey());
+  const token = await new SignJWT({ role: "store_admin" }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime(`${DAY_SECONDS}s`).sign(tokenKey());
   ctx.res.cookie(ADMIN_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: DAY_SECONDS * 1e3 });
 }
 async function hasAdminSession(ctx) {
   const token = parseCookie(ctx.req.headers.cookie ?? "")[ADMIN_COOKIE];
   if (!token) return false;
   try {
-    return (await jwtVerify2(token, tokenKey())).payload.role === "store_admin";
+    return (await jwtVerify(token, tokenKey())).payload.role === "store_admin";
   } catch {
     return false;
   }
@@ -1522,7 +1028,7 @@ var storeRouter = router({
       const timestamp2 = Math.floor(Date.now() / 1e3);
       const folder = `orange/products/${normalized}`;
       const tags = `orange,product:${normalized},category:${input.categorySlug},color:${input.colorTag}`;
-      const signature = crypto4.createHash("sha1").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
+      const signature = crypto4.createHash("sha256").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp2}${apiSecret}`).digest("hex");
       return { uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp: timestamp2, folder, tags, signature };
     }),
     registerMedia: publicProcedure.input(z2.object({ productId: z2.number().int(), variantId: z2.number().int().nullable().optional(), publicId: z2.string().min(1), secureUrl: z2.string().url(), altText: z2.string().max(255).nullable().optional(), colorTag: z2.string().max(128).nullable().optional(), isPrimary: z2.boolean().default(false) })).mutation(async ({ ctx, input }) => {
@@ -1560,16 +1066,6 @@ var storeRouter = router({
 var appRouter = router({
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
-  auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true
-      };
-    })
-  }),
   store: storeRouter
   // TODO: add feature routers here, e.g.
   // todo: router({
@@ -1578,6 +1074,433 @@ var appRouter = router({
   //   ),
   // }),
 });
+
+// shared/_core/errors.ts
+var HttpError = class extends Error {
+  constructor(statusCode, message) {
+    super(message);
+    this.statusCode = statusCode;
+    this.name = "HttpError";
+  }
+  statusCode;
+};
+var ForbiddenError = (msg) => new HttpError(403, msg);
+
+// server/_core/sdk.ts
+import axios from "axios";
+import { parse as parseCookieHeader } from "cookie";
+import { SignJWT as SignJWT2, jwtVerify as jwtVerify2 } from "jose";
+
+// server/db.ts
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/mysql2";
+
+// drizzle/schema.ts
+import { boolean, decimal, index, int, json, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+var users = mysqlTable("users", {
+  id: int("id").autoincrement().primaryKey(),
+  openId: varchar("openId", { length: 64 }).notNull().unique(),
+  name: text("name"),
+  email: varchar("email", { length: 320 }),
+  loginMethod: varchar("loginMethod", { length: 64 }),
+  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull()
+});
+var categories = mysqlTable("categories", {
+  id: int("id").autoincrement().primaryKey(),
+  slug: varchar("slug", { length: 64 }).notNull(),
+  label: varchar("label", { length: 128 }).notNull(),
+  sortOrder: int("sortOrder").notNull(),
+  isVisible: boolean("isVisible").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+}, (table) => [uniqueIndex("categories_slug_unique").on(table.slug)]);
+var colors = mysqlTable("colors", {
+  id: int("id").autoincrement().primaryKey(),
+  khmerName: varchar("khmerName", { length: 128 }),
+  englishName: varchar("englishName", { length: 128 }).notNull(),
+  hex: varchar("hex", { length: 16 }).notNull(),
+  normalizedKey: varchar("normalizedKey", { length: 160 }).notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+}, (table) => [uniqueIndex("colors_normalized_key_unique").on(table.normalizedKey)]);
+var products = mysqlTable("products", {
+  id: int("id").autoincrement().primaryKey(),
+  slug: varchar("slug", { length: 160 }).notNull(),
+  cleanedCode: varchar("cleanedCode", { length: 255 }).notNull(),
+  displayName: varchar("displayName", { length: 255 }),
+  categoryId: int("categoryId").references(() => categories.id),
+  categorySource: mysqlEnum("categorySource", ["rule", "manual", "unassigned"]).default("unassigned").notNull(),
+  isJustIn: boolean("isJustIn").default(false).notNull(),
+  isPublished: boolean("isPublished").default(true).notNull(),
+  isRemovedFromLatestImport: boolean("isRemovedFromLatestImport").default(false).notNull(),
+  reviewStatus: mysqlEnum("reviewStatus", ["clean", "needs_review", "archived"]).default("clean").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+}, (table) => [uniqueIndex("products_slug_unique").on(table.slug), uniqueIndex("products_cleaned_code_unique").on(table.cleanedCode), index("products_category_id_idx").on(table.categoryId)]);
+var variants = mysqlTable("variants", {
+  id: int("id").autoincrement().primaryKey(),
+  productId: int("productId").notNull().references(() => products.id, { onDelete: "cascade" }),
+  colorId: int("colorId").references(() => colors.id, { onDelete: "set null" }),
+  posCode: varchar("posCode", { length: 255 }).notNull(),
+  size: varchar("size", { length: 64 }),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  stockQuantity: int("stockQuantity").notNull(),
+  isVisible: boolean("isVisible").default(true).notNull(),
+  lastSeenImportId: int("lastSeenImportId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+}, (table) => [uniqueIndex("variants_pos_code_unique").on(table.posCode), index("variants_product_id_idx").on(table.productId), index("variants_color_id_idx").on(table.colorId)]);
+var productMedia = mysqlTable("product_media", {
+  id: int("id").autoincrement().primaryKey(),
+  productId: int("productId").notNull().references(() => products.id, { onDelete: "cascade" }),
+  variantId: int("variantId").references(() => variants.id, { onDelete: "set null" }),
+  cloudinaryPublicId: varchar("cloudinaryPublicId", { length: 500 }).notNull(),
+  optimizedUrl: text("optimizedUrl").notNull(),
+  altText: varchar("altText", { length: 255 }),
+  colorTag: varchar("colorTag", { length: 128 }),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isPrimary: boolean("isPrimary").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+}, (table) => [index("product_media_product_id_idx").on(table.productId), index("product_media_variant_id_idx").on(table.variantId), uniqueIndex("product_media_public_id_unique").on(table.cloudinaryPublicId)]);
+var imports = mysqlTable("imports", {
+  id: int("id").autoincrement().primaryKey(),
+  originalFilename: varchar("originalFilename", { length: 255 }).notNull(),
+  digest: varchar("digest", { length: 128 }).notNull(),
+  status: mysqlEnum("status", ["preview", "applied", "failed", "rolled_back"]).notNull(),
+  parsedRows: int("parsedRows").default(0).notNull(),
+  summaryJson: json("summaryJson"),
+  validationJson: json("validationJson"),
+  appliedAt: timestamp("appliedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull()
+});
+var importChanges = mysqlTable("import_changes", {
+  id: int("id").autoincrement().primaryKey(),
+  importId: int("importId").notNull().references(() => imports.id, { onDelete: "cascade" }),
+  productId: int("productId").references(() => products.id, { onDelete: "set null" }),
+  variantId: int("variantId").references(() => variants.id, { onDelete: "set null" }),
+  posCode: varchar("posCode", { length: 255 }),
+  changeType: mysqlEnum("changeType", ["new_product", "new_variant", "stock_price_update", "missing_from_import", "needs_review"]).notNull(),
+  beforeJson: json("beforeJson"),
+  afterJson: json("afterJson"),
+  reviewStatus: mysqlEnum("reviewStatus", ["pending", "accepted", "ignored"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull()
+}, (table) => [index("import_changes_import_id_idx").on(table.importId)]);
+var storeSettings = mysqlTable("store_settings", {
+  key: varchar("key", { length: 128 }).primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+
+// server/db.ts
+var _db = null;
+async function getDb() {
+  if (!_db && process.env.DATABASE_URL) {
+    try {
+      _db = drizzle(process.env.DATABASE_URL);
+    } catch (error) {
+      console.warn("[Database] Failed to connect:", error);
+      _db = null;
+    }
+  }
+  return _db;
+}
+async function upsertUser(user) {
+  if (!user.openId) throw new Error("User openId is required for upsert");
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot upsert user: database not available");
+    return;
+  }
+  try {
+    const values = { openId: user.openId };
+    const updateSet = {};
+    const textFields = ["name", "email", "loginMethod"];
+    const assignNullable = (field) => {
+      const value = user[field];
+      if (value === void 0) return;
+      const normalized = value ?? null;
+      values[field] = normalized;
+      updateSet[field] = normalized;
+    };
+    textFields.forEach(assignNullable);
+    if (user.lastSignedIn !== void 0) {
+      values.lastSignedIn = user.lastSignedIn;
+      updateSet.lastSignedIn = user.lastSignedIn;
+    }
+    if (user.role !== void 0) {
+      values.role = user.role;
+      updateSet.role = user.role;
+    } else if (user.openId === ENV.ownerOpenId) {
+      values.role = "admin";
+      updateSet.role = "admin";
+    }
+    if (!values.lastSignedIn) values.lastSignedIn = /* @__PURE__ */ new Date();
+    if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = /* @__PURE__ */ new Date();
+    await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
+  } catch (error) {
+    console.error("[Database] Failed to upsert user:", error);
+    throw error;
+  }
+}
+async function getUserByOpenId(openId) {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get user: database not available");
+    return void 0;
+  }
+  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  return result.length > 0 ? result[0] : void 0;
+}
+
+// server/_core/sdk.ts
+var isNonEmptyString2 = (value) => typeof value === "string" && value.length > 0;
+var EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
+var GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
+var GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
+var OAuthService = class {
+  constructor(client) {
+    this.client = client;
+    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
+    if (!ENV.oAuthServerUrl) {
+      console.error(
+        "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable."
+      );
+    }
+  }
+  client;
+  decodeState(state) {
+    return decodeOAuthState(state).redirectUri;
+  }
+  async getTokenByCode(code, state) {
+    const payload = {
+      clientId: ENV.appId,
+      grantType: "authorization_code",
+      code,
+      redirectUri: this.decodeState(state)
+    };
+    const { data } = await this.client.post(
+      EXCHANGE_TOKEN_PATH,
+      payload
+    );
+    return data;
+  }
+  async getUserInfoByToken(token) {
+    const { data } = await this.client.post(
+      GET_USER_INFO_PATH,
+      {
+        accessToken: token.accessToken
+      }
+    );
+    return data;
+  }
+};
+var createOAuthHttpClient = () => axios.create({
+  baseURL: ENV.oAuthServerUrl,
+  timeout: AXIOS_TIMEOUT_MS
+});
+var SDKServer = class {
+  client;
+  oauthService;
+  constructor(client = createOAuthHttpClient()) {
+    this.client = client;
+    this.oauthService = new OAuthService(this.client);
+  }
+  deriveLoginMethod(platforms, fallback) {
+    if (fallback && fallback.length > 0) return fallback;
+    if (!Array.isArray(platforms) || platforms.length === 0) return null;
+    const set = new Set(
+      platforms.filter((p) => typeof p === "string")
+    );
+    if (set.has("REGISTERED_PLATFORM_EMAIL")) return "email";
+    if (set.has("REGISTERED_PLATFORM_GOOGLE")) return "google";
+    if (set.has("REGISTERED_PLATFORM_APPLE")) return "apple";
+    if (set.has("REGISTERED_PLATFORM_MICROSOFT") || set.has("REGISTERED_PLATFORM_AZURE"))
+      return "microsoft";
+    if (set.has("REGISTERED_PLATFORM_GITHUB")) return "github";
+    const first = Array.from(set)[0];
+    return first ? first.toLowerCase() : null;
+  }
+  /**
+   * Exchange OAuth authorization code for access token
+   * @example
+   * const tokenResponse = await sdk.exchangeCodeForToken(code, state);
+   */
+  async exchangeCodeForToken(code, state) {
+    return this.oauthService.getTokenByCode(code, state);
+  }
+  /**
+   * Get user information using access token
+   * @example
+   * const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
+   */
+  async getUserInfo(accessToken) {
+    const data = await this.oauthService.getUserInfoByToken({
+      accessToken
+    });
+    const loginMethod = this.deriveLoginMethod(
+      data?.platforms,
+      data?.platform ?? data.platform ?? null
+    );
+    return {
+      ...data,
+      platform: loginMethod,
+      loginMethod
+    };
+  }
+  parseCookies(cookieHeader) {
+    if (!cookieHeader) {
+      return /* @__PURE__ */ new Map();
+    }
+    const parsed = parseCookieHeader(cookieHeader);
+    return new Map(Object.entries(parsed));
+  }
+  getSessionSecret() {
+    const secret = ENV.cookieSecret;
+    return new TextEncoder().encode(secret);
+  }
+  /**
+   * Create a session token for a Manus user openId
+   * @example
+   * const sessionToken = await sdk.createSessionToken(userInfo.openId);
+   */
+  async createSessionToken(openId, options = {}) {
+    return this.signSession(
+      {
+        openId,
+        appId: ENV.appId,
+        name: options.name || ""
+      },
+      options
+    );
+  }
+  async signSession(payload, options = {}) {
+    const issuedAt = Date.now();
+    const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
+    const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1e3);
+    const secretKey = this.getSessionSecret();
+    return new SignJWT2({
+      openId: payload.openId,
+      appId: payload.appId,
+      name: payload.name
+    }).setProtectedHeader({ alg: "HS256", typ: "JWT" }).setExpirationTime(expirationSeconds).sign(secretKey);
+  }
+  async verifySession(cookieValue) {
+    if (!cookieValue) {
+      console.warn("[Auth] Missing session cookie");
+      return null;
+    }
+    try {
+      const secretKey = this.getSessionSecret();
+      const { payload } = await jwtVerify2(cookieValue, secretKey, {
+        algorithms: ["HS256"]
+      });
+      const { openId, appId, name } = payload;
+      if (!isNonEmptyString2(openId) || !isNonEmptyString2(appId) || !isNonEmptyString2(name)) {
+        console.warn("[Auth] Session payload missing required fields");
+        return null;
+      }
+      return {
+        openId,
+        appId,
+        name
+      };
+    } catch (error) {
+      console.warn("[Auth] Session verification failed", String(error));
+      return null;
+    }
+  }
+  async getUserInfoWithJwt(jwtToken) {
+    const payload = {
+      jwtToken,
+      projectId: ENV.appId
+    };
+    const { data } = await this.client.post(
+      GET_USER_INFO_WITH_JWT_PATH,
+      payload
+    );
+    const loginMethod = this.deriveLoginMethod(
+      data?.platforms,
+      data?.platform ?? data.platform ?? null
+    );
+    return {
+      ...data,
+      platform: loginMethod,
+      loginMethod
+    };
+  }
+  async authenticateRequest(req) {
+    const cookies = this.parseCookies(req.headers.cookie);
+    let sessionToken = cookies.get(COOKIE_NAME);
+    if (!sessionToken) {
+      const authHeader = req.headers.authorization;
+      if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+        sessionToken = authHeader.slice(7);
+      }
+    }
+    const session = await this.verifySession(sessionToken);
+    if (!session) {
+      throw ForbiddenError("Invalid session cookie");
+    }
+    if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {
+      const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
+      const taskUid = userInfo.taskUid ?? null;
+      if (!taskUid) {
+        throw ForbiddenError("Cron session missing task_uid");
+      }
+      return buildCronUser(userInfo);
+    }
+    const sessionUserId = session.openId;
+    const signedInAt = /* @__PURE__ */ new Date();
+    let user = await getUserByOpenId(sessionUserId);
+    if (!user) {
+      try {
+        const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
+        await upsertUser({
+          openId: userInfo.openId,
+          name: userInfo.name || null,
+          email: userInfo.email ?? null,
+          loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
+          lastSignedIn: signedInAt
+        });
+        user = await getUserByOpenId(userInfo.openId);
+      } catch (error) {
+        console.error("[Auth] Failed to sync user from OAuth:", error);
+        throw ForbiddenError("Failed to sync user info");
+      }
+    }
+    if (!user) {
+      throw ForbiddenError("User not found");
+    }
+    await upsertUser({
+      openId: user.openId,
+      lastSignedIn: signedInAt
+    });
+    return user;
+  }
+};
+var CRON_OPEN_ID_PREFIX = "cron_";
+function buildCronUser(userInfo) {
+  const now = /* @__PURE__ */ new Date();
+  return {
+    id: -1,
+    openId: userInfo.openId,
+    name: userInfo.name || "Manus Scheduled Task",
+    email: null,
+    loginMethod: null,
+    role: "user",
+    createdAt: now,
+    updatedAt: now,
+    lastSignedIn: now,
+    taskUid: userInfo.taskUid ?? void 0,
+    isCron: true
+  };
+}
+var sdk = new SDKServer();
 
 // server/_core/context.ts
 async function createContext(opts) {
@@ -1600,7 +1523,6 @@ function createApiApp() {
   app.use(express.json({ limit: "8mb" }));
   app.use(express.urlencoded({ limit: "8mb", extended: true }));
   registerStorageProxy(app);
-  registerOAuthRoutes(app);
   app.use("/api/trpc", (req, res, next) => {
     const procedure = req.path.replace(/^\//, "");
     if (req.method === "GET" && (procedure === "store.catalogue.list" || procedure === "store.catalogue.getBySlug")) {

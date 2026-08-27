@@ -26,7 +26,7 @@ describe("Supabase catalogue migration", () => {
     const product = await caller.catalogue.getBySlug({ slug: "zl-0041" });
     expect(product.cleanedCode).toBe("ZL 0041");
     expect(product.category.slug).toBe("tops");
-    expect(product.media.some(media => media.url.includes("res.cloudinary.com"))).toBe(true);
+    expect(product.media.some(media => new URL(media.url).hostname === "res.cloudinary.com")).toBe(true);
   }, 20_000);
 
   it("accepts the configured admin password and issues an http-only session", async () => {

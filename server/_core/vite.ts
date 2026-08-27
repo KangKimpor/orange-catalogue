@@ -1,11 +1,21 @@
 import express, { type Express } from "express";
+import { rateLimit } from "express-rate-limit";
 import fs from "fs";
 import { type Server } from "http";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
 
+const pageRequestLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 300,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again shortly." },
+});
+
 export async function setupVite(app: Express, server: Server) {
+  app.use(pageRequestLimiter);
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
@@ -46,6 +56,7 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
+  app.use(pageRequestLimiter);
   const distPath =
     process.env.NODE_ENV === "development"
       ? path.resolve(import.meta.dirname, "../..", "dist", "public")

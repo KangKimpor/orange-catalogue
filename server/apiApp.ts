@@ -1,6 +1,5 @@
 import express from "express";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./_core/oauth";
 import { registerStorageProxy } from "./_core/storageProxy";
 import { appRouter } from "./routers";
 import { createContext } from "./_core/context";
@@ -10,7 +9,6 @@ export function createApiApp() {
   app.use(express.json({ limit: "8mb" }));
   app.use(express.urlencoded({ limit: "8mb", extended: true }));
   registerStorageProxy(app);
-  registerOAuthRoutes(app);
   app.use("/api/trpc", (req, res, next) => {
     const procedure = req.path.replace(/^\//, "");
     if (req.method === "GET" && (procedure === "store.catalogue.list" || procedure === "store.catalogue.getBySlug")) {
