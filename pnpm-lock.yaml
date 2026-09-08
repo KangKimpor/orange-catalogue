@@ -31,7 +31,7 @@ importers:
         version: 17.4.2
       drizzle-orm:
         specifier: 0.45.2
-        version: 0.45.2(mysql2@3.22.0(@types/node@24.7.0))
+        version: 0.45.2(mysql2@3.23.1(@types/node@24.7.0))
       express:
         specifier: ^5.2.1
         version: 5.2.1
@@ -45,8 +45,8 @@ importers:
         specifier: ^0.453.0
         version: 0.453.0(react@19.2.1)
       mysql2:
-        specifier: 3.22.0
-        version: 3.22.0(@types/node@24.7.0)
+        specifier: 3.23.1
+        version: 3.23.1(@types/node@24.7.0)
       react:
         specifier: ^19.2.1
         version: 19.2.1
@@ -1150,8 +1150,8 @@ packages:
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
-  mysql2@3.22.0:
-    resolution: {integrity: sha512-4jaJYBObj7FhD3lnZhqX1yDMuZN4mQNz+IolDySDXT7fbozMBpeGQNcuWXKUqo4ahkAEfkjUHPjnwuDI0/6VKw==}
+  mysql2@3.23.1:
+    resolution: {integrity: sha512-tTuRnC7qCet2IOfSNMYZ5SwXuBnfvBPAcIA28P0gtruXyZlU1LMxA6uha32kYypoFgyYklMqhLWwt4laYwXR/Q==}
     engines: {node: '>= 8.0'}
     peerDependencies:
       '@types/node': '>= 8'
@@ -1910,9 +1910,9 @@ snapshots:
 
   dotenv@17.4.2: {}
 
-  drizzle-orm@0.45.2(mysql2@3.22.0(@types/node@24.7.0)):
+  drizzle-orm@0.45.2(mysql2@3.23.1(@types/node@24.7.0)):
     optionalDependencies:
-      mysql2: 3.22.0(@types/node@24.7.0)
+      mysql2: 3.23.1(@types/node@24.7.0)
 
   dunder-proto@1.0.1:
     dependencies:
@@ -2231,7 +2231,7 @@ snapshots:
 
   ms@2.1.3: {}
 
-  mysql2@3.22.0(@types/node@24.7.0):
+  mysql2@3.23.1(@types/node@24.7.0):
     dependencies:
       '@types/node': 24.7.0
       aws-ssl-profiles: 1.1.2

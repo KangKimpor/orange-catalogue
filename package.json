@@ -24,7 +24,7 @@
     "express-rate-limit": "8.6.2",
     "jose": "6.2.10",
     "lucide-react": "^0.453.0",
-    "mysql2": "3.22.0",
+    "mysql2": "3.23.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "superjson": "^1.13.3",
