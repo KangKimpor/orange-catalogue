@@ -1,20 +1,34 @@
-# Orange Catalogue Release Notes
+# Orange Catalogue release notes
 
-The intended public deployment is a **publicly accessible storefront** with no team-member authentication wall in front of customer routes. The `/admin`, `/admin/photos`, and `/admin/import` workspaces remain password-protected by the application-level admin session. Customer ordering remains Messenger-only through `m.me/OfficiallyDavit`.
+## 2026-10-10 — cohesive responsive catalogue and staff workspace
 
-The release candidate was validated with the supplied POS export, Cloudinary media workflow, public Tops card, ZL 0041 detail page, automated tests, and production build. The Management UI **Publish** action remains intentionally owner-operated; publication should be performed only after confirming the visibility setting is public and the final domain is correct.
+- Consolidated the historical CSS override stack into one white/pink palette,
+  reusable spacing roles, readable typography, and component-specific rules.
+- Responsive catalogue columns, continuous white navigation, full-width return
+  controls, two-line card names, clear selection/focus, and recoverable loading,
+  empty, request-error, missing-product, and image-failure states.
+- Product photography uses full-image framing in detail. Gallery controls align
+  with the image; touch-sized pips, keyboard operation, scroll-safe horizontal
+  drags, explicit default sizes, and unavailable choices preserve Messenger orders.
+- Unified staff editor uses workspace/editor container queries, labelled mobile
+  navigation, readable identifiers, bounded result/history scrolling, and a
+  focused selected editor. Forms and progress/error/success feedback are accessible.
+- Import stages span the workbench; values and source details wrap; invalid source
+  rows are explained; removal success remains visible after selection clears.
+- Public cards retain one remaining photo when the original primary is removed.
+- Chromium/WebKit regression tests exercise local fixtures without live mutations.
+  Business/source tests are retained; historical CSS-string geometry assertions
+  have moved to rendered bounds, contrast, state, and interaction checks.
+- Compatible transitive fixes for proxy-addr, qs, and ip-address address the
+  production dependency audit. The pnpm pin matches the declared tool version;
+  the existing SheetJS tarball now has a reproducible integrity hash.
 
-The authenticated compact admin workspaces were reviewed at desktop width and use responsive form layouts. The owner should perform one final mobile-width review in the Management UI before publication, especially `/admin/photos` and `/admin/import`.
+The public categories are Just In, Tops, Jeans, and Legwear. `/admin/photos` uses
+the Catalogue editor; `/admin/review-queue` uses POS imports. Orders remain
+Messenger-only through `m.me/OfficiallyDavit`; no stock counts appear publicly.
 
-## Verified Vercel settings
-
-The existing Vercel project `orange-catalogue` in team `Kimpor` was inspected directly. The verified deployment-protection state is: **Vercel Authentication disabled**, **password protection disabled**, and **Trusted IP protection disabled**. No customer-facing team-member login wall remains configured.
-
-## Publication procedure
-
-1. Open the latest Orange Catalogue checkpoint in the Management UI.
-2. Review the preview, confirm the site visibility is public, and confirm the intended domain.
-3. Click **Publish** in the Management UI. Do not enable Vercel Authentication or password protection for the public storefront.
-4. Open the published storefront in an incognito window and verify the five category labels, the ZL 0041 Tops card, `/product/zl-0041`, and the Messenger order CTA.
-5. Keep `/admin` protected by the application admin password and change the initial password before operational use.
-6. The repository-history cleanup and GitHub-public visibility transition were completed on 16 August 2026 after the owner rotated the active password. Future credential changes must follow the Security workflow, retain the server-side rate limit, and never be committed to source or documentation.
+See `DESIGN_SYSTEM.md` and `UI_VERIFICATION.md` for behavior, coverage, evidence,
+and remaining physical-device/service checks. Vercel publication follows the
+repository's linked GitHub workflow; application admin authentication remains
+required while customer routes stay public. Historical Management UI publication
+instructions are superseded by the repository/Vercel operations guide.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-describe("Supabase server configuration", () => {
+describe.runIf(process.env.ORANGE_LIVE_TESTS === "1")("Supabase server configuration", () => {
   it("authenticates to the Supabase Auth administration endpoint", async () => {
     const url = process.env.VITE_SUPABASE_URL;
     const publishableKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;

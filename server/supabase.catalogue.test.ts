@@ -19,7 +19,7 @@ function createContext(): { ctx: TrpcContext; cookies: Array<{ name: string; val
   };
 }
 
-describe("Supabase catalogue migration", () => {
+describe.runIf(process.env.ORANGE_LIVE_TESTS === "1")("Supabase catalogue migration", () => {
   it("serves the migrated ZL 0041 product and Cloudinary media", async () => {
     const { ctx } = createContext();
     const caller = storeRouter.createCaller(ctx);

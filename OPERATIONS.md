@@ -18,16 +18,16 @@ The server accesses Supabase through its REST API using the service-role key. Ne
 
 Configure these variables for both **Preview** and **Production** in the Vercel project. Redeploy after adding or changing them.
 
-| Variable | Scope | Purpose |
-|---|---|---|
-| `VITE_SUPABASE_URL` | Browser and server | Supabase project URL used by the public catalogue client and server adapter. |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Browser and server | Supabase publishable key for public client configuration. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server only | Server-side Supabase REST access for catalogue and admin operations. |
-| `JWT_SECRET` | Server only | Signs and verifies the `orange_admin_session` cookie. Use a long random value. |
-| `ADMIN_PASSWORD` | Server only | Initial password used only until the first successful sign-in stores a derived hash in `store_settings`. |
-| `CLOUDINARY_CLOUD_NAME` | Server only | Cloudinary cloud name used to construct signed upload and optimized delivery URLs. |
-| `CLOUDINARY_API_KEY` | Server only | Cloudinary API key used to generate signed upload parameters. |
-| `CLOUDINARY_API_SECRET` | Server only | Cloudinary signing secret; never send it to the browser. |
+| Variable                        | Scope              | Purpose                                                                                                  |
+| ------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `VITE_SUPABASE_URL`             | Browser and server | Supabase project URL used by the public catalogue client and server adapter.                             |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Browser and server | Supabase publishable key for public client configuration.                                                |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Server only        | Server-side Supabase REST access for catalogue and admin operations.                                     |
+| `JWT_SECRET`                    | Server only        | Signs and verifies the `orange_admin_session` cookie. Use a long random value.                           |
+| `ADMIN_PASSWORD`                | Server only        | Initial password used only until the first successful sign-in stores a derived hash in `store_settings`. |
+| `CLOUDINARY_CLOUD_NAME`         | Server only        | Cloudinary cloud name used to construct signed upload and optimized delivery URLs.                       |
+| `CLOUDINARY_API_KEY`            | Server only        | Cloudinary API key used to generate signed upload parameters.                                            |
+| `CLOUDINARY_API_SECRET`         | Server only        | Cloudinary signing secret; never send it to the browser.                                                 |
 
 Supply an initial owner password through `ADMIN_PASSWORD` only for first access. Never document or commit its value. Change it immediately in the admin Security workspace. After the password hash exists in Supabase, changing `ADMIN_PASSWORD` does not replace the stored hash. The current owner-approved Security-form minimum is four characters; a longer unique password is safer. Admin sign-in attempts are server-throttled: five failed attempts from one protected client identifier in 15 minutes trigger a 15-minute block; a successful sign-in clears the prior failure record.
 
@@ -39,23 +39,23 @@ Open the unified `/admin` Catalogue editor, search by cleaned code or website na
 
 ## Product naming, categories, and visibility
 
-The public site has exactly five categories: **Just In**, **Tops**, **Jeans**, **Shorts**, and **Pants**. Until a custom display name is entered in `/admin`, the customer-facing title uses the cleaned POS name. The immutable POS variant `Code` remains below the display name and is included in the Messenger order message.
+The public site has exactly four categories: **Just In**, **Tops**, **Jeans**, and **Legwear**. Until a custom display name is entered in `/admin`, the customer-facing title uses the cleaned POS name. The cleaned item code appears below the display name; the selected immutable POS variant `Code` is included in the Messenger order message. Historical `?category=shorts` and `?category=pants` links normalize to Legwear.
 
-| POS cleaned-name prefix | Automatic public category |
-|---|---|
-| `ZS`, `ZL` | Tops |
-| `SK`, `SJ`, `WJ`, `FJ` | Jeans |
-| `SP` | Shorts |
-| `LP` | Pants |
-| Any other prefix | Unassigned and hidden until staff selects a storefront category |
+| POS cleaned-name prefix | Automatic public category                                       |
+| ----------------------- | --------------------------------------------------------------- |
+| `ZS`, `ZL`              | Tops                                                            |
+| `SK`, `SJ`, `WJ`, `FJ`  | Jeans                                                           |
+| `SP`                    | Legwear                                                         |
+| `LP`                    | Legwear                                                         |
+| Any other prefix        | Unassigned and hidden until staff selects a storefront category |
 
-The Products workspace supports display names, category overrides, published state, and review status. A product absent from a later import is retained and marked for review; there is no automatic destructive deletion.
+The unified Catalogue editor supports website names, category overrides, Just In, and lifecycle status. Publication/review metadata exists in storage but is not exposed as independent editor controls. `/admin/items` and `/admin/photos` render that same editor. A product absent from a later import is retained; no automatic destructive deletion occurs.
 
 ## POS XLSX import procedure
 
 Use **POS XLSX import** to upload a POS export. The parser accepts valid base64 only, permits at most a 5 MB decoded workbook, three worksheets, and 5,000 rows, then detects its embedded header row and validates `Code`, `Name`, `Price`, and `Stock Qty.`. Preview mode writes an import-history record and review rows but does not alter catalogue variants. The immutable `Code` updates a variant’s price and stock, while the cleaned name determines product-level grouping and media association.
 
-Review new products, new variants, stock or price changes, and missing variants. Apply only after the preview digest and validation summary match the intended file. Items absent from an import are retained and surfaced for review so an owner can archive or hide them deliberately.
+Review the implemented cleaned-code groups: new products/colors/sizes/variants and price or quantity changes. Missing variants remain retained and are excluded from the actionable change groups. `/admin/review-queue` is an alias of the imports workspace. Apply only after the preview digest and validation summary match the intended file.
 
 ## Local development and verification
 
@@ -65,6 +65,10 @@ Before publication, verify the public storefront without a Vercel authentication
 
 ## Vercel and GitHub release procedure
 
-Submit source, migration, and operations changes through a pull request; do not push feature work directly to `main`. Confirm the Vercel project is linked to the public repository, uses `pnpm build`, and routes `/api/*` to the bundled `api/index.js` function. A pull request creates an independent review deployment; check its build status, run the smoke tests above, and inspect runtime logs for failed API requests.
+Normally submit source, migration, and operations changes through a pull request. An explicit owner instruction may authorize a direct `main` update; the same validation and release checks still apply. Confirm the Vercel project is linked to the public repository, uses `pnpm build`, and routes `/api/*` to the bundled `api/index.js` function. A pull request creates an independent review deployment; check its build status, run the smoke tests above, and inspect runtime logs for failed API requests.
 
 After the pull request is merged, confirm that `orange-catalogue.vercel.app` serves the new Supabase-backed build, that public shoppers do not see a team login wall, and that `/admin` still requires the store password. Do not publish the service-role key, Cloudinary secret, JWT secret, or any owner credential in repository files.
+
+## Isolated browser and service tests
+
+Run `pnpm build` before `pnpm test:ui`. The browser suite intercepts every catalogue/admin procedure and upload on localhost; it never previews/applies POS files or mutates production. Five live-service assertions are explicitly skipped in ordinary `pnpm test` runs. To run them, set `ORANGE_LIVE_TESTS=1` and supply isolated test-service credentials; login can write throttle/password state, so never point them at production as a read-only check. A missing credential remains a failure when that suite is explicitly enabled.

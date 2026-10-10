@@ -4,18 +4,18 @@ Orange Catalogue is a **photo-first women’s-clothing catalogue**, not a checko
 
 ## Fast orientation
 
-| Concern | Source of truth | Read when changing |
-|---|---|---|
-| Route map and global UI | `client/src/App.tsx` | Public or admin navigation |
-| Storefront category grid | `client/src/pages/Storefront.tsx` | Cards, category selection, public layout |
-| Product choices and gallery | `client/src/pages/ProductDetail.tsx` | Colour, size, gallery, Messenger handoff |
-| Staff workspace | `client/src/pages/Admin.tsx` | Item naming, photos, POS import, review queue, password UI |
-| API contract | `server/storeRouter.ts` | Public/admin procedures and authorization |
-| Catalogue projections | `server/catalogDb.ts` | Supabase data mapped for cards, details, or admin |
-| POS rules and parsing | `server/catalogRules.ts`, `server/posImport.ts` | Category rules, cleaned codes, Attribute colours, import limits |
-| External services | `server/supabase.ts`, `server/cloudinaryMedia.ts` | Data access or image lifecycle |
-| Security controls | `server/loginRateLimit.ts`, `server/storeRouter.ts` | Admin password/session behavior |
-| Deployment | `server/apiApp.ts`, `server/vercelEntry.ts`, `vercel.json`, `api/index.js` | Vercel routing and serverless build |
+| Concern                     | Source of truth                                                            | Read when changing                                              |
+| --------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Route map and global UI     | `client/src/App.tsx`                                                       | Public or admin navigation                                      |
+| Storefront category grid    | `client/src/pages/Storefront.tsx`                                          | Cards, category selection, public layout                        |
+| Product choices and gallery | `client/src/pages/ProductDetail.tsx`                                       | Colour, size, gallery, Messenger handoff                        |
+| Staff workspace             | `client/src/pages/Admin.tsx`                                               | Item naming, photos, POS import/history, password UI            |
+| API contract                | `server/storeRouter.ts`                                                    | Public/admin procedures and authorization                       |
+| Catalogue projections       | `server/catalogDb.ts`                                                      | Supabase data mapped for cards, details, or admin               |
+| POS rules and parsing       | `server/catalogRules.ts`, `server/posImport.ts`                            | Category rules, cleaned codes, Attribute colours, import limits |
+| External services           | `server/supabase.ts`, `server/cloudinaryMedia.ts`                          | Data access or image lifecycle                                  |
+| Security controls           | `server/loginRateLimit.ts`, `server/storeRouter.ts`                        | Admin password/session behavior                                 |
+| Deployment                  | `server/apiApp.ts`, `server/vercelEntry.ts`, `vercel.json`, `api/index.js` | Vercel routing and serverless build                             |
 
 ## Active request flow
 
@@ -32,17 +32,17 @@ The public storefront first loads compact card data. A product page makes a focu
 
 ## Domain invariants
 
-| Invariant | Rule |
-|---|---|
-| Public categories | Keep exactly **Just In**, **Tops**, **Jeans**, **Shorts**, and **Pants**. |
-| Inventory identity | POS `Code` is immutable and remains the ordering key. |
-| Staff model identity | Cleaned code groups variants into one staff-facing item. |
-| Website names | One editable customer-facing name belongs to a cleaned-code item, not to a POS variant. |
-| Colours | POS `Attribute` is the source of colour values. Staff select it; they do not retype it. |
-| Media | Multiple photos per colour are supported. A selected colour without dedicated media uses shared product media when available. |
-| Orders | Messenger-only handoff remains `m.me/OfficiallyDavit` with the selected POS code, colour, and size. |
-| Stock privacy | Never expose public stock counts; show Sold Out only when unavailable. |
-| Security | Cloudinary and Supabase service credentials remain server-only. Keep the durable login throttle and visible sign-out control. |
+| Invariant            | Rule                                                                                                                          |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Public categories    | Keep exactly **Just In**, **Tops**, **Jeans**, and **Legwear**; historical Shorts/Pants links normalize to Legwear.           |
+| Inventory identity   | POS `Code` is immutable and remains the ordering key.                                                                         |
+| Staff model identity | Cleaned code groups variants into one staff-facing item.                                                                      |
+| Website names        | One editable customer-facing name belongs to a cleaned-code item, not to a POS variant.                                       |
+| Colours              | POS `Attribute` is the source of colour values. Staff select it; they do not retype it.                                       |
+| Media                | Multiple photos per colour are supported. A selected colour without dedicated media uses shared product media when available. |
+| Orders               | Messenger-only handoff remains `m.me/OfficiallyDavit` with the selected POS code, colour, and size.                           |
+| Stock privacy        | Never expose public stock counts; show Sold Out only when unavailable.                                                        |
+| Security             | Cloudinary and Supabase service credentials remain server-only. Keep the durable login throttle and visible sign-out control. |
 
 ## Intentional complexity
 
@@ -60,10 +60,15 @@ pnpm check
 pnpm build
 git diff --check
 pnpm audit --prod
+pnpm test:ui
 ```
 
-The build regenerates the committed Vercel handler at `api/index.js`; include it whenever server code changes. Run browser smoke tests for `/`, `/product/zl-0041`, `/admin`, `/admin/photos`, and `/admin/import` at desktop and iPhone-class viewports. If local Supabase/session variables are unavailable, report affected integration tests as blocked rather than passing.
+The build regenerates the committed Vercel handler at `api/index.js`; include it whenever server code changes. After the build, run `pnpm test:ui` for isolated Chromium and WebKit browser regressions. Install browsers first with `pnpm exec playwright install --with-deps chromium webkit`. Also review real catalogue photography and run device smoke tests; see `UI_VERIFICATION.md`. If local Supabase/session variables are unavailable, report affected integration tests as blocked rather than passing.
 
 ## Maintenance rule
 
 Prefer a direct change in the closest active file over a new abstraction. Create a shared helper only when two or more active paths need the same business rule. Do not reintroduce generic component libraries, duplicate admin entry pages, or parallel API/data-access layers without a concrete active use case.
+
+## Design system
+
+`client/src/index.css` owns the canonical white/pink tokens, component rule families, viewport breakpoints, and named workspace/editor container queries. See `DESIGN_SYSTEM.md`. Do not restore historical override stacks or infer rendered behavior from source-string tests. `/admin/photos` renders the catalogue editor; `/admin/review-queue` renders POS imports. The current controls edit website name, category, Just In, and lifecycle; POS identifiers/Attributes remain immutable.

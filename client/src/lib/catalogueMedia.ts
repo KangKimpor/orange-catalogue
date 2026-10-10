@@ -9,22 +9,22 @@ type ResponsiveMedia = {
 const PROFILE_CONFIG: Record<CatalogueMediaProfile, { widths: number[]; sizes?: string; transform: (width: number) => string }> = {
   grid: {
     widths: [240, 360, 480, 640],
-    sizes: "(max-width: 640px) 50vw, (max-width: 980px) 33vw, 25vw",
+    sizes: "(max-width: 359px) 100vw, (max-width: 719px) 50vw, (max-width: 1199px) 33.33vw, (max-width: 1720px) 25vw, 430px",
     transform: width => `f_auto,q_auto,c_limit,w_${width}`,
   },
   gallery: {
     widths: [640, 960, 1200, 1600],
-    sizes: "(max-width: 760px) 100vw, (max-width: 1180px) 58vw, 760px",
+    sizes: "(max-width: 959px) 100vw, (max-width: 1720px) 56vw, 964px",
     transform: width => `f_auto,q_auto,c_limit,w_${width}`,
   },
   thumbnail: {
     widths: [96, 144, 192],
-    sizes: "72px",
+    sizes: "(max-width: 639px) 72px, 84px",
     transform: width => `f_auto,q_auto,c_fill,g_auto,w_${width},h_${width}`,
   },
   brand: {
     widths: [160, 240, 320],
-    sizes: "120px",
+    sizes: "(max-width: 639px) 180px, 232px",
     transform: width => `f_auto,q_auto,c_limit,w_${width}`,
   },
 };

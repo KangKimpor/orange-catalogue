@@ -1,4 +1,4 @@
-import { type ChangeEvent, type DragEvent, type FormEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, type DragEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   CheckCircle2,
@@ -19,6 +19,7 @@ import {
 import { type AdminWorkspace as Workspace, workspaceFromPath } from "@/lib/adminWorkspace";
 import { formatAppliedPosImportSummary } from "@/lib/posImportSummary";
 import { trpc } from "@/lib/trpc";
+import CatalogueImage from "@/components/CatalogueImage";
 import { vercelAnalyticsSnapshot } from "@/lib/vercelAnalyticsSnapshot";
 import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
 import { BATCH_PHOTO_FILENAME_PATTERN, type BatchPhotoMatch, planBatchPhotoIntake, sortBatchPhotoMatches } from "@/lib/batchPhotoIntake";
@@ -182,19 +183,19 @@ function AdminLogin() {
   const [password, setPassword] = useState("");
 
   return (
-    <main className="admin-login">
+    <main id="main-content" className="admin-login">
       <Link href="/" className="admin-back">View storefront</Link>
       <div className="login-card">
         <p className="eyebrow">ORANGE ADMIN</p>
         <h1>Store workspace</h1>
         <p>Manage item names, POS colors, photos, and weekly POS imports in one place.</p>
-        <form onSubmit={async (event: FormEvent) => { event.preventDefault(); await login.mutateAsync({ password }); setPassword(""); }}>
+        <form onSubmit={async (event: FormEvent) => { event.preventDefault(); try { await login.mutateAsync({ password }); setPassword(""); } catch { /* Mutation feedback is rendered below. */ } }}>
           <label className="login-password-label">
             Password
-            <input type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Admin password" autoComplete="current-password" />
+            <input type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Admin password" autoComplete="current-password" required aria-invalid={Boolean(login.error)} aria-describedby={login.error ? "login-error" : undefined} disabled={login.isPending} />
           </label>
           <button type="submit" disabled={login.isPending}>{login.isPending ? "Checking access…" : "Open workspace"}</button>
-          {login.error && <small>{login.error.message}</small>}
+          {login.error && <small id="login-error" role="alert">{login.error.message}</small>}
         </form>
       </div>
     </main>
@@ -205,7 +206,7 @@ export default function Admin() {
   const [location, setLocation] = useLocation();
   const workspace = workspaceFromPath(location, window.location.search);
   const utils = trpc.useUtils();
-  const { data: isAdmin, isLoading } = trpc.store.admin.session.useQuery();
+  const { data: isAdmin, isLoading, error: sessionError, refetch: refetchSession } = trpc.store.admin.session.useQuery();
   const requiresOverview = workspace === "overview" || workspace === "catalogue";
   const requiresImportHistory = workspace === "overview" || workspace === "imports";
   const overview = trpc.store.admin.overview.useQuery(undefined, { enabled: Boolean(isAdmin && requiresOverview) });
@@ -226,6 +227,8 @@ export default function Admin() {
 
   const [itemSearch, setItemSearch] = useState("");
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const editorHeading = useRef<HTMLHeadingElement>(null);
+  const [revealEditor, setRevealEditor] = useState(false);
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
   const [itemName, setItemName] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
@@ -253,6 +256,15 @@ export default function Admin() {
   const products = overview.data?.products ?? [];
   const categories = overview.data?.categories ?? [];
   const selectedProduct = useMemo(() => products.find(product => product.id === selectedProductId) ?? null, [products, selectedProductId]);
+  useEffect(() => {
+    if (!revealEditor || !editorHeading.current) return;
+    const layout = editorHeading.current.closest(".model-layout");
+    if (layout && getComputedStyle(layout).gridTemplateColumns.split(" ").length === 1) {
+      editorHeading.current.focus({ preventScroll: true });
+      editorHeading.current.scrollIntoView({ block: "start" });
+    }
+    setRevealEditor(false);
+  }, [selectedProduct?.id, revealEditor]);
   const selectedColor = selectedProduct?.colors[selectedColorIndex] ?? selectedProduct?.colors[0] ?? null;
   const filteredItems = useMemo(() => {
     const search = itemSearch.trim().toLowerCase();
@@ -270,7 +282,7 @@ export default function Admin() {
   })), [products]);
   const selectedItemSetupStatus = selectedProduct ? itemSetupStatus.get(selectedProduct.id) : null;
   const appliedImportCount = history.data?.filter(item => item.status === "applied").length ?? 0;
-  const photoReadyCount = products.filter(product => product.media.length > 0).length;
+  const photoReadyCount = products.filter(product => itemSetupStatus.get(product.id)?.hasCompletePhotoCoverage).length;
   const archivedSourceItems = products.filter(product => product.lifecycleStatus === "discontinued" && product.id !== selectedProductId);
   const photoUploadIsBusy = ["preparing", "uploading", "saving"].includes(photoUploadFeedback.status) || signUpload.isPending || registerMedia.isPending;
   const batchPhotoIsBusy = batchPhotoFeedback.status === "uploading";
@@ -278,12 +290,13 @@ export default function Admin() {
   const importWorkflowStage: ImportWorkflowStage = importFeedback.status === "success" ? "complete" : importFeedback.status === "applying" ? "apply" : importFeedback.status === "preview_ready" || (importFeedback.status === "ready" && Boolean(preview)) ? "confirm" : importFeedback.status === "error" && Boolean(preview) ? "apply" : importFeedback.status === "error" && !importBase64 ? "file" : importFeedback.status === "reading" || importFeedback.status === "idle" ? "file" : "preview";
 
   useEffect(() => {
+    if (history.isFetching) return;
     if (!history.data?.length) {
       if (selectedImportId !== null) setSelectedImportId(null);
       return;
     }
     if (selectedImportId && !history.data.some(item => item.id === selectedImportId)) setSelectedImportId(null);
-  }, [history.data, selectedImportId]);
+  }, [history.data, history.isFetching, selectedImportId]);
   useEffect(() => {
     if (!selectedProduct && products[0]) setSelectedProductId(products[0].id);
   }, [products, selectedProduct]);
@@ -313,6 +326,7 @@ export default function Admin() {
   }
   function chooseItem(id: number) {
     setSelectedProductId(id);
+    setRevealEditor(true);
     setItemSaveFeedback(initialItemSaveFeedback);
     setSelectedColorIndex(0);
     setMediaFile(null);
@@ -558,7 +572,8 @@ export default function Admin() {
     }
   }
 
-  if (isLoading) return <div className="admin-login">Loading admin workspace…</div>;
+  if (isLoading) return <main id="main-content" className="route-loading" role="status">Loading admin workspace…</main>;
+  if (sessionError) return <main id="main-content" className="page-state"><h1>Couldn’t check workspace access</h1><p>Please try again.</p><button type="button" onClick={() => void refetchSession()}>Retry access check</button><Link href="/">Return to shop</Link></main>;
   if (!isAdmin) return <AdminLogin />;
 
   const itemPicker = workspace === "catalogue" ? (
@@ -566,17 +581,17 @@ export default function Admin() {
       <label htmlFor="item-search">Find an item by cleaned code or website name</label>
       <div className="model-search">
         <Search aria-hidden="true" />
-        <input id="item-search" value={itemSearch} onChange={event => setItemSearch(event.target.value)} placeholder="Example: ZL 0041 or Graphic Tee" />
-        <span>{filteredItems.length} shown</span>
+        <input id="item-search" value={itemSearch} onChange={event => setItemSearch(event.target.value)} placeholder="Code or website name" aria-describedby="item-result-count" />
+        <span id="item-result-count" role="status">{filteredItems.length} shown</span>
       </div>
-      <div className="model-results" role="listbox" aria-label="Matching items">
+      <div className="model-results" role="group" aria-label="Matching items">
         {filteredItems.length ? filteredItems.map(product => (
-          <button type="button" key={product.id} onClick={() => chooseItem(product.id)} className={product.id === selectedProductId ? "is-selected" : ""}>
+          <button type="button" key={product.id} onClick={() => chooseItem(product.id)} aria-pressed={product.id === selectedProductId} className={product.id === selectedProductId ? "is-selected" : ""}>
             <span className="model-result-identity"><strong>{product.cleanedCode}</strong><span className="model-result-lifecycle-meta">{product.colors.length} color{product.colors.length === 1 ? "" : "s"} · {product.lifecycleStatus === "out_of_stock" ? "Out of stock" : product.lifecycleStatus === "discontinued" ? "Discontinued" : "Active"}</span></span>
             {product.displayName && <span className="model-result-name">{product.displayName}</span>}
             <span className="model-result-tags">{!itemSetupStatus.get(product.id)?.hasName && <b className="setup-status-tag is-missing">Name not set</b>}{itemSetupStatus.get(product.id)?.colorCount && !itemSetupStatus.get(product.id)?.hasCompletePhotoCoverage && <b className="setup-status-tag is-missing">Pictures not set · {itemSetupStatus.get(product.id)?.colorsWithPhotos}/{itemSetupStatus.get(product.id)?.colorCount} colors</b>}</span>
           </button>
-        )) : <p className="picker-empty">No items yet. Import your new POS file to begin.</p>}
+        )) : <p className="picker-empty" role="status">{itemSearch.trim() ? "No matching items. Try another code or website name." : "No items yet. Import your new POS file to begin."}</p>}
       </div>
     </div>
   ) : null;
@@ -589,34 +604,38 @@ export default function Admin() {
           <p className="admin-rail-label">Workspace</p>
           {workspaceMeta.map(item => {
             const Icon = item.icon;
-            return <button type="button" key={item.id} className={workspace === item.id ? "is-active" : ""} onClick={() => openWorkspace(item.id)} aria-label={`${item.label}: ${item.hint}`}><Icon aria-hidden="true" /><span>{item.label}</span></button>;
+            return <button type="button" key={item.id} className={workspace === item.id ? "is-active" : ""} onClick={() => openWorkspace(item.id)} aria-current={workspace === item.id ? "page" : undefined} aria-label={`${item.label}: ${item.hint}`}><Icon aria-hidden="true" /><span>{item.label}</span></button>;
           })}
         </nav>
         <div className="admin-rail-footer">
           <div className="admin-user-chip"><span className="admin-user-avatar" aria-hidden="true">O</span><span><b>Orange admin</b><small>Store workspace</small></span></div>
-          <button type="button" onClick={() => logout.mutate()} className="admin-logout"><LogOut aria-hidden="true" />Log out</button>
+          <button type="button" onClick={() => logout.mutate()} className="admin-logout" disabled={logout.isPending}><LogOut aria-hidden="true" />{logout.isPending ? "Signing out…" : "Log out"}</button>
         </div>
       </aside>
 
-      <main className="admin-workspace">
+      <main id="main-content" className="admin-workspace">
         <header className="admin-topbar">
           <div className="admin-page-context"><p className="eyebrow">ORANGE INVENTORY</p><h1>{workspaceMeta.find(item => item.id === workspace)?.label}</h1><p className="admin-page-description">{workspaceMeta.find(item => item.id === workspace)?.hint} · <span className="admin-page-date">{formatAdminTodayLabel()}</span></p></div>
-          <div className="admin-session"><span className="admin-session-status"><ShieldCheck aria-hidden="true" />Secure session</span><button type="button" className="admin-topbar-logout" onClick={() => logout.mutate()}><LogOut aria-hidden="true" />Sign out</button></div>
+          <div className="admin-session"><span className="admin-session-status"><ShieldCheck aria-hidden="true" />Secure session</span><button type="button" className="admin-topbar-logout" disabled={logout.isPending} onClick={() => logout.mutate()}><LogOut aria-hidden="true" />{logout.isPending ? "Signing out…" : "Sign out"}</button></div>
         </header>
 
-        {workspace === "overview" && (
+        {logout.error && <p className="form-error" role="alert">{logout.error.message}</p>}
+        {requiresOverview && overview.isLoading && <p className="empty-workspace" role="status">Loading catalogue workspace…</p>}
+        {requiresOverview && overview.error && <div className="empty-workspace" role="alert"><p>Couldn’t load catalogue information.</p><button type="button" className="secondary-action" onClick={() => void overview.refetch()}>Retry catalogue information</button></div>}
+        {workspace === "overview" && !overview.isLoading && !overview.error && (
           <section className="admin-view overview-view">
             <div className="metric-grid">
               <article><PackageSearch aria-hidden="true" /><span>Items</span><strong>{products.length}</strong><small>Cleaned-code groups</small></article>
-              <article><ImageIcon aria-hidden="true" /><span>Photos ready</span><strong>{photoReadyCount}</strong><small>Items with media</small></article>
-              <article><FileSpreadsheet aria-hidden="true" /><span>Applied imports</span><strong>{appliedImportCount}</strong><small>Snapshot history</small></article>
+              <article><ImageIcon aria-hidden="true" /><span>Photo setup complete</span><strong>{photoReadyCount}</strong><small>Every POS color photographed</small></article>
+              <article><FileSpreadsheet aria-hidden="true" /><span>Applied imports</span><strong>{history.isLoading ? "…" : history.error ? "Unavailable" : appliedImportCount}</strong><small>Snapshot history</small></article>
               <article><Palette aria-hidden="true" /><span>Attribute colors</span><strong>{products.reduce((total, product) => total + product.colors.length, 0)}</strong><small>Imported color groups</small></article>
             </div>
+            {history.error && <p className="form-error" role="alert">Couldn’t load the applied import count. <button type="button" className="secondary-action" onClick={() => void history.refetch()}>Retry import count</button></p>}
             <section className="vercel-analytics-panel" aria-label="Vercel Analytics storefront visitor snapshot"><header><div><p className="eyebrow">VERCEL ANALYTICS</p><h3>Storefront visitors</h3><p>{vercelAnalyticsSnapshot.source} · {vercelAnalyticsSnapshot.reportingPeriod}</p></div><span>Snapshot</span></header><div className="analytics-metrics analytics-visitors-only"><article><span>Storefront visitors</span><strong>{vercelAnalyticsSnapshot.storefrontVisitors}</strong><small>Visitors to the public shop</small></article></div></section>
           </section>
         )}
 
-        {workspace === "catalogue" && (
+        {workspace === "catalogue" && !overview.isLoading && !overview.error && (
           <section className="admin-view model-view">
             <div className="workspace-intro"><div><p>Choose an item, give it a website name, choose its POS color, and add photos. Everything else is handled by your POS import.</p></div></div>
             {itemDeleteFeedback.status !== "idle" && <p className={`item-delete-feedback is-${itemDeleteFeedback.status}`} role="status" aria-live="polite">{itemDeleteFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : <CircleAlert aria-hidden="true" />}{itemDeleteFeedback.message}</p>}
@@ -624,16 +643,16 @@ export default function Admin() {
               {itemPicker}
               <section className="model-editor catalogue-editor">
                 {selectedProduct ? <>
-                  <div className="model-editor-heading"><div><p className="eyebrow">SELECTED ITEM</p><h3>{selectedProduct.cleanedCode}</h3><p>{selectedProduct.colors.length} POS Attribute color{selectedProduct.colors.length === 1 ? "" : "s"} · {photoReadyColorCount} color{photoReadyColorCount === 1 ? "" : "s"} with photo{photoReadyColorCount === 1 ? "" : "s"}</p></div><div className="selected-item-setup-tags">{!selectedItemSetupStatus?.hasName && <span className="setup-status-tag is-missing">Name not set</span>}{selectedItemSetupStatus?.colorCount && !selectedItemSetupStatus.hasCompletePhotoCoverage && <span className="setup-status-tag is-missing">Pictures not set · {selectedItemSetupStatus.colorsWithPhotos}/{selectedItemSetupStatus.colorCount} colors</span>}{selectedItemSetupStatus?.hasName && selectedItemSetupStatus.hasCompletePhotoCoverage && <span className="setup-status-tag is-ready">Setup complete</span>}</div></div>
+                  <div className="model-editor-heading"><div><p className="eyebrow">SELECTED ITEM</p><h3 ref={editorHeading} tabIndex={-1}>{selectedProduct.cleanedCode}</h3><p>{selectedProduct.colors.length} POS Attribute color{selectedProduct.colors.length === 1 ? "" : "s"} · {photoReadyColorCount} color{photoReadyColorCount === 1 ? "" : "s"} with photo{photoReadyColorCount === 1 ? "" : "s"}</p></div><div className="selected-item-setup-tags">{!selectedItemSetupStatus?.hasName && <span className="setup-status-tag is-missing">Name not set</span>}{selectedItemSetupStatus?.colorCount && !selectedItemSetupStatus.hasCompletePhotoCoverage && <span className="setup-status-tag is-missing">Pictures not set · {selectedItemSetupStatus.colorsWithPhotos}/{selectedItemSetupStatus.colorCount} colors</span>}{selectedItemSetupStatus?.hasName && selectedItemSetupStatus.hasCompletePhotoCoverage && <span className="setup-status-tag is-ready">Setup complete</span>}</div></div>
                   <div className="catalogue-editor-workspace catalogue-editor-workflow">
                     <div className="catalogue-editor-top">
                       <section className="catalogue-settings-panel">
-                        <div><h4>Item details</h4></div>
+                        <div><h4>Item details</h4><p className="gallery-helper">Edit website presentation below. POS codes, prices, quantities, and Attribute colors stay controlled by imports.</p></div>
                       <div className="model-form-grid simple-item-form">
                         <label>Website item name<input value={itemName} onChange={event => setItemName(event.target.value)} placeholder="Example: Graphic Tee" /></label>
                         <label>Storefront category<select value={categoryId ?? ""} onChange={event => setCategoryId(Number(event.target.value) || null)}><option value="">Not in storefront</option>{categories.filter(category => category.slug !== "just-in").map(category => <option key={category.id} value={category.id}>{category.label}</option>)}</select></label>
                         <label>Item status<select value={lifecycleStatus} onChange={event => setLifecycleStatus(event.target.value as "active" | "out_of_stock" | "discontinued")}><option value="active">Active</option><option value="out_of_stock">Out of stock</option><option value="discontinued">Discontinued</option></select></label>
-                        <div className="catalogue-color-picker-inline"><h4>Choose a color</h4><div className="attribute-list">{selectedProduct.colors.map((color, index) => { const photoCount = colorPhotoCounts.get(`${color.id}-${color.englishName}`) ?? 0; return <button type="button" onClick={() => chooseColor(index)} className={index === selectedColorIndex ? "is-selected" : ""} key={`${color.id}-${color.englishName}`}><i style={{ backgroundColor: color.hex }} /><span>{color.englishName}</span><small className={photoCount ? "color-photo-status is-ready" : "color-photo-status"}>{photoCount ? `${photoCount} photo${photoCount === 1 ? "" : "s"} added` : "No photo yet"}</small></button>; })}</div></div>
+                        <div className="catalogue-color-picker-inline"><h4>Choose a color</h4><div className="attribute-list">{selectedProduct.colors.map((color, index) => { const photoCount = colorPhotoCounts.get(`${color.id}-${color.englishName}`) ?? 0; return <button type="button" onClick={() => chooseColor(index)} aria-pressed={index === selectedColorIndex} className={index === selectedColorIndex ? "is-selected" : ""} key={`${color.id}-${color.englishName}`}><i style={{ backgroundColor: color.hex }} /><span>{color.englishName}</span><small className={photoCount ? "color-photo-status is-ready" : "color-photo-status"}>{photoCount ? `${photoCount} photo${photoCount === 1 ? "" : "s"} added` : "No photo yet"}</small></button>; })}</div></div>
                         <label className="just-in-toggle"><span>Feature in Just In</span><input type="checkbox" checked={isJustIn} onChange={event => setIsJustIn(event.target.checked)} /></label>
                       </div>
                       <div className="form-actions item-save-actions"><button type="button" className="primary-action" onClick={saveItem} disabled={updateProduct.isPending}>{updateProduct.isPending ? "Saving…" : "Save item details"}</button>{itemSaveFeedback.status !== "idle" && <p className={`item-save-feedback is-${itemSaveFeedback.status}`} role="status" aria-live="polite">{itemSaveFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : <CircleAlert aria-hidden="true" />}{itemSaveFeedback.message}</p>}</div>
@@ -645,10 +664,10 @@ export default function Admin() {
                     <div className="catalogue-photo-heading"><div><h4 id="selected-color-photos">Photos for {selectedColor.englishName}</h4></div><span>{selectedColorMedia.length} photo{selectedColorMedia.length === 1 ? "" : "s"}</span></div>
                     <div className="photo-association"><label className={["upload-dropzone", isDragOver ? "is-dragover" : "", photoUploadIsBusy ? "is-busy" : ""].filter(Boolean).join(" ")} onDragOver={event => { event.preventDefault(); if (!photoUploadIsBusy) setIsDragOver(true); }} onDragLeave={() => setIsDragOver(false)} onDrop={(event: DragEvent<HTMLLabelElement>) => { event.preventDefault(); if (!photoUploadIsBusy) selectPhotoFile(event.dataTransfer.files?.[0] ?? null); }} ><CloudUpload aria-hidden="true" /><span>{mediaFile ? "Photo selected. Ready to upload." : "Drag a photo here, or click to browse"}</span><small>JPG, PNG, or WebP · one photo at a time</small><input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={choosePhoto} disabled={photoUploadIsBusy} /></label></div>
                     {photoUploadFeedback.status !== "idle" && <div className={`photo-upload-feedback is-${photoUploadFeedback.status}${photoUploadIsBusy ? " is-busy" : ""}`} role="status" aria-live="polite"><div className="feedback-icon">{photoUploadFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : photoUploadFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : photoUploadIsBusy ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <CloudUpload aria-hidden="true" />}</div><div><small>PHOTO UPLOAD</small><p>{photoUploadFeedback.message}</p>{photoUploadFeedback.status === "success" && <span className="upload-completion-mark"><CheckCircle2 aria-hidden="true" />Photo saved</span>}</div></div>}
-                    {photoUploadIsBusy && <div className="upload-progress" role="status" aria-live="polite"><div className="upload-progress-track"><div className="upload-progress-bar" style={{ width: `${photoUploadFeedback.status === "saving" ? 100 : uploadProgress}%` }} /></div><span>{photoUploadFeedback.status === "saving" ? "Saving to catalogue…" : `Uploading… ${uploadProgress}%`}</span></div>}
+                    {photoUploadIsBusy && <div className="upload-progress" role="status" aria-live="polite"><div className="upload-progress-track" role="progressbar" aria-label="Photo upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={photoUploadFeedback.status === "saving" ? 100 : uploadProgress}><div className="upload-progress-bar" style={{ width: `${photoUploadFeedback.status === "saving" ? 100 : uploadProgress}%` }} /></div><span>{photoUploadFeedback.status === "saving" ? "Saving to catalogue…" : `Uploading… ${uploadProgress}%`}</span></div>}
                     <div className="form-actions">{mediaFile && !photoUploadIsBusy && <button type="button" className="quiet-action" onClick={() => selectPhotoFile(null)}>Remove selected</button>}<button type="button" className="primary-action" onClick={uploadColorMedia} disabled={!mediaFile || photoUploadIsBusy}>{photoUploadFeedback.status === "preparing" ? "Preparing…" : photoUploadFeedback.status === "uploading" ? `Uploading… ${uploadProgress}%` : photoUploadFeedback.status === "saving" ? "Saving…" : `Upload for ${selectedColor.englishName}`}</button></div>
                     <section className="batch-photo-panel" aria-labelledby="batch-photo-heading" hidden aria-hidden="true"><div><p className="eyebrow">BATCH PHOTO INTAKE</p><h4 id="batch-photo-heading">Match photos from filenames</h4><p>Name each file as <code>{BATCH_PHOTO_FILENAME_PATTERN}</code>. The website-name part is optional; the cleaned code, POS Attribute color, and photo number are required.</p></div><label className={`batch-photo-file is-${batchPhotoFeedback.status}${batchPhotoIsBusy ? " is-busy" : ""}`}><CloudUpload aria-hidden="true" /><span>Choose photos for batch matching</span><small>JPG, PNG, or WebP · nothing uploads until you confirm recognised matches</small><input type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple onChange={chooseBatchPhotos} disabled={batchPhotoIsBusy} /></label>{batchPhotoMatches.length > 0 && <><div className="batch-photo-summary"><span>{readyBatchPhotoCount} recognised</span><span>{batchPhotoMatches.length - readyBatchPhotoCount} need attention</span></div><ol className="batch-photo-match-list">{batchPhotoMatches.map(match => <li className={`is-${match.status}`} key={`${match.file.name}-${match.file.lastModified}`}><div><b>{match.file.name}</b><span>{match.status === "ready" ? `${match.cleanedCode} · ${match.colorName} · Photo ${match.sequence}` : match.message}</span></div><i>{match.status === "ready" ? "Ready" : "Fix filename"}</i></li>)}</ol></>}<div className={`batch-photo-feedback is-${batchPhotoFeedback.status}`} role="status" aria-live="polite"><div className="feedback-icon">{batchPhotoFeedback.status === "success" ? <CheckCircle2 aria-hidden="true" /> : batchPhotoFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : batchPhotoIsBusy ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <CloudUpload aria-hidden="true" />}</div><div><small>BATCH PHOTO INTAKE</small><p>{batchPhotoFeedback.message}</p></div></div>{batchPhotoIsBusy && <div className="upload-progress" role="status" aria-live="polite"><div className="upload-progress-track"><div className="upload-progress-bar" style={{ width: `${batchUploadProgress.percent}%` }} /></div><span>Uploading {batchUploadProgress.completed} of {batchUploadProgress.total} · {batchUploadProgress.percent}%</span></div>}<div className="form-actions">{batchPhotoMatches.length > 0 && !batchPhotoIsBusy && <button type="button" className="quiet-action" onClick={() => { setBatchPhotoMatches([]); setBatchPhotoFeedback(initialBatchPhotoFeedback); setBatchUploadProgress({ completed: 0, total: 0, percent: 0 }); }}>Clear batch</button>}<button type="button" className="primary-action" onClick={uploadBatchPhotos} disabled={!readyBatchPhotoCount || batchPhotoIsBusy}>{batchPhotoIsBusy ? `Uploading ${batchUploadProgress.completed} of ${batchUploadProgress.total}…` : `Upload ${readyBatchPhotoCount} recognised photo${readyBatchPhotoCount === 1 ? "" : "s"}`}</button></div></section>
-                    <div className="photo-library"><div><p className="eyebrow">CURRENT COLOR PHOTOS</p><h4>{selectedColor.englishName}</h4></div>{selectedColorMedia.length ? <div className="photo-thumb-grid">{selectedColorMedia.map(media => <article className="media-thumb" key={media.id}><img src={media.url} alt={media.altText || `${selectedColor.englishName} item`} /><button type="button" className="delete-photo-action" onClick={() => deleteColorMedia(media.id)} disabled={deleteMedia.isPending} aria-label={`Delete ${selectedColor.englishName} photo`}>{deleteMedia.isPending ? "Deleting…" : <><Trash2 aria-hidden="true" />Delete photo</>}</button></article>)}</div> : <p className="empty-media">No photos for this color yet.</p>}</div>
+                    <div className="photo-library"><div><p className="eyebrow">CURRENT COLOR PHOTOS</p><h4>{selectedColor.englishName}</h4></div>{selectedColorMedia.length ? <div className="photo-thumb-grid">{selectedColorMedia.map(media => <article className="media-thumb" key={media.id}><CatalogueImage url={media.url} profile="thumbnail" width={192} height={192} alt={media.altText || `${selectedColor.englishName} item`} loading="lazy" decoding="async" /><button type="button" className="delete-photo-action" onClick={() => deleteColorMedia(media.id)} disabled={deleteMedia.isPending} aria-label={`Delete ${selectedColor.englishName} photo`}>{deleteMedia.isPending ? "Deleting…" : <><Trash2 aria-hidden="true" />Delete photo</>}</button></article>)}</div> : <p className="empty-media">No photos for this color yet.</p>}</div>
                       </section>}
                     <section className="item-delete-panel"><div><p className="eyebrow">DELETE ITEM</p><p>Permanently remove this item and its catalogue photo records. Import history stays intact.</p></div><button type="button" className="quiet-action danger-action" onClick={deleteSelectedItem} disabled={deleteProduct.isPending}>{deleteProduct.isPending ? "Deleting item…" : "Delete this item"}</button></section>
                     </div>
@@ -672,21 +691,23 @@ export default function Admin() {
               {preview && <section className="preview-card import-detail-card">
                 <div className="import-summary" aria-label="POS preview summary">{[{ label: "POS rows analyzed", value: preview.summary.rows, always: true }, { label: "items found", value: preview.summary.products, always: true }, { label: "items changed", value: preview.summary.changedProducts }, { label: "new items", value: preview.summary.newProducts }, { label: "new colors", value: preview.summary.newColors }, { label: "new sizes", value: preview.summary.newSizes }, { label: "new variants", value: preview.summary.newVariants }, { label: "price changes", value: preview.summary.priceChanges }, { label: "quantity changes", value: preview.summary.stockChanges }, { label: "price and quantity changes", value: preview.summary.priceAndStockChanges }, { label: "missing variants", value: preview.summary.missingVariants }].filter(entry => entry.always || Number(entry.value ?? 0) > 0).map(entry => <span key={entry.label}><b>{entry.value ?? 0}</b> {entry.label}</span>)}</div>
                 <p>{preview.alreadyApplied ? "This exact POS file was already applied. Upload a newer export when it is available." : preview.validation.invalidRows.length ? (preview.validation.invalidRows.length + " invalid row(s) must be corrected before this import can be applied.") : "Preview only — no catalogue changes have been made. Review every row below before applying."}</p>
+                {(preview.validation.invalidRows.length > 0 || preview.validation.duplicatePosCodes.length > 0) && <div className="import-validation" role="alert"><h4>Correct the workbook before applying</h4><ul>{preview.validation.invalidRows.map((invalid: { row: number; reason: string }, index: number) => <li key={`${invalid.row}-${index}`}>Row {invalid.row}: {invalid.reason}</li>)}{preview.validation.duplicatePosCodes.map((code: string) => <li key={code}>Duplicate POS code: {code}</li>)}</ul></div>}
                 {!preview.alreadyApplied && <div className="import-change-list" aria-label="All POS changes grouped by cleaned-code item"><ImportChangeGroups groups={preview.changeGroups as ImportChangeGroupView[]} /></div>}
-                <div className="form-actions"><button type="button" className="secondary-action" onClick={applyPosImport} disabled={importFeedback.status === "applying" || preview.validation.invalidRows.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : importFeedback.status === "applying" ? "Applying verified changes…" : "Confirm and apply this import"}</button></div>
+                <div className="form-actions"><button type="button" className="secondary-action" onClick={applyPosImport} disabled={importFeedback.status === "applying" || preview.validation.invalidRows.length > 0 || preview.validation.duplicatePosCodes.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : importFeedback.status === "applying" ? "Applying verified changes…" : "Confirm and apply this import"}</button></div>
               </section>}
             </section>
             <section className="history-card import-history-card">
               <div><p className="eyebrow">IMPORT HISTORY</p><h3>Open an import to see every cleaned-code change group</h3><p>Each imported model brings its color, size, price, and quantity changes together. Any selected POS dataset can be removed safely by rebuilding from the remaining snapshots.</p></div>
-              {history.data?.length ? <div className="import-history-layout">
-                <section className="import-history-list" aria-label="POS import history">{history.data.map(item => <button type="button" key={item.id} className={item.id === selectedImportId ? "is-selected" : ""} onClick={() => setSelectedImportId(item.id)}><span><b>{item.originalFilename}</b><small>{item.sourceExportDate ? `POS export ${item.sourceExportDate} · ` : ""}{new Date(item.createdAt).toLocaleString()} · {item.parsedRows} POS row{item.parsedRows === 1 ? "" : "s"}</small></span><strong>{item.status}</strong></button>)}</section>
-                <section className="import-history-detail">{importDetails.isLoading ? <div className="empty-workspace">Loading this import’s changes…</div> : importDetails.error ? <p className="form-error">{importDetails.error.message}</p> : importDetails.data ? <><div className="import-detail-heading"><div><p className="eyebrow">SELECTED IMPORT</p><h3>{importDetails.data.originalFilename}</h3><p>{importDetails.data.sourceExportDate ? `POS export ${importDetails.data.sourceExportDate} · ` : ""}{new Date(importDetails.data.createdAt).toLocaleString()} · {importDetails.data.changeGroups.length} cleaned-code item{importDetails.data.changeGroups.length === 1 ? "" : "s"} changed</p></div><span>{importDetails.data.status}</span></div>{importDetails.data.canRemove && <div className="import-removal-panel"><div><p className="eyebrow">REMOVE THIS IMPORT</p><p>Remove any selected POS dataset only when needed. The catalogue is rebuilt from the remaining retained snapshots in chronological order; website-managed names, categories, lifecycle choices, and remote photos are preserved.</p></div><button type="button" className="quiet-action danger-action" onClick={removeSelectedImport} disabled={removeImport.isPending}>{removeImport.isPending ? "Rebuilding catalogue…" : "Remove this POS dataset"}</button></div>}{importRemovalFeedback && <p className={removeImport.error ? "form-error" : "form-success"}>{importRemovalFeedback}</p>}<div className="import-change-list"><ImportChangeGroups groups={importDetails.data.changeGroups as ImportChangeGroupView[]} /></div></> : <div className="empty-workspace">Choose an import to see its changes.</div>}</section>
+              {importRemovalFeedback && <p className={removeImport.error ? "form-error" : "form-success"} role="status">{importRemovalFeedback}</p>}
+              {history.isLoading ? <p className="empty-workspace" role="status">Loading import history…</p> : history.error ? <div role="alert"><p className="form-error">Couldn’t load import history.</p><button type="button" className="secondary-action" onClick={() => void history.refetch()}>Retry history</button></div> : history.data?.length ? <div className="import-history-layout">
+                <section className="import-history-list" aria-label="POS import history">{history.data.map(item => <button type="button" key={item.id} className={item.id === selectedImportId ? "is-selected" : ""} onClick={() => setSelectedImportId(item.id)} aria-pressed={item.id === selectedImportId}><span><b>{item.originalFilename}</b><small>{item.sourceExportDate ? `POS export ${item.sourceExportDate} · ` : ""}{new Date(item.createdAt).toLocaleString()} · {item.parsedRows} POS row{item.parsedRows === 1 ? "" : "s"}</small></span><strong>{item.status}</strong></button>)}</section>
+                <section className="import-history-detail">{importDetails.isLoading ? <div className="empty-workspace">Loading this import’s changes…</div> : importDetails.error ? <p className="form-error">{importDetails.error.message}</p> : importDetails.data ? <><div className="import-detail-heading"><div><p className="eyebrow">SELECTED IMPORT</p><h3>{importDetails.data.originalFilename}</h3><p>{importDetails.data.sourceExportDate ? `POS export ${importDetails.data.sourceExportDate} · ` : ""}{new Date(importDetails.data.createdAt).toLocaleString()} · {importDetails.data.changeGroups.length} cleaned-code item{importDetails.data.changeGroups.length === 1 ? "" : "s"} changed</p></div><span>{importDetails.data.status}</span></div>{importDetails.data.canRemove && <div className="import-removal-panel"><div><p className="eyebrow">REMOVE THIS IMPORT</p><p>Remove any selected POS dataset only when needed. The catalogue is rebuilt from the remaining retained snapshots in chronological order; website-managed names, categories, lifecycle choices, and remote photos are preserved.</p></div><button type="button" className="quiet-action danger-action" onClick={removeSelectedImport} disabled={removeImport.isPending}>{removeImport.isPending ? "Rebuilding catalogue…" : "Remove this POS dataset"}</button></div>}<div className="import-change-list"><ImportChangeGroups groups={importDetails.data.changeGroups as ImportChangeGroupView[]} /></div></> : <div className="empty-workspace">Choose an import to see its changes.</div>}</section>
               </div> : <p className="empty-media">No import history yet.</p>}
             </section>
           </section>
         )}
 
-        {workspace === "settings" && <section className="admin-view settings-view"><div className="workspace-intro"><div><p>Update the shared admin password when store staff or access requirements change.</p></div></div><section className="security-card"><div><p className="eyebrow">ADMIN PASSWORD</p><h3>Change workspace password</h3><p>The active session will be renewed after a successful update.</p></div><form onSubmit={async event => { event.preventDefault(); await changePassword.mutateAsync({ currentPassword, newPassword }); setCurrentPassword(""); setNewPassword(""); }}><label>Current password<input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} autoComplete="current-password" /></label><label>New password<input type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} minLength={4} autoComplete="new-password" /></label><button type="submit" className="primary-action" disabled={changePassword.isPending}>{changePassword.isPending ? "Updating…" : "Update password"}</button>{changePassword.error && <p className="form-error">{changePassword.error.message}</p>}</form></section></section>}
+        {workspace === "settings" && <section className="admin-view settings-view"><div className="workspace-intro"><div><p>Update the shared admin password when store staff or access requirements change.</p></div></div><section className="security-card"><div><p className="eyebrow">ADMIN PASSWORD</p><h3>Change workspace password</h3><p>The active session will be renewed after a successful update.</p></div><form onSubmit={async event => { event.preventDefault(); try { await changePassword.mutateAsync({ currentPassword, newPassword }); setCurrentPassword(""); setNewPassword(""); } catch { /* Mutation feedback is rendered below. */ } }}><label>Current password<input type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} autoComplete="current-password" required disabled={changePassword.isPending} aria-invalid={Boolean(changePassword.error)} aria-describedby={changePassword.error ? "password-error" : undefined} /></label><label><span id="new-password-label">New password</span><input aria-labelledby="new-password-label" type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} minLength={4} autoComplete="new-password" required disabled={changePassword.isPending} aria-describedby="new-password-help" /><small id="new-password-help">At least 4 characters. Use a unique password.</small></label><button type="submit" className="primary-action" disabled={changePassword.isPending}>{changePassword.isPending ? "Updating…" : "Update password"}</button>{changePassword.error && <p id="password-error" className="form-error" role="alert">{changePassword.error.message}</p>}{changePassword.isSuccess && <p className="form-success" role="status">Password updated. Your secure session has been renewed.</p>}</form></section></section>}
       </main>
     </div>
   );

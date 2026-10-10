@@ -144,6 +144,21 @@ function supabaseEq(column, value) {
   return `${column}=eq.${encodeURIComponent(String(value))}`;
 }
 
+// shared/asyncPool.ts
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(Math.max(1, limit), items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 // server/catalogDb.ts
 async function fetchCatalogueRows(includeHidden = false) {
   const [categoryRows, productRows, variantRows, mediaRows, colorRows] = await Promise.all([
@@ -287,6 +302,13 @@ async function fetchStorefrontCards() {
   const colorsById = colorMap(colorRows);
   const variantsByProduct = groupByProduct(variantRows);
   const primaryMediaByProduct = new Map(mediaRows.map((media) => [media.product_id, media]));
+  const missingPrimaryIds = productRows.filter((product) => !primaryMediaByProduct.has(product.id)).map((product) => product.id);
+  const batches = [];
+  for (let start = 0; start < missingPrimaryIds.length; start += 100) batches.push(missingPrimaryIds.slice(start, start + 100));
+  const fallbacks = await mapWithConcurrency(batches, 4, (ids) => supabaseRequest(`product_media?select=id,product_id,optimized_url,alt_text,is_primary&product_id=in.(${ids.join(",")})&order=sort_order.asc,id.asc`));
+  for (const rows of fallbacks) for (const media of rows) {
+    if (!primaryMediaByProduct.has(media.product_id)) primaryMediaByProduct.set(media.product_id, media);
+  }
   return {
     categories: categoryRows.filter((category) => category.is_visible).map((category) => ({ slug: category.slug, label: category.label })),
     products: productRows.filter((product) => Boolean(product.category_id && categoriesById.has(product.category_id))).map((product) => cardProduct(product, variantsByProduct.get(product.id) ?? [], primaryMediaByProduct.get(product.id), categoriesById, colorsById))

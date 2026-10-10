@@ -1,4 +1,5 @@
 import { supabaseRequest, type CategoryRow, type ColorRow, type ProductMediaRow, type ProductRow, type VariantRow } from "./supabase";
+import { mapWithConcurrency } from "../shared/asyncPool";
 
 type PublicCategory = { slug: string; label: string };
 type CardMedia = { id: number; url: string; altText: string | null; isPrimary: boolean };
@@ -132,6 +133,16 @@ export async function fetchStorefrontCards() {
   const colorsById = colorMap(colorRows);
   const variantsByProduct = groupByProduct(variantRows);
   const primaryMediaByProduct = new Map(mediaRows.map(media => [media.product_id, media]));
+  // A primary photo may have been deleted while other color photos remain. Keep
+  // cards compact (one image each), using the first remaining photo in that case.
+  // Bounded batches prevent long REST URLs and unbounded request concurrency.
+  const missingPrimaryIds = productRows.filter(product => !primaryMediaByProduct.has(product.id)).map(product => product.id);
+  const batches: number[][] = [];
+  for (let start = 0; start < missingPrimaryIds.length; start += 100) batches.push(missingPrimaryIds.slice(start, start + 100));
+  const fallbacks = await mapWithConcurrency(batches, 4, ids => supabaseRequest<ProductMediaRow[]>(`product_media?select=id,product_id,optimized_url,alt_text,is_primary&product_id=in.(${ids.join(",")})&order=sort_order.asc,id.asc`));
+  for (const rows of fallbacks) for (const media of rows) {
+    if (!primaryMediaByProduct.has(media.product_id)) primaryMediaByProduct.set(media.product_id, media);
+  }
   return {
     categories: categoryRows.filter(category => category.is_visible).map(category => ({ slug: category.slug, label: category.label })),
     products: productRows

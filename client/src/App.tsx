@@ -10,7 +10,7 @@ const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 
 function Router() {
   return (
-    <Suspense fallback={<div className="route-loading" aria-live="polite">Loading Orange…</div>}>
+    <Suspense fallback={<main id="main-content" className="route-loading" role="status">Loading Orange…</main>}>
       <Switch>
         <Route path="/" component={Storefront} />
         <Route path="/product/:slug" component={ProductDetail} />
@@ -30,6 +30,7 @@ function Router() {
 export default function App() {
   return (
     <ErrorBoundary>
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <Router />
       <Analytics mode="production" />
     </ErrorBoundary>

@@ -22,5 +22,6 @@ describe("storefront category membership", () => {
     expect(canonicalStorefrontCategorySlug("pants")).toBe("legwear");
     expect(canonicalStorefrontCategorySlug("jeans")).toBe("jeans");
     expect(canonicalStorefrontCategorySlug(null)).toBe("just-in");
+    expect(canonicalStorefrontCategorySlug("unknown-category")).toBe("just-in");
   });
 });

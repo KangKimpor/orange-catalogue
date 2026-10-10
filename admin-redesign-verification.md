@@ -1,3 +1,5 @@
+> Historical August 2026 evidence. Some controls and routes described below have since changed. Current implementation and validation are documented in `DESIGN_SYSTEM.md` and `UI_VERIFICATION.md`.
+
 # Admin Redesign Verification Notes
 
 ## Local authenticated overview — 2026-08-16

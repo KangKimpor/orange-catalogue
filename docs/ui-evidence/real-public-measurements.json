@@ -1,0 +1,146 @@
+[
+  {
+    "route": "/?category=tops",
+    "width": 390,
+    "height": 844,
+    "overflow": false,
+    "sansLoaded": true,
+    "serifLoaded": true,
+    "orderBounds": null,
+    "headingFont": "\"Playfair Display\", Georgia, serif"
+  },
+  {
+    "route": "/?category=tops",
+    "width": 820,
+    "height": 1180,
+    "overflow": false,
+    "sansLoaded": true,
+    "serifLoaded": true,
+    "orderBounds": null,
+    "headingFont": "\"Playfair Display\", Georgia, serif"
+  },
+  {
+    "route": "/?category=tops",
+    "width": 1440,
+    "height": 900,
+    "overflow": false,
+    "sansLoaded": true,
+    "serifLoaded": true,
+    "orderBounds": null,
+    "headingFont": "\"Playfair Display\", Georgia, serif"
+  },
+  {
+    "route": "/product/wj-0048",
+    "width": 390,
+    "height": 844,
+    "overflow": false,
+    "sansLoaded": true,
+    "serifLoaded": true,
+    "orderBounds": {
+      "x": 20,
+      "y": 1219.484375,
+      "width": 350,
+      "height": 48,
+      "top": 1219.484375,
+      "right": 370,
+      "bottom": 1267.484375,
+      "left": 20
+    },
+    "headingFont": "\"Playfair Display\", Georgia, serif"
+  },
+  {
+    "route": "/product/wj-0048",
+    "width": 820,
+    "height": 1180,
+    "overflow": false,
+    "sansLoaded": true,
+    "serifLoaded": true,
+    "orderBounds": {
+      "x": 24,
+      "y": 1383.984375,
+      "width": 772,
+      "height": 48,
+      "top": 1383.984375,
+      "right": 796,
+      "bottom": 1431.984375,
+      "left": 24
+    },
+    "headingFont": "\"Playfair Display\", Georgia, serif"
+  },
+  {
+    "route": "/product/wj-0048",
+    "width": 1440,
+    "height": 900,
+    "overflow": false,
+    "sansLoaded": true,
+    "serifLoaded": true,
+    "orderBounds": {
+      "x": 863.984375,
+      "y": 592.828125,
+      "width": 518.421875,
+      "height": 48,
+      "top": 592.828125,
+      "right": 1382.40625,
+      "bottom": 640.828125,
+      "left": 863.984375
+    },
+    "headingFont": "\"Playfair Display\", Georgia, serif"
+  },
+  {
+    "route": "/product/sp-09",
+    "width": 390,
+    "height": 844,
+    "overflow": false,
+    "sansLoaded": true,
+    "serifLoaded": true,
+    "orderBounds": {
+      "x": 20,
+      "y": 1030.890625,
+      "width": 350,
+      "height": 48,
+      "top": 1030.890625,
+      "right": 370,
+      "bottom": 1078.890625,
+      "left": 20
+    },
+    "headingFont": "\"Playfair Display\", Georgia, serif"
+  },
+  {
+    "route": "/product/sp-09",
+    "width": 820,
+    "height": 1180,
+    "overflow": false,
+    "sansLoaded": true,
+    "serifLoaded": true,
+    "orderBounds": {
+      "x": 24,
+      "y": 1286.984375,
+      "width": 772,
+      "height": 48,
+      "top": 1286.984375,
+      "right": 796,
+      "bottom": 1334.984375,
+      "left": 24
+    },
+    "headingFont": "\"Playfair Display\", Georgia, serif"
+  },
+  {
+    "route": "/product/sp-09",
+    "width": 1440,
+    "height": 900,
+    "overflow": false,
+    "sansLoaded": true,
+    "serifLoaded": true,
+    "orderBounds": {
+      "x": 863.984375,
+      "y": 438.8125,
+      "width": 518.421875,
+      "height": 48,
+      "top": 438.8125,
+      "right": 1382.40625,
+      "bottom": 486.8125,
+      "left": 863.984375
+    },
+    "headingFont": "\"Playfair Display\", Georgia, serif"
+  }
+]

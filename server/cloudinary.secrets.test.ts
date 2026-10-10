@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-describe("Cloudinary server configuration", () => {
+describe.runIf(process.env.ORANGE_LIVE_TESTS === "1")("Cloudinary server configuration", () => {
   it("authenticates to the Cloudinary Admin API with the configured credentials", async () => {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;

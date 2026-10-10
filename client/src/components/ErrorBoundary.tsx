@@ -23,30 +23,25 @@ class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex items-center justify-center min-h-screen p-8 bg-background">
-          <div className="flex flex-col items-center w-full max-w-2xl p-8">
+        <main id="main-content" className="page-state">
             <AlertTriangle
               size={48}
-              className="text-destructive mb-6 flex-shrink-0"
+              aria-hidden="true"
             />
 
-            <h2 className="text-xl mb-4">An unexpected error occurred.</h2>
+            <h1>We couldn’t open this page.</h1>
+            <p>Reload the page to try again.</p>
 
-            <div className="p-4 w-full rounded bg-muted overflow-auto mb-6">
-              <pre className="text-sm text-muted-foreground whitespace-break-spaces">
-                {this.state.error?.stack}
-              </pre>
-            </div>
+            {import.meta.env.DEV && <details><summary>Error details</summary><pre>{this.state.error?.stack}</pre></details>}
 
             <button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 cursor-pointer"
+              type="button"
             >
-              <RotateCcw size={16} />
+              <RotateCcw size={16} aria-hidden="true" />
               Reload Page
             </button>
-          </div>
-        </div>
+        </main>
       );
     }
 
