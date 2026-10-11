@@ -14,7 +14,7 @@ service writes. No production import was restored, deleted, or applied.
 | `pnpm check` | Passed for application and browser-test TypeScript |
 | `pnpm build` | Passed; committed `api/index.js` regenerated |
 | `git diff --check` | Passed |
-| `pnpm audit --prod` | No known vulnerabilities |
+| `pnpm audit` / `pnpm audit --prod` | No known vulnerabilities after the build-tool patch |
 | Full browser suite | 118 passed across Chromium 156 and WebKit 27.2 |
 | Final focused browser rerun | All 22 import-history/analytics cases passed after the migration-readiness and focus refinements |
 
@@ -41,6 +41,10 @@ pagination, and migration-readiness enforcement. Eight analytics tests verify
 UTC date boundaries, API filtering, zero counts, caching/day rollover, concurrent
 requests, and sanitized errors. The only added package is the pinned development
 SQL test engine; no browser or production dependency was added for these features.
+An advisory reported during the push prompted a pinned build-tool update from
+`source-map-js` 1.2.1 to 1.2.2 (GHSA-68fv-2mgg-jv7q). The build and both audits
+were repeated after that patch; application source and browser behavior did not
+change.
 
 Production activation is blocked by connected-account access. The available
 Supabase account cannot access catalogue project `ccaavswuaeqdkgvetlai`; the

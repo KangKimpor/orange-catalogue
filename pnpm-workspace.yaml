@@ -9,6 +9,7 @@ overrides:
   express>proxy-addr: 2.0.8
   qs: 6.16.0
   express-rate-limit>ip-address: 10.7.1
+  source-map-js: 1.2.2
 
 onlyBuiltDependencies:
   - '@tailwindcss/oxide'

@@ -15,6 +15,8 @@
   rebuild behavior, preserves original timestamps, and retains photo bindings.
 - Added isolated PostgreSQL transaction/permission tests and Chromium/WebKit
   confirmation, PIN, pending/error, and reporting checks.
+- Updated the existing build-tool `source-map-js` dependency to 1.2.2 to fix
+  GHSA-68fv-2mgg-jv7q, reported during the push.
 
 Production activation requires the new database migration and the Vercel Analytics
 server token/project configuration described in `OPERATIONS.md`. The connected
