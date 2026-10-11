@@ -50,6 +50,7 @@ pids
 coverage/
 playwright-report/
 test-results/
+supabase/.temp/
 *.lcov
 
 # nyc test coverage

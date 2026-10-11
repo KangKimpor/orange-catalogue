@@ -611,13 +611,10 @@ test("imports show full-width stages, expanded source details and persistent rem
     .locator(".import-history-detail .import-source-details summary")
     .click();
   await contained(page);
-  page.on("dialog", dialog => dialog.accept());
-  await page
-    .getByRole("button", { name: "Remove this POS dataset", exact: true })
-    .click();
-  await expect(
-    page.getByText(/POS dataset removed\. Rebuilt from/)
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Delete this import", exact: true }).click();
+  await page.getByLabel("Admin PIN", { exact: true }).fill("test");
+  await page.getByRole("button", { name: "Confirm delete", exact: true }).click();
+  await expect(page.getByText(/POS dataset deleted\. Rebuilt from/)).toBeVisible();
 });
 
 test("invalid imports explain source rows and cannot apply", async ({

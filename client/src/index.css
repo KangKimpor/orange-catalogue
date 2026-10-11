@@ -340,7 +340,7 @@ button:disabled,
   font-size: 0.875rem;
 }
 .category-nav button.is-active {
-  border-bottom-color: var(--selected-line);
+  border-bottom-color: #000;
   font-weight: 700;
 }
 .catalogue-intro {
@@ -512,6 +512,9 @@ button:disabled,
   min-height: 44px;
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+.store-footer .store-admin-link {
+  text-decoration: none;
 }
 
 /* Gallery controls align to the image frame, independently of the color strip. */
@@ -988,6 +991,68 @@ button:disabled,
 .analytics-metrics article {
   display: grid;
   gap: var(--space-2);
+}
+.analytics-feedback {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--aw-muted);
+}
+.analytics-feedback button {
+  justify-self: start;
+}
+.import-history-actions {
+  padding: var(--space-4);
+  border: 1px solid var(--aw-line);
+  border-radius: var(--radius);
+  margin-block: var(--space-4);
+  min-width: 0;
+}
+.import-history-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.import-action-help {
+  margin-top: var(--space-3);
+  color: var(--aw-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.import-pin-confirmation {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin-top: var(--space-5);
+}
+.import-pin-confirmation h4 {
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+.import-pin-confirmation > p:not(.form-error) {
+  color: var(--aw-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: var(--space-3);
+}
+.import-pin-confirmation > label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.import-pin-confirmation input {
+  width: 100%;
+  max-width: 32rem;
+  min-width: 0;
+}
+.import-pin-confirmation small {
+  font-size: 0.8125rem;
+  color: var(--aw-muted);
+}
+.import-pin-confirmation .form-actions {
+  margin-top: var(--space-3);
 }
 
 /* Catalogue geometry follows available workspace/editor widths, not devices. */

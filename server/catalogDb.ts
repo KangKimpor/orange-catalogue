@@ -146,7 +146,7 @@ export async function fetchStorefrontCards() {
   return {
     categories: categoryRows.filter(category => category.is_visible).map(category => ({ slug: category.slug, label: category.label })),
     products: productRows
-      .filter(product => Boolean(product.category_id && categoriesById.has(product.category_id)))
+      .filter(product => Boolean(product.category_id && categoriesById.has(product.category_id) && variantsByProduct.get(product.id)?.length))
       .map(product => cardProduct(product, variantsByProduct.get(product.id) ?? [], primaryMediaByProduct.get(product.id), categoriesById, colorsById)),
   };
 }
@@ -161,6 +161,7 @@ export async function fetchStorefrontProduct(slug: string) {
     supabaseRequest<VariantRow[]>(`variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,is_visible,last_seen_import_id&product_id=eq.${product.id}&is_visible=eq.true`),
     supabaseRequest<ProductMediaRow[]>(`product_media?select=id,product_id,variant_id,cloudinary_public_id,optimized_url,alt_text,color_tag,sort_order,is_primary&product_id=eq.${product.id}&order=sort_order.asc`),
   ]);
+  if (!variantRows.length) return null;
   const colorIds = Array.from(new Set(variantRows.map(variant => variant.color_id).filter((id): id is number => id !== null)));
   const colorRows = colorIds.length
     ? await supabaseRequest<ColorRow[]>(`colors?select=id,khmer_name,english_name,hex,normalized_key,sort_order&id=in.(${colorIds.join(",")})&order=sort_order.asc`)

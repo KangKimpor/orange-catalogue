@@ -120,7 +120,7 @@ export default function Storefront() {
         </section>
         {!isLoading && !error && !products.length && <p className="empty-state" role="status">No pieces are available in this category yet.</p>}
       </main>
-      <footer className="store-footer"><span>Orange</span><a href="https://m.me/OfficiallyDavit" target="_blank" rel="noreferrer">Message us on Messenger to order</a><Link href="/admin">Admin</Link></footer>
+      <footer className="store-footer"><span>Orange</span><a href="https://m.me/OfficiallyDavit" target="_blank" rel="noreferrer">Message us to order</a><Link className="store-admin-link" href="/admin">Admin</Link></footer>
     </div>
   );
 }

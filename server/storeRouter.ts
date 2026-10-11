@@ -10,6 +10,7 @@ import { MAX_POS_IMPORT_BASE64_LENGTH, parsePosWorkbook } from "./posImport";
 import { adminLoginClientKey, checkAdminLoginRateLimit } from "./loginRateLimit";
 import { publicProcedure, router } from "./_core/trpc";
 import { destroyCloudinaryProductImage } from "./cloudinaryMedia";
+import { dailyStorefrontVisitors } from "./vercelAnalytics";
 
 const ADMIN_COOKIE = "orange_admin_session";
 const ADMIN_PASSWORD_KEY = "admin_password_hash";
@@ -57,6 +58,47 @@ async function hasAdminSession(ctx: Context) {
   try { return (await jwtVerify(token, tokenKey())).payload.role === "store_admin"; } catch { return false; }
 }
 async function requireAdmin(ctx: Context) { if (!(await hasAdminSession(ctx))) throw new TRPCError({ code: "UNAUTHORIZED", message: "Admin access is required." }); }
+async function requireImportPin(ctx: Context, pin: string) {
+  await requireAdmin(ctx);
+  const clientKey = `${adminLoginClientKey(ctx.req.headers)}:import-pin`;
+  const preflight = await checkAdminLoginRateLimit(clientKey, "check");
+  if (!preflight.allowed) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many incorrect PIN attempts. Please try again later." });
+  const stored = await readStoredPasswordHash();
+  const initial = process.env.ADMIN_PASSWORD;
+  const valid = stored ? passwordMatches(pin, stored) : Boolean(initial && safeTextEqual(pin, initial));
+  const result = await checkAdminLoginRateLimit(clientKey, valid ? "success" : "failure");
+  if (!result.allowed) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Too many incorrect PIN attempts. Please try again later." });
+  if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Admin PIN is incorrect. Use your current admin login password or PIN." });
+}
+
+const importHistoryActionInput = z.object({ importId: z.number().int().positive(), pin: z.string().min(1).max(1024) });
+type ImportHistoryState = { available: boolean; currentImportId: number | null; restorableImportIds: number[] };
+async function readAppliedImports(): Promise<DbImport[]> {
+  const rows: DbImport[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const page = await supabaseRequest<DbImport[]>(`imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&status=eq.applied&order=applied_at.desc,id.desc&limit=500&offset=${offset}`);
+    rows.push(...page);
+    if (page.length < 500) return rows;
+  }
+}
+async function readImportHistoryState(): Promise<ImportHistoryState> {
+  try {
+    const state = await supabaseRequest<Omit<ImportHistoryState, "available">>("rpc/get_pos_import_state", { method: "POST", body: "{}" });
+    if (!state || !Array.isArray(state.restorableImportIds) || (state.currentImportId !== null && !Number.isInteger(state.currentImportId))) throw new Error("Incomplete POS history state.");
+    return { ...state, available: true };
+  } catch {
+    // A rollout may precede the migration; existing catalogue and import access stay usable.
+    return { available: false, currentImportId: null, restorableImportIds: [] };
+  }
+}
+function importHistoryMetadata(row: DbImport, state: ImportHistoryState, fallbackCurrentId: number | null) {
+  const isCurrent = row.id === (state.available ? state.currentImportId : fallbackCurrentId);
+  const canRestore = row.status === "applied" && !isCurrent && state.restorableImportIds.includes(row.id);
+  return { isCurrent, canRemove: row.status === "applied" && state.available, canRestore, restoreUnavailableReason: !state.available ? "Restoring or deleting imports needs the import-history database update." : canRestore || isCurrent ? null : "This import's complete POS source state is unavailable." };
+}
+async function requireImportHistoryDatabase() {
+  if (!(await readImportHistoryState()).available) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The import-history database update is required before restoring or deleting imports." });
+}
 const publicAvailability = (quantity: number) => quantity > 0;
 function testOnlyAdminPassword() {
   return process.env.VITEST ? process.env.ORANGE_TEST_ADMIN_PASSWORD : undefined;
@@ -131,7 +173,7 @@ export async function createPreview(input: z.infer<typeof importInput>) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
   if (parsed.validation.duplicatePosCodes.length) throw new TRPCError({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
   const [existingVariants, existingProducts, existingColors, appliedImports] = await Promise.all([
-    supabaseRequest<DbVariant[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,raw_name,raw_attribute"),
+    supabaseRequest<DbVariant[]>("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,raw_name,raw_attribute&is_visible=eq.true"),
     supabaseRequest<DbProduct[]>("products?select=id,cleaned_code,slug,category_source"),
     supabaseRequest<DbColor[]>("colors?select=id,normalized_key,english_name,khmer_name"),
     supabaseRequest<Array<{ id: number }>>(`imports?select=id&digest=eq.${parsed.digest}&status=eq.applied&limit=1`),
@@ -240,11 +282,25 @@ export async function applyImport(input: z.infer<typeof importInput> & { importI
 
 async function removeImportAndRebuild(importId: number) {
   try {
-    const summary = await supabaseRequest<{ removedImportId: number; reappliedImports: number; removedProducts: number; removedVariants: number; archivedProductsWithMedia: number }>("rpc/remove_pos_import_and_rebuild", { method: "POST", body: JSON.stringify({ p_import_id: importId }) });
-    if (!summary) throw new Error("The import rebuild did not return a result.");
+    const summary = await supabaseRequest<{ removedImportId: number; reappliedImports: number; removedProducts: number; removedVariants: number; archivedProductsWithMedia: number; error?: string }>("rpc/remove_pos_import_and_rebuild", { method: "POST", body: JSON.stringify({ p_import_id: importId }) });
+    if (summary?.error) throw new TRPCError({ code: "BAD_REQUEST", message: summary.error });
+    if (!summary || summary.removedImportId !== importId || ![summary.reappliedImports, summary.removedVariants, summary.removedProducts, summary.archivedProductsWithMedia].every(Number.isInteger)) throw new Error("The import rebuild did not return a complete result.");
     return summary;
   } catch (error) {
+    if (error instanceof TRPCError) throw error;
     throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The selected POS import could not be removed and rebuilt safely." });
+  }
+}
+
+async function restoreImport(importId: number) {
+  try {
+    const result = await supabaseRequest<{ restoredImportId: number; restoredVariants: number; hiddenVariants: number; hiddenProducts: number; error?: string }>("rpc/restore_pos_import", { method: "POST", body: JSON.stringify({ p_import_id: importId }) });
+    if (result?.error) throw new TRPCError({ code: "BAD_REQUEST", message: result.error });
+    if (!result || result.restoredImportId !== importId || ![result.restoredVariants, result.hiddenVariants, result.hiddenProducts].every(Number.isInteger)) throw new Error("The POS restore did not return a complete result.");
+    return result;
+  } catch (error) {
+    if (error instanceof TRPCError) throw error;
+    throw new TRPCError({ code: "BAD_REQUEST", message: "The import could not be restored. No catalogue changes were saved." });
   }
 }
 
@@ -321,13 +377,25 @@ export const storeRouter = router({
     logout: publicProcedure.mutation(({ ctx }) => { ctx.res.clearCookie(ADMIN_COOKIE, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" }); return { success: true }; }),
     changePassword: publicProcedure.input(adminPasswordChangeInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const stored = await readStoredPasswordHash(); const valid = stored ? passwordMatches(input.currentPassword, stored) : input.currentPassword === process.env.ADMIN_PASSWORD; if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password is incorrect." }); await savePasswordHash(hashPassword(input.newPassword)); await issueAdminSession(ctx as Context); return { success: true }; }),
     overview: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); return cataloguePayload(true, true); }),
+    dailyVisitors: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); return dailyStorefrontVisitors(); }),
     updateProduct: publicProcedure.input(z.object({ id: z.number().int(), displayName: z.string().max(255).nullable(), categoryId: z.number().int().nullable(), isJustIn: z.boolean().optional(), lifecycleStatus: z.enum(["active", "out_of_stock", "discontinued"]).optional() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...(input.isJustIn === undefined ? {} : { is_just_in: input.isJustIn }), ...(input.lifecycleStatus === undefined ? {} : { lifecycle_status: input.lifecycleStatus }) }) }); return { success: true }; }),
     deleteProduct: publicProcedure.input(z.object({ productId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return deleteProductAndMedia(input.productId); }),
     reuseArchivedContent: publicProcedure.input(z.object({ sourceProductId: z.number().int().positive(), targetProductId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return copyArchivedWebsiteContent(input.sourceProductId, input.targetProductId); }),
     previewImport: publicProcedure.input(importInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return createPreview(input); }), applyImport: publicProcedure.input(importInput.extend({ importId: z.number().int() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return applyImport(input); }),
-    removeImport: publicProcedure.input(z.object({ importId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return removeImportAndRebuild(input.importId); }),
-    importHistory: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); const rows = await supabaseRequest<DbImport[]>("imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&status=eq.applied&order=applied_at.desc,id.desc&limit=100"); return rows.map(row => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, sourceExportDate: row.source_export_date ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {}, canRemove: true })); }),
-    importDetails: publicProcedure.input(z.object({ importId: z.number().int().positive() })).query(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const [imports, changes] = await Promise.all([supabaseRequest<DbImport[]>(`imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest<DbImportChange[]>(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`)]); const importRow = imports[0]; if (!importRow) throw new TRPCError({ code: "NOT_FOUND", message: "The selected import was not found." }); const detailChanges = reviewableImportChanges(changes.map(importDetailChange)); return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, sourceExportDate: importRow.source_export_date ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), canRemove: importRow.status === "applied" }; }),
+    removeImport: publicProcedure.input(importHistoryActionInput).mutation(async ({ ctx, input }) => { await requireImportPin(ctx as Context, input.pin); await requireImportHistoryDatabase(); return removeImportAndRebuild(input.importId); }),
+    restoreImport: publicProcedure.input(importHistoryActionInput).mutation(async ({ ctx, input }) => { await requireImportPin(ctx as Context, input.pin); await requireImportHistoryDatabase(); return restoreImport(input.importId); }),
+    importHistory: publicProcedure.query(async ({ ctx }) => {
+      await requireAdmin(ctx as Context);
+      const [rows, state] = await Promise.all([readAppliedImports(), readImportHistoryState()]);
+      return rows.map(row => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, sourceExportDate: row.source_export_date ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {}, ...importHistoryMetadata(row, state, rows[0]?.id ?? null) }));
+    }),
+    importDetails: publicProcedure.input(z.object({ importId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+      await requireAdmin(ctx as Context);
+      const [imports, changes, state, latest] = await Promise.all([supabaseRequest<DbImport[]>(`imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest<DbImportChange[]>(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`), readImportHistoryState(), supabaseRequest<Array<{ id: number }>>("imports?select=id&status=eq.applied&order=applied_at.desc,id.desc&limit=1")]);
+      const importRow = imports[0]; if (!importRow) throw new TRPCError({ code: "NOT_FOUND", message: "The selected import was not found." });
+      const detailChanges = reviewableImportChanges(changes.map(importDetailChange));
+      return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, sourceExportDate: importRow.source_export_date ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), ...importHistoryMetadata(importRow, state, latest[0]?.id ?? null) };
+    }),
     signMediaUpload: publicProcedure.input(z.object({ productCode: z.string().min(1), categorySlug: z.string().min(1), colorTag: z.string().min(1) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const cloudName = process.env.CLOUDINARY_CLOUD_NAME; const apiKey = process.env.CLOUDINARY_API_KEY; const apiSecret = process.env.CLOUDINARY_API_SECRET; if (!cloudName || !apiKey || !apiSecret) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." }); const normalized = input.productCode.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); const timestamp = Math.floor(Date.now() / 1000); const folder = `orange/products/${normalized}`; const tags = `orange,product:${normalized},category:${input.categorySlug},color:${input.colorTag}`; const signature = crypto.createHash("sha256").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp}${apiSecret}`).digest("hex"); return { uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp, folder, tags, signature }; }),
     registerMedia: publicProcedure.input(z.object({ productId: z.number().int(), variantId: z.number().int().nullable().optional(), publicId: z.string().min(1), secureUrl: z.string().url(), altText: z.string().max(255).nullable().optional(), colorTag: z.string().max(128).nullable().optional(), isPrimary: z.boolean().default(false) })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); if (!input.publicId.startsWith("orange/products/")) throw new TRPCError({ code: "BAD_REQUEST", message: "The uploaded media is not in an approved Orange product folder." }); const cloudName = process.env.CLOUDINARY_CLOUD_NAME; if (input.isPrimary) await supabaseRequest(`product_media?${supabaseEq("product_id", input.productId)}`, { method: "PATCH", body: JSON.stringify({ is_primary: false }) }); await supabaseRequest("product_media", { method: "POST", body: JSON.stringify({ product_id: input.productId, variant_id: input.variantId ?? null, cloudinary_public_id: input.publicId, optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${input.publicId}`, alt_text: input.altText ?? null, color_tag: input.colorTag ?? null, is_primary: input.isPrimary }) }); return { success: true }; }),
     deleteMedia: publicProcedure.input(z.object({ mediaId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {

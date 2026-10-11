@@ -1,5 +1,28 @@
 # Orange Catalogue release notes
 
+## 2026-10-11 — daily visitors and protected POS history
+
+- The active category bar is black. The footer Admin link has no underline;
+  ordering copy is “Message us to order” with the same OfficiallyDavit handoff.
+- Removed the hard-coded August visitor count. A protected server query reads
+  Vercel Web Analytics for the previous complete UTC day, refreshes at day
+  rollover, and shows date/loading/error/unconfigured states without invented counts.
+- Saved POS imports can be restored backward or forward except the current one.
+  Restores retain history and website presentation, and preserve variant IDs and
+  photo associations. New imports capture the state actually active after a restore.
+- Restore/delete confirmation requires the current admin login password/PIN on
+  the server, with persistent throttling. Deletion keeps the existing chronological
+  rebuild behavior, preserves original timestamps, and retains photo bindings.
+- Added isolated PostgreSQL transaction/permission tests and Chromium/WebKit
+  confirmation, PIN, pending/error, and reporting checks.
+
+Production activation requires the new database migration and the Vercel Analytics
+server token/project configuration described in `OPERATIONS.md`. The connected
+accounts in this session do not expose the live Supabase project or Vercel's
+`kimpor` scope. Import actions are blocked until their migration is present;
+analytics shows its unconfigured state until connected. No live POS restore or
+deletion was submitted during validation.
+
 ## 2026-10-10 — cohesive responsive catalogue and staff workspace
 
 - Consolidated the historical CSS override stack into one white/pink palette,

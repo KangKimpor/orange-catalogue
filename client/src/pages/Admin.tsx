@@ -20,7 +20,8 @@ import { type AdminWorkspace as Workspace, workspaceFromPath } from "@/lib/admin
 import { formatAppliedPosImportSummary } from "@/lib/posImportSummary";
 import { trpc } from "@/lib/trpc";
 import CatalogueImage from "@/components/CatalogueImage";
-import { vercelAnalyticsSnapshot } from "@/lib/vercelAnalyticsSnapshot";
+import VercelAnalyticsPanel from "@/components/VercelAnalyticsPanel";
+import ImportHistoryActions from "@/components/ImportHistoryActions";
 import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
 import { BATCH_PHOTO_FILENAME_PATTERN, type BatchPhotoMatch, planBatchPhotoIntake, sortBatchPhotoMatches } from "@/lib/batchPhotoIntake";
 
@@ -217,8 +218,13 @@ export default function Admin() {
   const updateProduct = trpc.store.admin.updateProduct.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
   const reuseArchivedContent = trpc.store.admin.reuseArchivedContent.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
   const previewImport = trpc.store.admin.previewImport.useMutation();
-  const applyImport = trpc.store.admin.applyImport.useMutation({ onSuccess: () => { utils.store.admin.overview.invalidate(); utils.store.admin.importHistory.invalidate(); utils.store.admin.importDetails.invalidate(); } });
-  const removeImport = trpc.store.admin.removeImport.useMutation({ onSuccess: () => { utils.store.admin.overview.invalidate(); utils.store.admin.importHistory.invalidate(); utils.store.admin.importDetails.invalidate(); } });
+  async function refreshImportCatalogue() {
+    await Promise.all([utils.store.admin.overview.invalidate(), utils.store.admin.importHistory.invalidate(), utils.store.admin.importDetails.invalidate(), utils.store.catalogue.list.invalidate(), utils.store.catalogue.getBySlug.invalidate()]);
+  }
+  const applyImport = trpc.store.admin.applyImport.useMutation({ onSuccess: refreshImportCatalogue });
+  const restoreImport = trpc.store.admin.restoreImport.useMutation({ onSuccess: refreshImportCatalogue });
+  const removeImport = trpc.store.admin.removeImport.useMutation({ onSuccess: refreshImportCatalogue });
+  const importHistoryPending = restoreImport.isPending || removeImport.isPending;
   const changePassword = trpc.store.admin.changePassword.useMutation();
   const signUpload = trpc.store.admin.signMediaUpload.useMutation();
   const registerMedia = trpc.store.admin.registerMedia.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
@@ -249,7 +255,8 @@ export default function Admin() {
   const [preview, setPreview] = useState<any>(null);
   const [importFeedback, setImportFeedback] = useState<ImportFeedback>(initialImportFeedback);
   const [itemSaveFeedback, setItemSaveFeedback] = useState<ItemSaveFeedback>(initialItemSaveFeedback);
-  const [importRemovalFeedback, setImportRemovalFeedback] = useState("");
+  const [importHistoryFeedback, setImportHistoryFeedback] = useState<{ status: "pending" | "success" | "error"; message: string } | null>(null);
+  const importHistoryHeading = useRef<HTMLHeadingElement>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
@@ -368,6 +375,7 @@ export default function Admin() {
     }
   }
   async function chooseImport(event: ChangeEvent<HTMLInputElement>) {
+    if (importHistoryPending || applyImport.isPending) return;
     const file = event.target.files?.[0] ?? null;
     setImportFile(file);
     setPreview(null);
@@ -386,6 +394,7 @@ export default function Admin() {
     }
   }
   async function previewPosImport() {
+    if (importHistoryPending || applyImport.isPending) return;
     if (!importFile || !importBase64) return;
     try {
       setImportFeedback({ status: "previewing", message: "Comparing this POS file with the current catalogue. No changes are being applied yet…" });
@@ -398,6 +407,7 @@ export default function Admin() {
     }
   }
   async function applyPosImport() {
+    if (importHistoryPending || applyImport.isPending) return;
     if (!importFile || !preview) return;
     try {
       setImportFeedback({ status: "applying", message: "Applying verified changes, updating quantities and prices, and saving this import to history…" });
@@ -409,17 +419,32 @@ export default function Admin() {
       setImportFeedback({ status: "error", message: posImportErrorMessage(error, "apply") });
     }
   }
-  async function removeSelectedImport() {
-    if (!importDetails.data?.canRemove) return;
-    const selected = importDetails.data;
-    if (!window.confirm(`Remove the POS dataset “${selected.originalFilename}”? The catalogue will be rebuilt from every remaining POS snapshot in chronological order. Website names, categories, lifecycle choices, and remote Cloudinary photos are preserved; items left without a retained POS variant are archived.`)) return;
+  async function restoreSelectedImport(pin: string) {
+    if (!importDetails.data?.canRestore || importHistoryPending) return;
     try {
-      setImportRemovalFeedback("Removing this POS dataset and rebuilding the catalogue from the remaining snapshots…");
-      const result = await removeImport.mutateAsync({ importId: selected.id });
-      setSelectedImportId(null);
-      setImportRemovalFeedback(`POS dataset removed. Rebuilt from ${result.reappliedImports} remaining import${result.reappliedImports === 1 ? "" : "s"}; refreshed ${result.removedVariants} POS variant${result.removedVariants === 1 ? "" : "s"}, removed ${result.removedProducts} item${result.removedProducts === 1 ? "" : "s"}, and archived ${result.archivedProductsWithMedia} media-linked item${result.archivedProductsWithMedia === 1 ? "" : "s"}.`);
+      setImportHistoryFeedback({ status: "pending", message: "Restoring the selected import's POS state…" });
+      const result = await restoreImport.mutateAsync({ importId: importDetails.data.id, pin });
+      setPreview(null);
+      setImportFeedback(initialImportFeedback);
+      setImportHistoryFeedback({ status: "success", message: `Import restored. ${result.restoredVariants} POS variant${result.restoredVariants === 1 ? " is" : "s are"} current; website names and photos are preserved.` });
     } catch (error) {
-      setImportRemovalFeedback(error instanceof Error ? error.message : "The import could not be removed. No catalogue changes were made.");
+      setImportHistoryFeedback({ status: "error", message: "The import was not restored. See the confirmation form for details." });
+      throw error;
+    }
+  }
+  async function removeSelectedImport(pin: string) {
+    if (!importDetails.data?.canRemove || importHistoryPending) return;
+    try {
+      setImportHistoryFeedback({ status: "pending", message: "Deleting this POS dataset and rebuilding the catalogue from the remaining files…" });
+      const result = await removeImport.mutateAsync({ importId: importDetails.data.id, pin });
+      setSelectedImportId(null);
+      setPreview(null);
+      setImportFeedback(initialImportFeedback);
+      setImportHistoryFeedback({ status: "success", message: `POS dataset deleted. Rebuilt from ${result.reappliedImports} remaining import${result.reappliedImports === 1 ? "" : "s"}; website names and photos are preserved.` });
+      importHistoryHeading.current?.focus();
+    } catch (error) {
+      setImportHistoryFeedback({ status: "error", message: "The import was not deleted. See the confirmation form for details." });
+      throw error;
     }
   }
   function selectPhotoFile(file: File | null) {
@@ -631,7 +656,7 @@ export default function Admin() {
               <article><Palette aria-hidden="true" /><span>Attribute colors</span><strong>{products.reduce((total, product) => total + product.colors.length, 0)}</strong><small>Imported color groups</small></article>
             </div>
             {history.error && <p className="form-error" role="alert">Couldn’t load the applied import count. <button type="button" className="secondary-action" onClick={() => void history.refetch()}>Retry import count</button></p>}
-            <section className="vercel-analytics-panel" aria-label="Vercel Analytics storefront visitor snapshot"><header><div><p className="eyebrow">VERCEL ANALYTICS</p><h3>Storefront visitors</h3><p>{vercelAnalyticsSnapshot.source} · {vercelAnalyticsSnapshot.reportingPeriod}</p></div><span>Snapshot</span></header><div className="analytics-metrics analytics-visitors-only"><article><span>Storefront visitors</span><strong>{vercelAnalyticsSnapshot.storefrontVisitors}</strong><small>Visitors to the public shop</small></article></div></section>
+            <VercelAnalyticsPanel />
           </section>
         )}
 
@@ -685,23 +710,23 @@ export default function Admin() {
             </div>
             <section className="import-workbench pos-import-workbench">
               <div className="import-card-heading"><p className="eyebrow">WEEKLY INVENTORY</p><h3>Upload and preview</h3><p>The POS filename is reference only. The file is compared with your current catalogue before any inventory changes are applied.</p></div>
-              <label className={`import-file is-${importFeedback.status}`}><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose latest POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input type="file" accept=".xlsx,.xls" onChange={chooseImport} disabled={importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"} /></label>
-              <button type="button" className="primary-action" onClick={previewPosImport} disabled={!importBase64 || importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"}>{importFeedback.status === "previewing" ? "Comparing catalogue…" : "Preview all POS changes"}</button>
+              <label className={`import-file is-${importFeedback.status}`}><FileSpreadsheet aria-hidden="true" /><span>{importFile ? importFile.name : "Choose latest POS XLSX file"}</span><small>Excel .xlsx or .xls</small><input type="file" accept=".xlsx,.xls" onChange={chooseImport} disabled={importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying" || importHistoryPending} /></label>
+              <button type="button" className="primary-action" onClick={previewPosImport} disabled={!importBase64 || importHistoryPending || importFeedback.status === "reading" || importFeedback.status === "previewing" || importFeedback.status === "applying"}>{importFeedback.status === "previewing" ? "Comparing catalogue…" : "Preview all POS changes"}</button>
               {importFeedback.status !== "idle" && <><ImportStageTracker stage={importWorkflowStage} status={importFeedback.status} /><div className={`import-feedback is-${importFeedback.status}`} role="status" aria-live="polite"><div className="feedback-icon">{importFeedback.status === "success" || importFeedback.status === "preview_ready" ? <CheckCircle2 aria-hidden="true" /> : importFeedback.status === "error" ? <CircleAlert aria-hidden="true" /> : ["reading", "previewing", "applying"].includes(importFeedback.status) ? <LoaderCircle aria-hidden="true" className="is-spinning" /> : <FileSpreadsheet aria-hidden="true" />}</div><div><small>{importFeedback.status === "applying" ? "APPLYING IMPORT" : importFeedback.status === "previewing" ? "BUILDING PREVIEW" : importFeedback.status === "preview_ready" ? "READY TO CONFIRM" : "POS IMPORT"}</small><p>{importFeedback.message}</p></div></div></>}
               {preview && <section className="preview-card import-detail-card">
                 <div className="import-summary" aria-label="POS preview summary">{[{ label: "POS rows analyzed", value: preview.summary.rows, always: true }, { label: "items found", value: preview.summary.products, always: true }, { label: "items changed", value: preview.summary.changedProducts }, { label: "new items", value: preview.summary.newProducts }, { label: "new colors", value: preview.summary.newColors }, { label: "new sizes", value: preview.summary.newSizes }, { label: "new variants", value: preview.summary.newVariants }, { label: "price changes", value: preview.summary.priceChanges }, { label: "quantity changes", value: preview.summary.stockChanges }, { label: "price and quantity changes", value: preview.summary.priceAndStockChanges }, { label: "missing variants", value: preview.summary.missingVariants }].filter(entry => entry.always || Number(entry.value ?? 0) > 0).map(entry => <span key={entry.label}><b>{entry.value ?? 0}</b> {entry.label}</span>)}</div>
                 <p>{preview.alreadyApplied ? "This exact POS file was already applied. Upload a newer export when it is available." : preview.validation.invalidRows.length ? (preview.validation.invalidRows.length + " invalid row(s) must be corrected before this import can be applied.") : "Preview only — no catalogue changes have been made. Review every row below before applying."}</p>
                 {(preview.validation.invalidRows.length > 0 || preview.validation.duplicatePosCodes.length > 0) && <div className="import-validation" role="alert"><h4>Correct the workbook before applying</h4><ul>{preview.validation.invalidRows.map((invalid: { row: number; reason: string }, index: number) => <li key={`${invalid.row}-${index}`}>Row {invalid.row}: {invalid.reason}</li>)}{preview.validation.duplicatePosCodes.map((code: string) => <li key={code}>Duplicate POS code: {code}</li>)}</ul></div>}
                 {!preview.alreadyApplied && <div className="import-change-list" aria-label="All POS changes grouped by cleaned-code item"><ImportChangeGroups groups={preview.changeGroups as ImportChangeGroupView[]} /></div>}
-                <div className="form-actions"><button type="button" className="secondary-action" onClick={applyPosImport} disabled={importFeedback.status === "applying" || preview.validation.invalidRows.length > 0 || preview.validation.duplicatePosCodes.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : importFeedback.status === "applying" ? "Applying verified changes…" : "Confirm and apply this import"}</button></div>
+                <div className="form-actions"><button type="button" className="secondary-action" onClick={applyPosImport} disabled={importFeedback.status === "applying" || importHistoryPending || preview.validation.invalidRows.length > 0 || preview.validation.duplicatePosCodes.length > 0 || preview.alreadyApplied}>{preview.alreadyApplied ? "Already applied" : importFeedback.status === "applying" ? "Applying verified changes…" : "Confirm and apply this import"}</button></div>
               </section>}
             </section>
             <section className="history-card import-history-card">
-              <div><p className="eyebrow">IMPORT HISTORY</p><h3>Open an import to see every cleaned-code change group</h3><p>Each imported model brings its color, size, price, and quantity changes together. Any selected POS dataset can be removed safely by rebuilding from the remaining snapshots.</p></div>
-              {importRemovalFeedback && <p className={removeImport.error ? "form-error" : "form-success"} role="status">{importRemovalFeedback}</p>}
+              <div><p className="eyebrow">IMPORT HISTORY</p><h3 ref={importHistoryHeading} tabIndex={-1} id="import-history-heading">Open an import to see every cleaned-code change group</h3><p>Restore any available saved import except the current one. Restoring or deleting an import requires your admin PIN. Deleting rebuilds the catalogue from the remaining POS files.</p></div>
+              {importHistoryFeedback && <p className={importHistoryFeedback.status === "error" ? "form-error" : importHistoryFeedback.status === "success" ? "form-success" : "import-action-help"} role="status" aria-live="polite">{importHistoryFeedback.message}</p>}
               {history.isLoading ? <p className="empty-workspace" role="status">Loading import history…</p> : history.error ? <div role="alert"><p className="form-error">Couldn’t load import history.</p><button type="button" className="secondary-action" onClick={() => void history.refetch()}>Retry history</button></div> : history.data?.length ? <div className="import-history-layout">
-                <section className="import-history-list" aria-label="POS import history">{history.data.map(item => <button type="button" key={item.id} className={item.id === selectedImportId ? "is-selected" : ""} onClick={() => setSelectedImportId(item.id)} aria-pressed={item.id === selectedImportId}><span><b>{item.originalFilename}</b><small>{item.sourceExportDate ? `POS export ${item.sourceExportDate} · ` : ""}{new Date(item.createdAt).toLocaleString()} · {item.parsedRows} POS row{item.parsedRows === 1 ? "" : "s"}</small></span><strong>{item.status}</strong></button>)}</section>
-                <section className="import-history-detail">{importDetails.isLoading ? <div className="empty-workspace">Loading this import’s changes…</div> : importDetails.error ? <p className="form-error">{importDetails.error.message}</p> : importDetails.data ? <><div className="import-detail-heading"><div><p className="eyebrow">SELECTED IMPORT</p><h3>{importDetails.data.originalFilename}</h3><p>{importDetails.data.sourceExportDate ? `POS export ${importDetails.data.sourceExportDate} · ` : ""}{new Date(importDetails.data.createdAt).toLocaleString()} · {importDetails.data.changeGroups.length} cleaned-code item{importDetails.data.changeGroups.length === 1 ? "" : "s"} changed</p></div><span>{importDetails.data.status}</span></div>{importDetails.data.canRemove && <div className="import-removal-panel"><div><p className="eyebrow">REMOVE THIS IMPORT</p><p>Remove any selected POS dataset only when needed. The catalogue is rebuilt from the remaining retained snapshots in chronological order; website-managed names, categories, lifecycle choices, and remote photos are preserved.</p></div><button type="button" className="quiet-action danger-action" onClick={removeSelectedImport} disabled={removeImport.isPending}>{removeImport.isPending ? "Rebuilding catalogue…" : "Remove this POS dataset"}</button></div>}<div className="import-change-list"><ImportChangeGroups groups={importDetails.data.changeGroups as ImportChangeGroupView[]} /></div></> : <div className="empty-workspace">Choose an import to see its changes.</div>}</section>
+                <section className="import-history-list" aria-label="POS import history">{history.data.map(item => <button type="button" key={item.id} className={item.id === selectedImportId ? "is-selected" : ""} disabled={importHistoryPending || applyImport.isPending} onClick={() => { setSelectedImportId(item.id); setImportHistoryFeedback(null); }} aria-pressed={item.id === selectedImportId}><span><b>{item.originalFilename}</b><small>{item.sourceExportDate ? `POS export ${item.sourceExportDate} · ` : ""}{new Date(item.createdAt).toLocaleString()} · {item.parsedRows} POS row{item.parsedRows === 1 ? "" : "s"}</small></span><strong>{item.isCurrent ? "Current" : "Saved"}</strong></button>)}</section>
+                <section className="import-history-detail">{importDetails.isLoading ? <div className="empty-workspace">Loading this import’s changes…</div> : importDetails.error ? <p className="form-error">{importDetails.error.message}</p> : importDetails.data ? <><div className="import-detail-heading"><div><p className="eyebrow">SELECTED IMPORT</p><h3 tabIndex={-1}>{importDetails.data.originalFilename}</h3><p>{importDetails.data.sourceExportDate ? `POS export ${importDetails.data.sourceExportDate} · ` : ""}{new Date(importDetails.data.createdAt).toLocaleString()} · {importDetails.data.changeGroups.length} cleaned-code item{importDetails.data.changeGroups.length === 1 ? "" : "s"} changed</p></div><span>{importDetails.data.isCurrent ? "Current import" : "Saved import"}</span></div><ImportHistoryActions key={importDetails.data.id} savedImport={importDetails.data} pending={importHistoryPending || applyImport.isPending} onRestore={restoreSelectedImport} onDelete={removeSelectedImport} /><div className="import-change-list"><ImportChangeGroups groups={importDetails.data.changeGroups as ImportChangeGroupView[]} /></div></> : <div className="empty-workspace">Choose an import to see its changes.</div>}</section>
               </div> : <p className="empty-media">No import history yet.</p>}
             </section>
           </section>

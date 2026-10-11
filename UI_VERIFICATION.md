@@ -1,4 +1,58 @@
-# Responsive UI verification — 2026-10-10
+# Responsive UI verification
+
+## 2026-10-11 — daily analytics and protected import history
+
+This follow-up starts from `main` at
+`a24de9b81be1d3953a6bef440162e11e20813f80`. Browser checks use the locally
+built working tree with intercepted localhost service requests. They do not
+establish correspondence with a newly deployed production build or prove live
+service writes. No production import was restored, deleted, or applied.
+
+| Check | Result |
+| --- | --- |
+| `pnpm test` | 151 passed; five live-service assertions explicitly skipped |
+| `pnpm check` | Passed for application and browser-test TypeScript |
+| `pnpm build` | Passed; committed `api/index.js` regenerated |
+| `git diff --check` | Passed |
+| `pnpm audit --prod` | No known vulnerabilities |
+| Full browser suite | 118 passed across Chromium 156 and WebKit 27.2 |
+| Final focused browser rerun | All 22 import-history/analytics cases passed after the migration-readiness and focus refinements |
+
+The 22 focused cases are part of the 118-case suite, not additional distinct
+coverage. The full suite ran before the final readiness/focus refinements;
+the final rerun and unit/type/build checks validate those refinements.
+
+The new browser cases verify the black active-category bar, footer wording and
+Admin link decoration; PIN confirmations at 320, 390, 820, and 1440px widths;
+incorrect/empty PIN, cancel/focus return, pending locks, failed actions/retry,
+current-import markers, and unavailable-migration feedback. Analytics cases
+cover dated daily counts, retry, and unconfigured reporting without a false zero.
+The existing route/viewport and business-interaction coverage below remains in
+the full suite. These are browser-engine checks, not physical iPhone/iPad Safari
+or VoiceOver validation.
+
+Eleven new isolated PostgreSQL tests run the actual migration/functions in
+PGlite. They verify historical backfill, backward/forward restoration, immutable
+variant/photo associations, staff metadata, post-restore imports, current/missing
+state rejection, chronological deletion, timestamps, atomic rollback, and
+server-only execution grants. Fifteen server authorization tests verify signed
+access, the current stored admin credential, persistent PIN throttling, history
+pagination, and migration-readiness enforcement. Eight analytics tests verify
+UTC date boundaries, API filtering, zero counts, caching/day rollover, concurrent
+requests, and sanitized errors. The only added package is the pinned development
+SQL test engine; no browser or production dependency was added for these features.
+
+Production activation is blocked by connected-account access. The available
+Supabase account cannot access catalogue project `ccaavswuaeqdkgvetlai`; the
+available Vercel account cannot access the `kimpor` team. The new migration has
+not been applied live and the analytics server token has not been configured.
+The application blocks restore/delete until the migration is installed and
+reports analytics as unconfigured until connected. See `OPERATIONS.md` for the
+exact activation steps. Live transaction tests require isolated authorized data;
+physical Safari, native keyboard/safe areas, assistive technology, and field
+performance checks remain as described below.
+
+## 2026-10-10 — original responsive implementation
 
 The implementation starts from `main` at
 `50e1add4dc66716e5300dc48d797ac2068c7873f`. The validated runtime is the locally

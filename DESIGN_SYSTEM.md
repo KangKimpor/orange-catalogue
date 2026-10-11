@@ -32,6 +32,16 @@ use 8px radii; login uses 12px; actions/search use pill radii. Hover changes col
 only, with 140–160ms transitions. Reduced motion disables transitions/animations.
 Native file inputs stay accessible through a visible focus-within outline.
 
+The active storefront category uses a solid black (`#000000`) bottom bar and a
+bold label. This is an intentional exception to pink selected-control borders.
+The footer Admin link remains a link without an underline; the ordering link
+reads “Message us to order” and retains the OfficiallyDavit destination.
+
+Daily visitor reporting uses the previous complete UTC day from Vercel's API.
+The panel shows the reporting date, refresh time, and explicit unavailable/error
+states. Import history distinguishes Current from Saved; inline confirmation
+forms require the existing admin login password/PIN before restore or deletion.
+
 ## Typography and rhythm
 
 | Role                 | Family / weight      | Phone   | Tablet  | Desktop | Line height          |

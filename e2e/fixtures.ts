@@ -133,6 +133,8 @@ export type FixtureOptions = {
   delay?: number;
   invalidImport?: boolean;
   historyCount?: number;
+  analyticsConfigured?: boolean;
+  restoreUnavailable?: boolean;
 };
 
 /** All data and mutations are intercepted on localhost; no live writes are possible. */
@@ -191,7 +193,17 @@ export async function installFixtures(
     parsedRows: 150,
     summary: {},
     canRemove: true,
-  }));
+  })).reverse();
+  let currentImportId: number | null = history[0]?.id ?? null;
+  const historyRow = (item: (typeof history)[number]) => ({
+    ...item,
+    canRemove: !options.restoreUnavailable,
+    isCurrent: item.id === currentImportId,
+    canRestore: item.id !== currentImportId && !options.restoreUnavailable,
+    restoreUnavailableReason: options.restoreUnavailable
+      ? "Restoring or deleting imports needs the import-history database update."
+      : null,
+  });
   await page.route("https://fonts.googleapis.com/**", route => route.abort()); // Also exercise font fallbacks without network dependency.
   await page.route("https://ccaavswuaeqdkgvetlai.supabase.co/**", route =>
     route.fulfill({
@@ -246,13 +258,34 @@ export async function installFixtures(
         if (input.slug === "missing") failure = "NOT_FOUND";
       } else if (path === "store.admin.overview")
         data = { categories, products: items };
-      else if (path === "store.admin.importHistory") data = history;
-      else if (path === "store.admin.importDetails")
-        data = {
-          ...history.find(item => item.id === input.importId),
-          changeGroups: preview.changeGroups,
-        };
-      else if (path === "store.admin.login") {
+      else if (path === "store.admin.dailyVisitors")
+        data =
+          options.analyticsConfigured === false
+            ? {
+                status: "unconfigured",
+                date: "2026-10-10",
+                timezone: "UTC",
+                visitors: null,
+                updatedAt: null,
+              }
+            : {
+                status: "ready",
+                date: "2026-10-10",
+                timezone: "UTC",
+                visitors: 23,
+                updatedAt: "2026-10-11T01:00:00Z",
+              };
+      else if (path === "store.admin.importHistory")
+        data = history.map(historyRow);
+      else if (path === "store.admin.importDetails") {
+        const savedImport = history.find(item => item.id === input.importId);
+        if (!savedImport) failure = "NOT_FOUND";
+        else
+          data = {
+            ...historyRow(savedImport),
+            changeGroups: preview.changeGroups,
+          };
+      } else if (path === "store.admin.login") {
         if (input.password !== "test") failure = "UNAUTHORIZED";
         else {
           authenticated = true;
@@ -279,7 +312,8 @@ export async function installFixtures(
           priceAndStockChanges: 1,
           missingVariants: 0,
         };
-        if (!failure)
+        if (!failure) {
+          currentImportId = input.importId;
           history.unshift({
             id: input.importId,
             originalFilename: input.filename,
@@ -291,8 +325,24 @@ export async function installFixtures(
             summary: {},
             canRemove: true,
           });
+        }
+      } else if (path === "store.admin.restoreImport") {
+        if (input.pin !== "test") failure = "UNAUTHORIZED";
+        if (!failure && input.importId !== currentImportId) {
+          currentImportId = input.importId;
+          data = {
+            restoredImportId: input.importId,
+            restoredVariants: 36,
+            hiddenVariants: 2,
+            hiddenProducts: 1,
+          };
+        } else if (!failure) failure = "INTERNAL_SERVER_ERROR";
       } else if (path === "store.admin.removeImport") {
-        history = history.filter(item => item.id !== input.importId);
+        if (input.pin !== "test") failure = "UNAUTHORIZED";
+        if (!failure) {
+          history = history.filter(item => item.id !== input.importId);
+          currentImportId = history[0]?.id ?? null;
+        }
         data = {
           reappliedImports: history.length,
           removedVariants: 1,
@@ -325,7 +375,10 @@ export async function installFixtures(
                 json: {
                   message:
                     failure === "UNAUTHORIZED"
-                      ? "Unable to sign in with those credentials."
+                      ? path === "store.admin.restoreImport" ||
+                        path === "store.admin.removeImport"
+                        ? "Admin PIN is incorrect. Use your current admin login password or PIN."
+                        : "Unable to sign in with those credentials."
                       : failure === "NOT_FOUND"
                         ? "Product not found."
                         : "The catalogue service is temporarily unavailable.",

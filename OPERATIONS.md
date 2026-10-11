@@ -57,6 +57,34 @@ Use **POS XLSX import** to upload a POS export. The parser accepts valid base64 
 
 Review the implemented cleaned-code groups: new products/colors/sizes/variants and price or quantity changes. Missing variants remain retained and are excluded from the actionable change groups. `/admin/review-queue` is an alias of the imports workspace. Apply only after the preview digest and validation summary match the intended file.
 
+## Daily Vercel Analytics
+
+The Overview panel queries [Vercel's public Web Analytics API](https://vercel.com/docs/analytics/web-analytics-api) on the application server. It reports unique visitors to `/` and `/product/*` for the previous complete UTC day; admin/404 traffic is excluded. This replaces the fixed August count. Successful responses are cached for 15 minutes, keyed by day and project, and never survive a date rollover. The panel checks every five minutes while open and refreshes on window focus. It does not require a snapshot export or scheduled job.
+
+Enable Web Analytics for the linked project and configure these **server-only** environment variables in Production (and Preview when needed):
+
+| Variable | Purpose |
+| --- | --- |
+| `VERCEL_ANALYTICS_TOKEN` | Vercel API access token permitted to read this project's analytics. Never use a `VITE_` prefix or commit its value. |
+| `VERCEL_ANALYTICS_PROJECT_ID` | Analytics project ID; falls back to the platform's `VERCEL_PROJECT_ID` when present. |
+| `VERCEL_ANALYTICS_TEAM_ID` | Owning team ID for team-scoped projects such as the current `kimpor` deployment. Omit for personal projects. |
+
+Redeploy after setting these variables. Missing configuration shows an explicit connection message, not a made-up zero. API failures offer Retry and never display the former hard-coded count.
+
+## PIN-protected import restore and deletion
+
+Apply `supabase/migrations/20261011021551_restore_pos_import_history.sql` to the catalogue's actual Supabase project after the earlier migrations. It backfills complete historical POS states from retained source rows, captures future applied states, identifies the active import in `store_settings`, and installs the server-only history/restore/rebuild functions. It also adds the existing live Just In field to fresh migration-based setups if absent. The migration creates no public execution grant and does not restore or delete any live import.
+
+Select a saved import in POS imports. **Current** identifies the active state; **Restore this import** is offered for another complete saved state. Both Restore and Delete open an inline confirmation form requiring the current admin login password/PIN. This is the existing shared credential, not a new PIN stored in the browser. Incorrect attempts use the persistent five-attempt/15-minute throttle in a separate import-PIN namespace. Change the shared credential in Security as before.
+
+A restore changes POS price, quantity, Attribute color, size, and source fields. Variants that only existed later become invisible instead of losing their IDs/photo links. Website names, manual categories, Just In, publication/lifecycle choices, and Cloudinary associations remain. Public queries exclude products without visible variants and return a missing product for such direct links. A genuine stock-zero variant still appears Sold Out. History and original applied dates stay intact, so a later saved import can be restored again. An import after a restore captures its actual active POS state.
+
+Deletion permanently removes the selected dataset and rebuilds from all remaining retained POS files in their original chronological order; the newest retained import becomes current, even if staff previously restored an older one. Rebuild recalculates change summaries while retaining original application dates, stable variant IDs, website metadata, and photos. If no imports remain, POS variants leave the storefront and staff content/photos remain available. Missing retained source data blocks deletion. A failure during replay rolls back the entire transaction. Apply, restore, and deletion share the same transaction lock.
+
+If a historical source is unavailable, earlier states are explicitly unavailable rather than guessed. The migration can capture the current live POS state even when older files are missing. Until the new database functions are installed, history/browsing/import access remains usable and restore/delete mutations are blocked on the server.
+
+Production setup is currently blocked in this session: the connected Supabase account cannot access project `ccaavswuaeqdkgvetlai`, and the connected Vercel account cannot access `kimpor` (`team_gaz9pKV2mvXumhlMLHsHUINI`). Reconnect those accounts before applying the migration/configuration. Never apply this migration to the unrelated empty Supabase project returned by the connected account. After activation, verify `get_pos_import_state()` and Overview read-only; use isolated data for restore/delete smoke tests unless the owner intentionally requests a live change.
+
 ## Local development and verification
 
 From the repository root, install dependencies with `pnpm install`, start the development server with `pnpm dev`, run the complete test suite with `pnpm test`, and build with `pnpm build`. The test suite covers POS normalization, category rules, availability privacy, password access, signed Cloudinary uploads, Messenger URLs, and Cloudinary credential authentication when the three Cloudinary variables are available.

@@ -25,6 +25,8 @@ const brandLogo = readFileSync(
 const indexHtml = readFileSync(resolve(root, "client/index.html"), "utf8");
 const main = readFileSync(resolve(root, "client/src/main.tsx"), "utf8");
 const router = readFileSync(resolve(root, "server/storeRouter.ts"), "utf8");
+const analyticsPanel = readFileSync(resolve(root, "client/src/components/VercelAnalyticsPanel.tsx"), "utf8");
+const importActions = readFileSync(resolve(root, "client/src/components/ImportHistoryActions.tsx"), "utf8");
 
 describe("cleaned-code admin and color media workflow", () => {
   it("keeps the simplified staff workflow centered on names, categories, Just In, colors, and photos", () => {
@@ -139,10 +141,9 @@ describe("cleaned-code admin and color media workflow", () => {
     );
     expect(admin).toContain("import-history-list");
     expect(admin).toContain("import-change-group-list");
-    expect(admin).toContain("Remove this POS dataset");
-    expect(admin).toContain(
-      "rebuilt from every remaining POS snapshot in chronological order"
-    );
+    expect(importActions).toContain("Delete this import");
+    expect(importActions).toContain("rebuilt from the remaining POS files in their original order");
+    expect(importActions).toContain("Admin PIN");
     expect(admin).toContain(
       "The import server returned an interrupted response before confirming completion."
     );
@@ -350,11 +351,12 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(admin).toContain(
       '<article><PackageSearch aria-hidden="true" /><span>Items</span>'
     );
-    expect(admin).toContain("VERCEL ANALYTICS");
-    expect(admin).toContain("Storefront visitors");
-    expect(admin).toContain("vercelAnalyticsSnapshot.storefrontVisitors");
-    expect(admin).not.toContain("vercelAnalyticsSnapshot.pageviews");
-    expect(admin).not.toContain("vercelAnalyticsSnapshot.routes.map");
+    expect(admin).toContain("<VercelAnalyticsPanel />");
+    expect(analyticsPanel).toContain("VERCEL ANALYTICS");
+    expect(analyticsPanel).toContain("Storefront visitors");
+    expect(analyticsPanel).toContain("trpc.store.admin.dailyVisitors.useQuery");
+    expect(analyticsPanel).toContain("Updated daily");
+    expect(analyticsPanel).not.toContain("vercelAnalyticsSnapshot");
     expect(admin).toContain('importFeedback.status !== "idle"');
     expect(admin).not.toContain("Manage items");
     expect(admin).not.toContain("Upload POS file");

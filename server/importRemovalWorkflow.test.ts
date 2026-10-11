@@ -43,7 +43,7 @@ describe("rebuildable POS import removal workflow", () => {
     expect(router).toContain("removeImport: publicProcedure");
     expect(router).toContain("await requireAdmin(ctx as Context)");
     expect(router).toContain('"rpc/remove_pos_import_and_rebuild"');
-    expect(router).toContain("canRemove: true");
-    expect(router).toContain('canRemove: importRow.status === "applied"');
+    expect(router).toContain('canRemove: row.status === "applied"');
+    expect(router).toContain("await requireImportPin(ctx as Context, input.pin)");
   });
 });

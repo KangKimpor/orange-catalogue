@@ -30,6 +30,18 @@ Browser
 
 The public storefront first loads compact card data. A product page makes a focused detail request and composes the selected Attribute colour, available size, gallery media, and Messenger order URL. The admin page uses the same typed API contract but requires the signed `orange_admin_session` cookie.
 
+Overview visitor data comes from `server/vercelAnalytics.ts` through an admin-only
+`dailyVisitors` procedure. The reporting period is the previous complete UTC day;
+the access token stays on the server. `VercelAnalyticsPanel.tsx` handles reporting,
+loading, unavailable, error, and retry states.
+
+POS history stores source files and complete active POS states independently of
+website presentation. Server-side PIN verification protects `restoreImport` and
+`removeImport`; only service-role database procedures can materialize a state.
+`ImportHistoryActions.tsx` owns the inline confirmation and clears the PIN after
+cancel, completion, or error. The active import pointer remains distinct from
+the newest historical application date. See Operations for migration/activation.
+
 ## Domain invariants
 
 | Invariant            | Rule                                                                                                                          |

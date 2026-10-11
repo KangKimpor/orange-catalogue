@@ -150,6 +150,11 @@ describe("compact public catalogue queries", () => {
     );
     expect((await fetchStorefrontCards()).products[0].media).toEqual([]);
   });
+  it("hides later-only products with no visible POS variants after a restore without exposing zero-price cards", async () => {
+    request.mockImplementation(async (path: string) => path.startsWith("variants?") ? [] : respond(path));
+    expect((await fetchStorefrontCards()).products).toEqual([]);
+    expect(await fetchStorefrontProduct("zl-0041")).toBeNull();
+  });
 
   it("keeps an out-of-stock item visible but prevents customer ordering and excludes discontinued records in public queries", async () => {
     request.mockImplementation((path: string) => {
