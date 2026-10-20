@@ -71,6 +71,8 @@ Enable Web Analytics for the linked project and configure these **server-only** 
 
 Redeploy after setting these variables. Missing configuration shows an explicit connection message, not a made-up zero. API failures offer a refresh control and never display the former hard-coded count.
 
+Production analytics was connected and verified on 2026-10-20 for the `kimpor` team's `orange-catalogue` project. The token is stored as a Production Secret; project and team IDs are Production Config values. Rotate the token before its configured expiration, then redeploy and check Overview again.
+
 ## Sales analysis
 
 `/admin/sales` compares an applied POS import with the preceding saved export, ordered by export date (application time when absent). It groups net stock decreases by item with color and size details, estimates value using the earlier POS price, and reports net increases separately as restocks. New, missing, and reassigned variants are excluded. It requires complete source data in both imports, makes no database changes, and refreshes after import changes. These are inventory-based estimates; transactions, discounts, returns, and stock adjustments cannot be identified from inventory files.
@@ -87,7 +89,7 @@ Deletion permanently removes the selected dataset and rebuilds from all remainin
 
 If a historical source is unavailable, earlier states are explicitly unavailable rather than guessed. The migration can capture the current live POS state even when older files are missing. Until the new database functions are installed, history/browsing/import access remains usable and restore/delete mutations are blocked on the server.
 
-Production setup is currently blocked in this session: the connected Supabase account cannot access project `ccaavswuaeqdkgvetlai`, and the connected Vercel account cannot access `kimpor` (`team_gaz9pKV2mvXumhlMLHsHUINI`). Reconnect those accounts before applying the migration/configuration. Never apply this migration to the unrelated empty Supabase project returned by the connected account. After activation, verify `get_pos_import_state()` and Overview read-only; use isolated data for restore/delete smoke tests unless the owner intentionally requests a live change.
+Production uses Supabase project `ccaavswuaeqdkgvetlai` and Vercel team `kimpor` (`team_gaz9pKV2mvXumhlMLHsHUINI`). Verify account access to these exact targets before applying migrations or configuration. After migration activation, verify `get_pos_import_state()` and Overview read-only; use isolated data for restore/delete smoke tests unless the owner intentionally requests a live change. The 2026-10-20 analytics verification did not apply migrations or test live restore/delete actions.
 
 ## Local development and verification
 
