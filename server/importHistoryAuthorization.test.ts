@@ -234,5 +234,27 @@ describe("PIN-protected import history actions", () => {
     await expect(caller("").admin.dailyVisitors()).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
+    await expect(caller("").admin.salesAnalysis({})).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+  it("compares exports chronologically even when an older file was uploaded later", async () => {
+    const variant = { posCode: "POS-1", cleanedCode: "ITEM", colorEnglish: "Black", size: "M", price: 12.99, stockQuantity: 10 };
+    request.mockImplementation(async (path: string) => {
+      if (path.includes("select=id,source_items_json")) return [{ id: 2, source_items_json: [variant] }, { id: 1, source_items_json: [{ ...variant, stockQuantity: 7 }] }];
+      if (path.startsWith("imports?")) return [
+        { id: 3, original_filename: "old-uploaded-later.xlsx", source_export_date: "2026-10-01", applied_at: "2026-10-21T10:00:00Z" },
+        { id: 1, original_filename: "latest.xlsx", source_export_date: "2026-10-20", applied_at: "2026-10-20T10:00:00Z" },
+        { id: 2, original_filename: "previous.xlsx", source_export_date: "2026-10-19", applied_at: "2026-10-19T10:00:00Z" },
+      ];
+      throw new Error(`Unexpected sales request ${path}`);
+    });
+    expect(await caller().admin.salesAnalysis({})).toMatchObject({ status: "ready", current: 1, period: { from: "2026-10-19", to: "2026-10-20" }, analysis: { units: 3, value: 38.97 } });
+    expect(request.mock.calls.every(([, options]) => !options?.method)).toBe(true);
+    expect(await caller().admin.salesAnalysis({ importId: 3 })).toMatchObject({ status: "needs_imports", analysis: null });
+    await expect(caller().admin.salesAnalysis({ importId: 999 })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+  it("does not fabricate sales from missing POS source data", async () => {
+    const original = request.getMockImplementation()!;
+    request.mockImplementation(async (...args) => args[0].includes("select=id,source_items_json") ? [{ id: 1, source_items_json: null }, { id: 2, source_items_json: [] }] : original(...args));
+    expect(await caller().admin.salesAnalysis({})).toMatchObject({ status: "missing_source", analysis: null });
   });
 });

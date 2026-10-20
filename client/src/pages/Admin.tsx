@@ -15,18 +15,21 @@ import {
   Settings,
   ShieldCheck,
   Trash2,
+  TrendingUp,
 } from "lucide-react";
 import { type AdminWorkspace as Workspace, workspaceFromPath } from "@/lib/adminWorkspace";
 import { formatAppliedPosImportSummary } from "@/lib/posImportSummary";
 import { trpc } from "@/lib/trpc";
 import CatalogueImage from "@/components/CatalogueImage";
 import VercelAnalyticsPanel from "@/components/VercelAnalyticsPanel";
+import SalesAnalysisPanel from "@/components/SalesAnalysisPanel";
 import ImportHistoryActions from "@/components/ImportHistoryActions";
 import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
 import { BATCH_PHOTO_FILENAME_PATTERN, type BatchPhotoMatch, planBatchPhotoIntake, sortBatchPhotoMatches } from "@/lib/batchPhotoIntake";
 
 const workspaceMeta: Array<{ id: Workspace; label: string; path: string; icon: typeof LayoutDashboard; hint: string }> = [
   { id: "overview", label: "Overview", path: "/admin", icon: LayoutDashboard, hint: "Today’s catalogue health" },
+  { id: "sales", label: "Sales analysis", path: "/admin/sales", icon: TrendingUp, hint: "Item performance between POS imports" },
   { id: "catalogue", label: "Catalogue editor", path: "/admin/items", icon: PackageSearch, hint: "Items, colors, and photos" },
   { id: "imports", label: "POS imports", path: "/admin/import", icon: FileSpreadsheet, hint: "Preview and apply POS updates" },
   { id: "settings", label: "Security", path: "/admin/security", icon: Settings, hint: "Admin password and access" },
@@ -219,6 +222,7 @@ export default function Admin() {
   const reuseArchivedContent = trpc.store.admin.reuseArchivedContent.useMutation({ onSuccess: () => utils.store.admin.overview.invalidate() });
   const previewImport = trpc.store.admin.previewImport.useMutation();
   async function refreshImportCatalogue() {
+    await utils.store.admin.salesAnalysis.invalidate();
     await Promise.all([utils.store.admin.overview.invalidate(), utils.store.admin.importHistory.invalidate(), utils.store.admin.importDetails.invalidate(), utils.store.catalogue.list.invalidate(), utils.store.catalogue.getBySlug.invalidate()]);
   }
   const applyImport = trpc.store.admin.applyImport.useMutation({ onSuccess: refreshImportCatalogue });
@@ -645,6 +649,7 @@ export default function Admin() {
         </header>
 
         {logout.error && <p className="form-error" role="alert">{logout.error.message}</p>}
+        {workspace === "sales" && <SalesAnalysisPanel />}
         {requiresOverview && overview.isLoading && <p className="empty-workspace" role="status">Loading catalogue workspace…</p>}
         {requiresOverview && overview.error && <div className="empty-workspace" role="alert"><p>Couldn’t load catalogue information.</p><button type="button" className="secondary-action" onClick={() => void overview.refetch()}>Retry catalogue information</button></div>}
         {workspace === "overview" && !overview.isLoading && !overview.error && (

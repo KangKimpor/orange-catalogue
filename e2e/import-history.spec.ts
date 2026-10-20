@@ -14,6 +14,7 @@ test("category bar is black and footer links retain the requested text and decor
   await expect(
     page.getByRole("button", { name: "Just In", exact: true })
   ).toHaveCSS("border-bottom-color", "rgb(0, 0, 0)");
+  await expect(page.getByRole("button", { name: "Just In", exact: true })).toHaveCSS("border-bottom-width", "1px");
   const footer = page.locator(".store-footer");
   const admin = footer.getByRole("link", { name: "Admin", exact: true });
   await expect(admin).toHaveAttribute("href", "/admin");
@@ -185,8 +186,9 @@ test("daily analytics display the reporting date without snapshot language", asy
     name: "Daily Vercel Analytics storefront visitors",
   });
   await expect(panel).toContainText("Updated daily");
-  await expect(panel).toContainText("2026 (UTC)");
-  await expect(panel.locator("strong")).toHaveText("23");
+  await expect(panel).toContainText("today is in progress");
+  await expect(panel.locator("strong")).toHaveText(["23", "15", "13"]);
+  await expect(panel.locator(".visitor-chart li")).toHaveCount(7);
   await expect(panel).not.toContainText("Snapshot");
   for (const width of [320, 390, 820, 1440]) {
     await page.setViewportSize({ width, height: 844 });
@@ -218,7 +220,7 @@ test("analytics errors can retry without showing stale snapshot counts", async (
   await expect(panel.getByRole("alert")).toBeVisible();
   errors.splice(0);
   await panel
-    .getByRole("button", { name: "Retry analytics", exact: true })
+    .getByRole("button", { name: "Refresh visitors", exact: true })
     .click();
-  await expect(panel.locator("strong")).toHaveText("23");
+  await expect(panel.locator("strong").first()).toHaveText("23");
 });

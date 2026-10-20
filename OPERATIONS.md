@@ -59,7 +59,7 @@ Review the implemented cleaned-code groups: new products/colors/sizes/variants a
 
 ## Daily Vercel Analytics
 
-The Overview panel queries [Vercel's public Web Analytics API](https://vercel.com/docs/analytics/web-analytics-api) on the application server. It reports unique visitors to `/` and `/product/*` for the previous complete UTC day; admin/404 traffic is excluded. This replaces the fixed August count. Successful responses are cached for 15 minutes, keyed by day and project, and never survive a date rollover. The panel checks every five minutes while open and refreshes on window focus. It does not require a snapshot export or scheduled job.
+The Overview panel queries [Vercel's public Web Analytics API](https://vercel.com/docs/analytics/web-analytics-api) on the application server. It shows seven daily visitor counts for `/` and `/product/*`, including today in progress; admin/404 traffic is excluded. Reporting days follow UTC and the last-check time uses Phnom Penh time. Successful responses are cached for five minutes, keyed by day and project, and never survive a date rollover. The panel checks every five minutes while open, refreshes on window focus, and includes a manual refresh control. It does not require a snapshot export or scheduled job.
 
 Enable Web Analytics for the linked project and configure these **server-only** environment variables in Production (and Preview when needed):
 
@@ -69,7 +69,11 @@ Enable Web Analytics for the linked project and configure these **server-only** 
 | `VERCEL_ANALYTICS_PROJECT_ID` | Analytics project ID; falls back to the platform's `VERCEL_PROJECT_ID` when present. |
 | `VERCEL_ANALYTICS_TEAM_ID` | Owning team ID for team-scoped projects such as the current `kimpor` deployment. Omit for personal projects. |
 
-Redeploy after setting these variables. Missing configuration shows an explicit connection message, not a made-up zero. API failures offer Retry and never display the former hard-coded count.
+Redeploy after setting these variables. Missing configuration shows an explicit connection message, not a made-up zero. API failures offer a refresh control and never display the former hard-coded count.
+
+## Sales analysis
+
+`/admin/sales` compares an applied POS import with the preceding saved export, ordered by export date (application time when absent). It groups net stock decreases by item with color and size details, estimates value using the earlier POS price, and reports net increases separately as restocks. New, missing, and reassigned variants are excluded. It requires complete source data in both imports, makes no database changes, and refreshes after import changes. These are inventory-based estimates; transactions, discounts, returns, and stock adjustments cannot be identified from inventory files.
 
 ## PIN-protected import restore and deletion
 

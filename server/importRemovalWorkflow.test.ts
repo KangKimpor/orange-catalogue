@@ -33,7 +33,7 @@ describe("rebuildable POS import removal workflow", () => {
   });
 
   it("scopes the intended variant reset delete so the production safe-delete policy allows chronological replay", () => {
-    expect(scopedDeleteMigration).toContain("delete from public.variants\n   where product_id is not null;");
+    expect(scopedDeleteMigration).toMatch(/delete from public\.variants\r?\n   where product_id is not null;/);
     expect(scopedDeleteMigration).not.toContain("delete from public.variants;");
     expect(scopedDeleteMigration).toContain("delete from public.imports where id = p_import_id");
     expect(scopedDeleteMigration).toContain("delete from public.import_changes where import_id = any(v_replay_ids)");

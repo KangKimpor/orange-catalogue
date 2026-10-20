@@ -11,6 +11,7 @@ import { adminLoginClientKey, checkAdminLoginRateLimit } from "./loginRateLimit"
 import { publicProcedure, router } from "./_core/trpc";
 import { destroyCloudinaryProductImage } from "./cloudinaryMedia";
 import { dailyStorefrontVisitors } from "./vercelAnalytics";
+import { analyseSales, salesSource } from "./salesAnalysis";
 
 const ADMIN_COOKIE = "orange_admin_session";
 const ADMIN_PASSWORD_KEY = "admin_password_hash";
@@ -378,6 +379,24 @@ export const storeRouter = router({
     changePassword: publicProcedure.input(adminPasswordChangeInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const stored = await readStoredPasswordHash(); const valid = stored ? passwordMatches(input.currentPassword, stored) : input.currentPassword === process.env.ADMIN_PASSWORD; if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password is incorrect." }); await savePasswordHash(hashPassword(input.newPassword)); await issueAdminSession(ctx as Context); return { success: true }; }),
     overview: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); return cataloguePayload(true, true); }),
     dailyVisitors: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); return dailyStorefrontVisitors(); }),
+    salesAnalysis: publicProcedure.input(z.object({ importId: z.number().int().positive().optional() })).query(async ({ ctx, input }) => {
+      await requireAdmin(ctx as Context);
+      const exportDay = (row: DbImport) => row.source_export_date ?? (row.applied_at ?? row.created_at).slice(0, 10);
+      const imports = (await readAppliedImports()).sort((a, b) => exportDay(b).localeCompare(exportDay(a)) || (b.applied_at ?? b.created_at).localeCompare(a.applied_at ?? a.created_at) || b.id - a.id);
+      const selected = input.importId === undefined ? 0 : imports.findIndex(row => row.id === input.importId);
+      if (selected < 0) throw new TRPCError({ code: "NOT_FOUND", message: "The selected POS import is no longer available." });
+      const current = imports[selected];
+      const previous = imports[selected + 1];
+      const options = imports.map(row => ({ id: row.id, filename: row.original_filename, date: row.source_export_date ?? null }));
+      if (!current || !previous) return { status: "needs_imports" as const, options, current: current?.id ?? null, period: null, analysis: null };
+      const sources = await supabaseRequest<Array<{ id: number; source_items_json: unknown }>>(`imports?select=id,source_items_json&id=in.(${previous.id},${current.id})&status=eq.applied`);
+      const before = salesSource.safeParse(sources.find(row => row.id === previous.id)?.source_items_json);
+      const after = salesSource.safeParse(sources.find(row => row.id === current.id)?.source_items_json);
+      const period = { from: previous.source_export_date ?? previous.applied_at ?? previous.created_at, to: current.source_export_date ?? current.applied_at ?? current.created_at, previousFilename: previous.original_filename, currentFilename: current.original_filename };
+      if (!before.success || !after.success) return { status: "missing_source" as const, options, current: current.id, period, analysis: null };
+      const analysis = analyseSales(before.data, after.data);
+      return { status: "ready" as const, options, current: current.id, period, analysis };
+    }),
     updateProduct: publicProcedure.input(z.object({ id: z.number().int(), displayName: z.string().max(255).nullable(), categoryId: z.number().int().nullable(), isJustIn: z.boolean().optional(), lifecycleStatus: z.enum(["active", "out_of_stock", "discontinued"]).optional() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...(input.isJustIn === undefined ? {} : { is_just_in: input.isJustIn }), ...(input.lifecycleStatus === undefined ? {} : { lifecycle_status: input.lifecycleStatus }) }) }); return { success: true }; }),
     deleteProduct: publicProcedure.input(z.object({ productId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return deleteProductAndMedia(input.productId); }),
     reuseArchivedContent: publicProcedure.input(z.object({ sourceProductId: z.number().int().positive(), targetProductId: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); return copyArchivedWebsiteContent(input.sourceProductId, input.targetProductId); }),

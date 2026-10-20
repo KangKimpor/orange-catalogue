@@ -15,6 +15,7 @@ function Router() {
         <Route path="/" component={Storefront} />
         <Route path="/product/:slug" component={ProductDetail} />
         <Route path="/admin" component={Admin} />
+        <Route path="/admin/sales" component={Admin} />
         <Route path="/admin/items" component={Admin} />
         <Route path="/admin/photos" component={Admin} />
         <Route path="/admin/import" component={Admin} />

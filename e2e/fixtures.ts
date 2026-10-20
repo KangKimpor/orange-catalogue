@@ -134,6 +134,7 @@ export type FixtureOptions = {
   invalidImport?: boolean;
   historyCount?: number;
   analyticsConfigured?: boolean;
+  salesStatus?: "ready" | "needs_imports" | "missing_source";
   restoreUnavailable?: boolean;
 };
 
@@ -267,6 +268,7 @@ export async function installFixtures(
                 timezone: "UTC",
                 visitors: null,
                 updatedAt: null,
+                days: [],
               }
             : {
                 status: "ready",
@@ -274,7 +276,16 @@ export async function installFixtures(
                 timezone: "UTC",
                 visitors: 23,
                 updatedAt: "2026-10-11T01:00:00Z",
+                days: Array.from({ length: 7 }, (_, index) => ({ date: `2026-10-${String(index + 4).padStart(2, "0")}`, visitors: index === 6 ? 23 : index + 10 })),
               };
+      else if (path === "store.admin.salesAnalysis")
+        data = {
+          status: options.salesStatus ?? "ready",
+          current: 2,
+          options: [{ id: 2, filename: "latest-pos.xlsx", date: "2026-10-10" }, { id: 1, filename: "previous-pos.xlsx", date: "2026-10-09" }],
+          period: { from: "2026-10-09", to: "2026-10-10", previousFilename: "previous-pos.xlsx", currentFilename: "latest-pos.xlsx" },
+          analysis: options.salesStatus && options.salesStatus !== "ready" ? null : { units: 6, value: 77.94, restocked: 3, sellingItems: 1, comparedVariants: 3, items: [{ code: "ZL 0041", units: 6, value: 77.94, restocked: 3, variants: [{ posCode: "POS-BLACK-M", color: "Black", size: "M", units: 6, value: 77.94, restocked: 0 }, { posCode: "POS-CREAM-L", color: "Cream", size: "L", units: 0, value: 0, restocked: 3 }] }] },
+        };
       else if (path === "store.admin.importHistory")
         data = history.map(historyRow);
       else if (path === "store.admin.importDetails") {
