@@ -364,6 +364,35 @@ button:disabled,
   line-height: 1.5;
   max-width: 44ch;
 }
+.store-header { justify-content: space-between; flex-wrap: wrap; }
+.favorites-link { display: inline-flex; align-items: center; min-height: 44px; padding: 8px; font-size: .875rem; }
+.catalogue-tools { max-width: 1720px; margin: 0 auto; padding: 0 var(--public-gutter) var(--space-6); display: grid; gap: var(--space-4); }
+.catalogue-tools label, .restock-form label, .restock-status-filter { display: grid; gap: var(--space-2); font-size: .875rem; font-weight: 500; min-width: 0; }
+.catalogue-search { max-width: 620px; }
+.catalogue-filters, .restock-form { border: 1px solid var(--control-line); border-radius: var(--radius); padding: var(--space-4); }
+.catalogue-filters summary, .restock-form summary { cursor: pointer; min-height: 44px; align-content: center; font-weight: 600; }
+.catalogue-filter-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: var(--space-4); padding-top: var(--space-4); }
+.catalogue-check { display: flex !important; align-items: center; gap: var(--space-2); min-height: 44px; }
+.catalogue-check input[type="checkbox"] { width: 20px; height: 20px; min-height: 20px; flex: 0 0 auto; accent-color: var(--focus); }
+.catalogue-results, .restock-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); font-size: .875rem; }
+.product-card { position: relative; }
+.product-card-link { display: block; }
+.favorite-button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: 0 0 44px; border: 1px solid var(--control-line); border-radius: 50%; background: white; color: var(--orange-ink); }
+.product-card > .favorite-button { position: absolute; top: 12px; right: 12px; }
+.favorite-button:hover, .favorite-button.is-saved { color: var(--focus); background: var(--orange-pink-deep); }
+.detail-title { display: flex; gap: var(--space-3); align-items: start; justify-content: space-between; }
+.detail-title h1 { min-width: 0; }
+.restock-form { margin-top: var(--space-4); font-size: .875rem; }
+.restock-form form, .restock-requests, .restock-request-list { display: grid; gap: var(--space-4); }
+.restock-form form { padding-top: var(--space-4); }
+.restock-form p { overflow-wrap: anywhere; }
+.restock-status-filter { max-width: 320px; }
+.restock-request-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); align-items: start; gap: var(--space-4); border: 1px solid var(--aw-line); border-radius: var(--radius); padding: var(--space-5); overflow-wrap: anywhere; }
+.restock-request-card > div { min-width: 0; }
+.restock-request-card h3 { font-size: 1rem; }
+.restock-request-card small { color: var(--aw-muted); }
+.restock-contact { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; }
+.restock-request-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .product-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -381,7 +410,7 @@ button:disabled,
   content-visibility: auto;
   contain-intrinsic-size: auto 32rem;
 }
-.product-card:focus-visible {
+.product-card-link:focus-visible {
   position: relative;
   z-index: 1;
   outline-offset: -3px;
@@ -797,7 +826,7 @@ button:disabled,
   grid-column: 1 / -1;
   grid-row: 2;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-1);
 }
 .admin-rail-label,

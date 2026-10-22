@@ -47,7 +47,7 @@ describe("deeper production security hardening", () => {
     expect(deploymentHeader("Content-Security-Policy")).toContain("default-src 'self'");
     expect(deploymentHeader("Content-Security-Policy")).toContain("frame-ancestors 'none'");
     expect(deploymentHeader("Content-Security-Policy")).toContain("https://api.cloudinary.com");
-    expect(deploymentHeader("Content-Security-Policy")).toContain("https://ccaavswuaeqdkgvetlai.supabase.co");
+    expect(deploymentHeader("Content-Security-Policy")).toContain("https://mxgfdoogvvpwdzvxcaku.supabase.co");
     expect(deploymentHeader("Permissions-Policy")).toBe("camera=(), geolocation=(), microphone=(), payment=(), usb=()");
     expect(deploymentHeader("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
     expect(deploymentHeader("X-Content-Type-Options")).toBe("nosniff");

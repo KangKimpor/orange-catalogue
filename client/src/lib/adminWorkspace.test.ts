@@ -5,6 +5,7 @@ describe("admin workspace routes", () => {
   it("keeps each workspace selected from its dedicated route", () => {
     expect(workspaceFromPath("/admin")).toBe("overview");
     expect(workspaceFromPath("/admin/sales")).toBe("sales");
+    expect(workspaceFromPath("/admin/restock")).toBe("restock");
     expect(workspaceFromPath("/admin/items")).toBe("catalogue");
     expect(workspaceFromPath("/admin/photos")).toBe("catalogue");
     expect(workspaceFromPath("/admin/import")).toBe("imports");

@@ -5,9 +5,9 @@ export type StorefrontCategoryProduct = {
 
 export function canonicalStorefrontCategorySlug(categorySlug: string | null) {
   if (categorySlug === "shorts" || categorySlug === "pants") return "legwear";
-  return ["just-in", "tops", "jeans", "legwear"].includes(categorySlug ?? "") ? categorySlug! : "just-in";
+  return ["all", "just-in", "tops", "jeans", "legwear"].includes(categorySlug ?? "") ? categorySlug! : "just-in";
 }
 
 export function belongsInStorefrontCategory(product: StorefrontCategoryProduct, categorySlug: string) {
-  return categorySlug === "just-in" ? product.isJustIn : product.category.slug === categorySlug;
+  return categorySlug === "all" || (categorySlug === "just-in" ? product.isJustIn : product.category.slug === categorySlug);
 }

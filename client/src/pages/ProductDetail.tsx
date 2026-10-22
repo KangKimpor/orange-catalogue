@@ -8,11 +8,14 @@ import { responsiveCatalogueMedia } from "@/lib/catalogueMedia";
 import CatalogueImage from "@/components/CatalogueImage";
 import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
 import { readStorefrontReturnPosition } from "@/lib/storefrontReturnPosition";
+import { FavoriteButton, useFavorites } from "@/components/Favorites";
+import RestockRequestForm from "@/components/RestockRequestForm";
 
 const BRAND_IMAGE = responsiveCatalogueMedia(SUPABASE_BRAND_LOGO_URL, "brand");
 const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
 export default function ProductDetail() {
+  const favorites = useFavorites();
   const [, params] = useRoute("/product/:slug");
   const { data: product, isLoading, error, refetch } = trpc.store.catalogue.getBySlug.useQuery(
     { slug: params?.slug ?? "" },
@@ -44,6 +47,7 @@ export default function ProductDetail() {
   const chooseColor = (index: number) => { setColorIndex(index); setPhotoIndex(0); setSize(null); };
   const header = <header className="store-header compact">
     <Link href={storefrontReturnHref} className="brand-mark" aria-label="Orange home"><img {...BRAND_IMAGE} alt="Orange" width={232} height={116} decoding="async" fetchPriority="high" onError={fallbackToLocalBrandLogo} /></Link>
+    <Link href="/favorites" className="favorites-link">Favorites</Link>
     <Link href={storefrontReturnHref} className="back-link">Back to shop</Link>
   </header>;
 
@@ -77,7 +81,8 @@ export default function ProductDetail() {
       </div>
       <div className="detail-content">
         <p className="eyebrow">{product.category.label}</p>
-        <h1>{product.displayName || product.cleanedCode}</h1>
+        <div className="detail-title"><h1>{product.displayName || product.cleanedCode}</h1><FavoriteButton slug={product.slug} name={product.displayName || product.cleanedCode} /></div>
+        {favorites.temporary && <p role="status">Favorites are available for this visit; your browser couldn’t save them.</p>}
         <p className="detail-code">{product.cleanedCode}</p>
         <p className="detail-price">{selectedVariant ? money(selectedVariant.price) : money(product.priceMin)}</p>
         <div className="choice-block"><span id="color-choice-label">Color</span><div className="choice-row" role="group" aria-labelledby="color-choice-label">{product.colors.map((item, index) => <button type="button" key={item.id ?? item.englishName} onClick={() => chooseColor(index)} aria-pressed={index === colorIndex} className={index === colorIndex ? "choice is-selected" : "choice"}><i style={{ backgroundColor: item.hex }} aria-hidden="true" />{item.englishName}{!item.available && <small>Sold Out</small>}</button>)}</div><p className="gallery-helper">Choose a color to see its photos.</p></div>
@@ -85,6 +90,7 @@ export default function ProductDetail() {
         <p className="sr-only" role="status">{color?.englishName}{selectedVariant?.size ? `, size ${selectedVariant.size}` : ""}, {selectedVariant ? money(selectedVariant.price) : ""}. {selectedVariant?.available ? "Available to order." : "Sold Out."} {activeMedia ? `Photo ${photoIndex + 1} of ${colorMedia.length}.` : "No photo available."}</p>
         {!selectedVariant?.available && <p className="detail-status soldout">Sold Out</p>}
         <a className={`message-button ${selectedVariant?.available ? "" : "is-disabled"}`} role="link" aria-disabled={!selectedVariant?.available} tabIndex={selectedVariant?.available ? 0 : -1} href={selectedVariant?.available ? orderUrl : undefined} target="_blank" rel="noreferrer">{selectedVariant?.available ? "Message to Order" : "Sold Out — ordering unavailable"}</a>
+        {selectedVariant && !selectedVariant.available && color && <RestockRequestForm key={selectedVariant.id} variantId={selectedVariant.id} color={color.englishName} size={selectedVariant.size} />}
       </div>
     </main>
   </div>;

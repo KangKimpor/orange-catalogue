@@ -13,10 +13,10 @@ var publicProcedure = t.procedure;
 
 // server/storeRouter.ts
 import crypto4 from "node:crypto";
-import { TRPCError as TRPCError3 } from "@trpc/server";
+import { TRPCError as TRPCError4 } from "@trpc/server";
 import { SignJWT, jwtVerify } from "jose";
 import { parse as parseCookie } from "cookie";
-import { z } from "zod";
+import { z as z3 } from "zod";
 
 // server/catalogRules.ts
 var PUBLIC_CATEGORIES = [
@@ -235,7 +235,8 @@ function cardColors(variants, colorsById, lifecycleStatus) {
       id: colorId,
       englishName: color?.englishName ?? "One Color",
       hex: color?.hex ?? "#9A9A94",
-      available: lifecycleStatus === "active" && groupedVariants.some((variant) => variant.stock_quantity > 0)
+      available: lifecycleStatus === "active" && groupedVariants.some((variant) => variant.stock_quantity > 0),
+      variants: groupedVariants.map((variant) => ({ size: variant.size, price: Number(variant.price), available: lifecycleStatus === "active" && variant.stock_quantity > 0 }))
     };
   });
 }
@@ -244,6 +245,7 @@ function cardProduct(product, variants, primaryMedia, categoriesById, colorsById
   const prices = variants.map((variant) => Number(variant.price));
   return {
     id: product.id,
+    createdAt: product.created_at ?? null,
     slug: product.slug,
     displayName: product.display_name,
     cleanedCode: product.cleaned_code,
@@ -293,8 +295,8 @@ function publicDetailProduct(product, variants, mediaRows, categoriesById, color
 async function fetchStorefrontCards() {
   const [categoryRows, productRows, variantRows, mediaRows, colorRows] = await Promise.all([
     supabaseRequest("categories?select=id,slug,label,is_visible&order=sort_order.asc"),
-    supabaseRequest("products?select=id,slug,cleaned_code,display_name,category_id,is_just_in,lifecycle_status&is_published=eq.true&lifecycle_status=neq.discontinued"),
-    supabaseRequest("variants?select=id,product_id,color_id,price,stock_quantity&is_visible=eq.true"),
+    supabaseRequest("products?select=id,slug,cleaned_code,display_name,category_id,is_just_in,lifecycle_status,created_at&is_published=eq.true&lifecycle_status=neq.discontinued"),
+    supabaseRequest("variants?select=id,product_id,color_id,size,price,stock_quantity&is_visible=eq.true"),
     supabaseRequest("product_media?select=id,product_id,optimized_url,alt_text,is_primary&is_primary=eq.true&order=sort_order.asc"),
     supabaseRequest("colors?select=id,english_name,hex&order=sort_order.asc")
   ]);
@@ -498,25 +500,25 @@ async function destroyCloudinaryProductImage(publicId, config, request = fetch) 
 
 // server/vercelAnalytics.ts
 import { TRPCError as TRPCError2 } from "@trpc/server";
-var CACHE_MS = 15 * 60 * 1e3;
+var CACHE_MS = 5 * 60 * 1e3;
 var STOREFRONT_FILTER = "requestPath eq '/' or startswith(requestPath, '/product/')";
 var cache;
 var pending;
-function previousAnalyticsDay(now) {
-  const end = Date.UTC(
+function analyticsWindow(now) {
+  const today = Date.UTC(
     now.getUTCFullYear(),
     now.getUTCMonth(),
     now.getUTCDate()
   );
-  const start = end - 864e5;
+  const start = today - 6 * 864e5;
   return {
-    date: new Date(start).toISOString().slice(0, 10),
+    date: new Date(today).toISOString().slice(0, 10),
     since: new Date(start).toISOString(),
-    until: new Date(end - 1).toISOString()
+    until: now.toISOString()
   };
 }
 async function dailyStorefrontVisitors(now = /* @__PURE__ */ new Date()) {
-  const { date, since, until } = previousAnalyticsDay(now);
+  const { date, since, until } = analyticsWindow(now);
   const token = process.env.VERCEL_ANALYTICS_TOKEN;
   const projectId = process.env.VERCEL_ANALYTICS_PROJECT_ID ?? process.env.VERCEL_PROJECT_ID;
   const teamId = process.env.VERCEL_ANALYTICS_TEAM_ID;
@@ -526,19 +528,22 @@ async function dailyStorefrontVisitors(now = /* @__PURE__ */ new Date()) {
       date,
       timezone: "UTC",
       visitors: null,
-      updatedAt: null
+      updatedAt: null,
+      days: []
     };
   const url = new URL(
-    "https://api.vercel.com/v1/query/web-analytics/visits/count"
+    "https://api.vercel.com/v1/query/web-analytics/visits/aggregate"
   );
   url.search = new URLSearchParams({
     projectId,
     since,
     until,
+    by: "day",
+    limit: "7",
     filter: STOREFRONT_FILTER,
     ...teamId ? { teamId } : {}
   }).toString();
-  const key = `${url.href}:${token}`;
+  const key = `${projectId}:${teamId ?? ""}:${date}:${token}`;
   if (cache?.key === key && cache.expiresAt > now.getTime())
     return cache.report;
   if (pending?.key === key) return pending.request;
@@ -554,18 +559,34 @@ async function dailyStorefrontVisitors(now = /* @__PURE__ */ new Date()) {
           message: "Vercel Analytics could not be refreshed. Check the project's analytics access and server token."
         });
       const body = await response.json();
-      const visitors = body.data?.visitors;
-      if (typeof visitors !== "number" || !Number.isSafeInteger(visitors) || visitors < 0)
+      if (!Array.isArray(body.data) || body.data.some(
+        (row) => !row || typeof row.timestamp !== "string" || !Number.isFinite(Date.parse(row.timestamp)) || typeof row.visitors !== "number" || !Number.isSafeInteger(row.visitors) || row.visitors < 0
+      ))
         throw new TRPCError2({
           code: "INTERNAL_SERVER_ERROR",
           message: "Vercel Analytics returned an incomplete visitor report. Please try again."
         });
+      const counts = /* @__PURE__ */ new Map();
+      for (const row of body.data) {
+        const day = new Date(row.timestamp).toISOString().slice(0, 10);
+        if (counts.has(day) || day < since.slice(0, 10) || day > date)
+          throw new TRPCError2({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Vercel Analytics returned an incomplete visitor report. Please try again."
+          });
+        counts.set(day, row.visitors);
+      }
+      const days = Array.from({ length: 7 }, (_, index) => {
+        const day = new Date(Date.parse(since) + index * 864e5).toISOString().slice(0, 10);
+        return { date: day, visitors: counts.get(day) ?? 0 };
+      });
       const report = {
         status: "ready",
         date,
         timezone: "UTC",
-        visitors,
-        updatedAt: now.toISOString()
+        visitors: days[6].visitors,
+        updatedAt: now.toISOString(),
+        days
       };
       cache = { key, expiresAt: now.getTime() + CACHE_MS, report };
       return report;
@@ -585,18 +606,104 @@ async function dailyStorefrontVisitors(now = /* @__PURE__ */ new Date()) {
   }
 }
 
+// server/salesAnalysis.ts
+import { z } from "zod";
+var salesVariant = z.object({
+  posCode: z.string().min(1),
+  cleanedCode: z.string().min(1),
+  colorEnglish: z.string(),
+  size: z.string().nullable(),
+  price: z.number().finite().nonnegative(),
+  stockQuantity: z.number().int()
+});
+var salesSource = z.array(salesVariant);
+function analyseSales(previous, current) {
+  const before = new Map(previous.map((item) => [item.posCode, item]));
+  const items = /* @__PURE__ */ new Map();
+  let comparedVariants = 0;
+  for (const item of current) {
+    const prior = before.get(item.posCode);
+    if (!prior || prior.cleanedCode !== item.cleanedCode) continue;
+    comparedVariants++;
+    const delta = Math.max(0, prior.stockQuantity) - Math.max(0, item.stockQuantity);
+    if (!delta) continue;
+    const units = Math.max(0, delta);
+    const restocked = Math.max(0, -delta);
+    const value = units * Math.round(prior.price * 100);
+    const group = items.get(item.cleanedCode) ?? {
+      code: item.cleanedCode,
+      units: 0,
+      value: 0,
+      restocked: 0,
+      variants: []
+    };
+    group.units += units;
+    group.value += value;
+    group.restocked += restocked;
+    group.variants.push({
+      posCode: item.posCode,
+      color: item.colorEnglish || "One Color",
+      size: item.size,
+      units,
+      value: value / 100,
+      restocked
+    });
+    items.set(item.cleanedCode, group);
+  }
+  const rows = Array.from(items.values()).sort(
+    (a, b) => b.units - a.units || b.value - a.value || a.code.localeCompare(b.code)
+  );
+  return {
+    comparedVariants,
+    units: rows.reduce((sum, item) => sum + item.units, 0),
+    value: rows.reduce((sum, item) => sum + item.value, 0) / 100,
+    restocked: rows.reduce((sum, item) => sum + item.restocked, 0),
+    sellingItems: rows.filter((item) => item.units > 0).length,
+    items: rows.map((item) => ({ ...item, value: item.value / 100 }))
+  };
+}
+
+// server/restockRequests.ts
+import { z as z2 } from "zod";
+import { TRPCError as TRPCError3 } from "@trpc/server";
+var restockRequestInput = z2.object({
+  variantId: z2.number().int().positive(),
+  contactType: z2.enum(["email", "phone"]),
+  contact: z2.string().trim().min(3).max(254),
+  consent: z2.literal(true)
+}).transform((input) => ({ ...input, contact: input.contactType === "email" ? input.contact.toLowerCase() : input.contact.replace(/[\s().-]/g, "") })).refine((input) => input.contactType === "email" ? z2.email().safeParse(input.contact).success : /^\+?\d{7,15}$/.test(input.contact), { message: "Enter a valid email address or phone number.", path: ["contact"] });
+async function requestRestock(input, clientKey) {
+  const result = await supabaseRequest("rpc/request_restock", {
+    method: "POST",
+    body: JSON.stringify({ p_variant_id: input.variantId, p_contact_type: input.contactType, p_contact: input.contact, p_client_key: clientKey })
+  });
+  if (result === "limited") throw new TRPCError3({ code: "TOO_MANY_REQUESTS", message: "Too many requests. Please try again in an hour." });
+  if (result === "in_stock") throw new TRPCError3({ code: "BAD_REQUEST", message: "This option is back in stock. Refresh the page to order it." });
+  if (result === "unavailable") throw new TRPCError3({ code: "NOT_FOUND", message: "This option is no longer available in the catalogue." });
+  if (result !== "saved") throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Couldn\u2019t save your request. Please try again." });
+  return { success: true };
+}
+async function listRestockRequests(status, offset) {
+  const rows = await supabaseRequest(`restock_requests?select=id,pos_code,product_code,color_name,size,contact_type,contact,status,created_at,contacted_at,product:products!inner(slug,display_name,lifecycle_status,is_published)&status=eq.${status}&order=created_at.asc,id.asc&limit=51&offset=${offset}`);
+  const page = rows.slice(0, 50);
+  const codes = Array.from(new Set(page.map((row) => row.pos_code)));
+  const variants = codes.length ? await supabaseRequest(`variants?select=pos_code,stock_quantity,is_visible&pos_code=in.(${encodeURIComponent(codes.map((code) => JSON.stringify(code)).join(","))})`) : [];
+  const stock = new Map(variants.map((variant) => [variant.pos_code, variant.is_visible && variant.stock_quantity > 0]));
+  return { hasMore: rows.length > 50, requests: page.map((row) => ({ ...row, available: row.product.is_published && row.product.lifecycle_status === "active" && Boolean(stock.get(row.pos_code)) })) };
+}
+
 // server/storeRouter.ts
 var ADMIN_COOKIE = "orange_admin_session";
 var ADMIN_PASSWORD_KEY = "admin_password_hash";
 var DAY_SECONDS = 60 * 60 * 12;
 var ADMIN_PASSWORD_MIN_LENGTH = 4;
-var adminPasswordChangeInput = z.object({
-  currentPassword: z.string().min(1),
-  newPassword: z.string().min(ADMIN_PASSWORD_MIN_LENGTH)
+var adminPasswordChangeInput = z3.object({
+  currentPassword: z3.string().min(1),
+  newPassword: z3.string().min(ADMIN_PASSWORD_MIN_LENGTH)
 });
 function tokenKey() {
   const secret = process.env.JWT_SECRET;
-  if (!secret) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "The secure session key is unavailable." });
+  if (!secret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "The secure session key is unavailable." });
   return new TextEncoder().encode(secret);
 }
 function hashPassword(password) {
@@ -635,21 +742,21 @@ async function hasAdminSession(ctx) {
   }
 }
 async function requireAdmin(ctx) {
-  if (!await hasAdminSession(ctx)) throw new TRPCError3({ code: "UNAUTHORIZED", message: "Admin access is required." });
+  if (!await hasAdminSession(ctx)) throw new TRPCError4({ code: "UNAUTHORIZED", message: "Admin access is required." });
 }
 async function requireImportPin(ctx, pin) {
   await requireAdmin(ctx);
   const clientKey = `${adminLoginClientKey(ctx.req.headers)}:import-pin`;
   const preflight = await checkAdminLoginRateLimit(clientKey, "check");
-  if (!preflight.allowed) throw new TRPCError3({ code: "TOO_MANY_REQUESTS", message: "Too many incorrect PIN attempts. Please try again later." });
+  if (!preflight.allowed) throw new TRPCError4({ code: "TOO_MANY_REQUESTS", message: "Too many incorrect PIN attempts. Please try again later." });
   const stored = await readStoredPasswordHash();
   const initial = process.env.ADMIN_PASSWORD;
   const valid = stored ? passwordMatches(pin, stored) : Boolean(initial && safeTextEqual(pin, initial));
   const result = await checkAdminLoginRateLimit(clientKey, valid ? "success" : "failure");
-  if (!result.allowed) throw new TRPCError3({ code: "TOO_MANY_REQUESTS", message: "Too many incorrect PIN attempts. Please try again later." });
-  if (!valid) throw new TRPCError3({ code: "UNAUTHORIZED", message: "Admin PIN is incorrect. Use your current admin login password or PIN." });
+  if (!result.allowed) throw new TRPCError4({ code: "TOO_MANY_REQUESTS", message: "Too many incorrect PIN attempts. Please try again later." });
+  if (!valid) throw new TRPCError4({ code: "UNAUTHORIZED", message: "Admin PIN is incorrect. Use your current admin login password or PIN." });
 }
-var importHistoryActionInput = z.object({ importId: z.number().int().positive(), pin: z.string().min(1).max(1024) });
+var importHistoryActionInput = z3.object({ importId: z3.number().int().positive(), pin: z3.string().min(1).max(1024) });
 async function readAppliedImports() {
   const rows = [];
   for (let offset = 0; ; offset += 500) {
@@ -673,7 +780,7 @@ function importHistoryMetadata(row, state, fallbackCurrentId) {
   return { isCurrent, canRemove: row.status === "applied" && state.available, canRestore, restoreUnavailableReason: !state.available ? "Restoring or deleting imports needs the import-history database update." : canRestore || isCurrent ? null : "This import's complete POS source state is unavailable." };
 }
 async function requireImportHistoryDatabase() {
-  if (!(await readImportHistoryState()).available) throw new TRPCError3({ code: "PRECONDITION_FAILED", message: "The import-history database update is required before restoring or deleting imports." });
+  if (!(await readImportHistoryState()).available) throw new TRPCError4({ code: "PRECONDITION_FAILED", message: "The import-history database update is required before restoring or deleting imports." });
 }
 var publicAvailability = (quantity) => quantity > 0;
 function testOnlyAdminPassword() {
@@ -702,7 +809,7 @@ async function cataloguePayload(includeExactStock = false, includeHidden = false
     })
   };
 }
-var importInput = z.object({ filename: z.string().min(1).max(255), base64: z.string().min(16).max(MAX_POS_IMPORT_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/, "The POS workbook payload is not valid base64.") });
+var importInput = z3.object({ filename: z3.string().min(1).max(255), base64: z3.string().min(16).max(MAX_POS_IMPORT_BASE64_LENGTH).regex(/^[A-Za-z0-9+/]+={0,2}$/, "The POS workbook payload is not valid base64.") });
 function importDetailChange(row) {
   const after = row.after_json ?? {};
   const before = row.before_json ?? {};
@@ -723,7 +830,7 @@ function groupImportChanges(changes) {
 }
 async function createPreview(input) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
-  if (parsed.validation.duplicatePosCodes.length) throw new TRPCError3({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
+  if (parsed.validation.duplicatePosCodes.length) throw new TRPCError4({ code: "BAD_REQUEST", message: "The import contains duplicate immutable POS Codes." });
   const [existingVariants, existingProducts, existingColors, appliedImports] = await Promise.all([
     supabaseRequest("variants?select=id,product_id,color_id,pos_code,size,price,stock_quantity,raw_name,raw_attribute&is_visible=eq.true"),
     supabaseRequest("products?select=id,cleaned_code,slug,category_source"),
@@ -801,7 +908,7 @@ async function createPreview(input) {
 }
 async function applyImport(input) {
   const parsed = parsePosWorkbook(Buffer.from(input.base64, "base64"));
-  if (parsed.validation.invalidRows.length || parsed.validation.duplicatePosCodes.length) throw new TRPCError3({ code: "BAD_REQUEST", message: "Resolve invalid or duplicate POS rows before applying the import." });
+  if (parsed.validation.invalidRows.length || parsed.validation.duplicatePosCodes.length) throw new TRPCError4({ code: "BAD_REQUEST", message: "Resolve invalid or duplicate POS rows before applying the import." });
   try {
     const summary = await supabaseRequest("rpc/apply_pos_import", {
       method: "POST",
@@ -813,30 +920,30 @@ async function applyImport(input) {
     }
     return summary;
   } catch (error) {
-    if (error instanceof TRPCError3) throw error;
-    throw new TRPCError3({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The POS import could not be applied. No catalogue changes were saved." });
+    if (error instanceof TRPCError4) throw error;
+    throw new TRPCError4({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The POS import could not be applied. No catalogue changes were saved." });
   }
 }
 async function removeImportAndRebuild(importId) {
   try {
     const summary = await supabaseRequest("rpc/remove_pos_import_and_rebuild", { method: "POST", body: JSON.stringify({ p_import_id: importId }) });
-    if (summary?.error) throw new TRPCError3({ code: "BAD_REQUEST", message: summary.error });
+    if (summary?.error) throw new TRPCError4({ code: "BAD_REQUEST", message: summary.error });
     if (!summary || summary.removedImportId !== importId || ![summary.reappliedImports, summary.removedVariants, summary.removedProducts, summary.archivedProductsWithMedia].every(Number.isInteger)) throw new Error("The import rebuild did not return a complete result.");
     return summary;
   } catch (error) {
-    if (error instanceof TRPCError3) throw error;
-    throw new TRPCError3({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The selected POS import could not be removed and rebuilt safely." });
+    if (error instanceof TRPCError4) throw error;
+    throw new TRPCError4({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "The selected POS import could not be removed and rebuilt safely." });
   }
 }
 async function restoreImport(importId) {
   try {
     const result = await supabaseRequest("rpc/restore_pos_import", { method: "POST", body: JSON.stringify({ p_import_id: importId }) });
-    if (result?.error) throw new TRPCError3({ code: "BAD_REQUEST", message: result.error });
+    if (result?.error) throw new TRPCError4({ code: "BAD_REQUEST", message: result.error });
     if (!result || result.restoredImportId !== importId || ![result.restoredVariants, result.hiddenVariants, result.hiddenProducts].every(Number.isInteger)) throw new Error("The POS restore did not return a complete result.");
     return result;
   } catch (error) {
-    if (error instanceof TRPCError3) throw error;
-    throw new TRPCError3({ code: "BAD_REQUEST", message: "The import could not be restored. No catalogue changes were saved." });
+    if (error instanceof TRPCError4) throw error;
+    throw new TRPCError4({ code: "BAD_REQUEST", message: "The import could not be restored. No catalogue changes were saved." });
   }
 }
 async function deleteProductAndMedia(productId) {
@@ -845,7 +952,7 @@ async function deleteProductAndMedia(productId) {
     supabaseRequest(`product_media?select=id,cloudinary_public_id&${supabaseEq("product_id", productId)}&limit=500`)
   ]);
   const product = products[0];
-  if (!product) throw new TRPCError3({ code: "NOT_FOUND", message: "The selected item no longer exists." });
+  if (!product) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected item no longer exists." });
   const uniquePublicIds = Array.from(new Set(mediaRows.map((media) => media.cloudinary_public_id)));
   let destroyedCloudinaryAssets = 0;
   let retainedSharedAssets = 0;
@@ -853,7 +960,7 @@ async function deleteProductAndMedia(productId) {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
-    if (!cloudName || !apiKey || !apiSecret) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+    if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
     for (const publicId of uniquePublicIds) {
       const otherAssociations = await supabaseRequest(`product_media?select=id&${supabaseEq("cloudinary_public_id", publicId)}&product_id=neq.${productId}&limit=1`);
       if (otherAssociations.length) {
@@ -864,7 +971,7 @@ async function deleteProductAndMedia(productId) {
         await destroyCloudinaryProductImage(publicId, { cloudName, apiKey, apiSecret });
         destroyedCloudinaryAssets += 1;
       } catch (error) {
-        throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove this item\u2019s photo." });
+        throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove this item\u2019s photo." });
       }
     }
   }
@@ -872,16 +979,16 @@ async function deleteProductAndMedia(productId) {
   return { deletedProductId: product.id, cleanedCode: product.cleaned_code, deletedMediaRecords: mediaRows.length, destroyedCloudinaryAssets, retainedSharedAssets };
 }
 async function copyArchivedWebsiteContent(sourceProductId, targetProductId) {
-  if (sourceProductId === targetProductId) throw new TRPCError3({ code: "BAD_REQUEST", message: "Choose a different archived item to reuse its website content." });
+  if (sourceProductId === targetProductId) throw new TRPCError4({ code: "BAD_REQUEST", message: "Choose a different archived item to reuse its website content." });
   const [sourceRows, targetRows] = await Promise.all([
     supabaseRequest(`products?select=id,display_name,category_id,category_source,is_just_in,lifecycle_status&${supabaseEq("id", sourceProductId)}&limit=1`),
     supabaseRequest(`products?select=id,display_name,category_id,category_source,is_just_in,lifecycle_status&${supabaseEq("id", targetProductId)}&limit=1`)
   ]);
   const source = sourceRows[0];
   const target = targetRows[0];
-  if (!source || !target) throw new TRPCError3({ code: "NOT_FOUND", message: "The selected source or target item no longer exists." });
-  if (source.lifecycle_status !== "discontinued") throw new TRPCError3({ code: "BAD_REQUEST", message: "Website content can be reused only from a discontinued item." });
-  if (target.lifecycle_status === "discontinued") throw new TRPCError3({ code: "BAD_REQUEST", message: "Restore the target item before reusing archived content." });
+  if (!source || !target) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected source or target item no longer exists." });
+  if (source.lifecycle_status !== "discontinued") throw new TRPCError4({ code: "BAD_REQUEST", message: "Website content can be reused only from a discontinued item." });
+  if (target.lifecycle_status === "discontinued") throw new TRPCError4({ code: "BAD_REQUEST", message: "Restore the target item before reusing archived content." });
   await supabaseRequest(`products?${supabaseEq("id", target.id)}`, {
     method: "PATCH",
     body: JSON.stringify({ display_name: source.display_name, category_id: source.category_id, category_source: source.category_source, is_just_in: source.is_just_in })
@@ -896,27 +1003,28 @@ async function copyArchivedWebsiteContent(sourceProductId, targetProductId) {
   return { copiedMediaCount: copiedRows.length };
 }
 var storeRouter = router({
-  catalogue: router({ list: publicProcedure.query(() => fetchStorefrontCards()), getBySlug: publicProcedure.input(z.object({ slug: z.string().min(1) })).query(async ({ input }) => {
+  requestRestock: publicProcedure.input(restockRequestInput).mutation(({ ctx, input }) => requestRestock(input, `${adminLoginClientKey(ctx.req.headers)}:restock`)),
+  catalogue: router({ list: publicProcedure.query(() => fetchStorefrontCards()), getBySlug: publicProcedure.input(z3.object({ slug: z3.string().min(1) })).query(async ({ input }) => {
     const product = await fetchStorefrontProduct(input.slug);
-    if (!product) throw new TRPCError3({ code: "NOT_FOUND", message: "Product not found." });
+    if (!product) throw new TRPCError4({ code: "NOT_FOUND", message: "Product not found." });
     return product;
-  }), categories: publicProcedure.query(() => PUBLIC_CATEGORIES), messengerUrl: publicProcedure.input(z.object({ productCode: z.string(), color: z.string(), size: z.string().nullable().optional() })).query(({ input }) => buildMessengerOrderUrl(input)) }),
+  }), categories: publicProcedure.query(() => PUBLIC_CATEGORIES), messengerUrl: publicProcedure.input(z3.object({ productCode: z3.string(), color: z3.string(), size: z3.string().nullable().optional() })).query(({ input }) => buildMessengerOrderUrl(input)) }),
   admin: router({
     session: publicProcedure.query(({ ctx }) => hasAdminSession(ctx)),
-    login: publicProcedure.input(z.object({ password: z.string().min(1).max(1024) })).mutation(async ({ ctx, input }) => {
+    login: publicProcedure.input(z3.object({ password: z3.string().min(1).max(1024) })).mutation(async ({ ctx, input }) => {
       const clientKey = adminLoginClientKey(ctx.req.headers);
       const testPassword = testOnlyAdminPassword();
       const preflight = testPassword ? { allowed: true } : await checkAdminLoginRateLimit(clientKey, "check");
-      if (!preflight.allowed) throw new TRPCError3({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
+      if (!preflight.allowed) throw new TRPCError4({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
       const stored = await readStoredPasswordHash();
       const initial = process.env.ADMIN_PASSWORD;
       const valid = testPassword ? safeTextEqual(input.password, testPassword) : stored ? passwordMatches(input.password, stored) : Boolean(initial && safeTextEqual(input.password, initial));
       const result = testPassword ? { allowed: true } : await checkAdminLoginRateLimit(clientKey, valid ? "success" : "failure");
       if (!valid) {
-        if (!result.allowed) throw new TRPCError3({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
-        throw new TRPCError3({ code: "UNAUTHORIZED", message: "Unable to sign in with those credentials." });
+        if (!result.allowed) throw new TRPCError4({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
+        throw new TRPCError4({ code: "UNAUTHORIZED", message: "Unable to sign in with those credentials." });
       }
-      if (!result.allowed) throw new TRPCError3({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
+      if (!result.allowed) throw new TRPCError4({ code: "TOO_MANY_REQUESTS", message: "Too many sign-in attempts. Please try again later." });
       if (!stored && !testPassword) await savePasswordHash(hashPassword(input.password));
       await issueAdminSession(ctx);
       return { success: true };
@@ -929,7 +1037,7 @@ var storeRouter = router({
       await requireAdmin(ctx);
       const stored = await readStoredPasswordHash();
       const valid = stored ? passwordMatches(input.currentPassword, stored) : input.currentPassword === process.env.ADMIN_PASSWORD;
-      if (!valid) throw new TRPCError3({ code: "UNAUTHORIZED", message: "Current password is incorrect." });
+      if (!valid) throw new TRPCError4({ code: "UNAUTHORIZED", message: "Current password is incorrect." });
       await savePasswordHash(hashPassword(input.newPassword));
       await issueAdminSession(ctx);
       return { success: true };
@@ -938,20 +1046,54 @@ var storeRouter = router({
       await requireAdmin(ctx);
       return cataloguePayload(true, true);
     }),
+    restockRequests: publicProcedure.input(z3.object({ status: z3.enum(["pending", "contacted"]), offset: z3.number().int().min(0).default(0) })).query(async ({ ctx, input }) => {
+      await requireAdmin(ctx);
+      ctx.res.setHeader("Cache-Control", "no-store");
+      return listRestockRequests(input.status, input.offset);
+    }),
+    contactRestockRequest: publicProcedure.input(z3.object({ id: z3.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requireAdmin(ctx);
+      const rows = await supabaseRequest(`restock_requests?id=eq.${input.id}&status=eq.pending`, { method: "PATCH", body: JSON.stringify({ status: "contacted", contacted_at: (/* @__PURE__ */ new Date()).toISOString() }) });
+      if (!rows.length) throw new TRPCError4({ code: "NOT_FOUND", message: "This request has already been handled or removed." });
+      return { success: true };
+    }),
+    deleteRestockRequest: publicProcedure.input(z3.object({ id: z3.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requireAdmin(ctx);
+      await supabaseRequest(`restock_requests?id=eq.${input.id}`, { method: "DELETE" });
+      return { success: true };
+    }),
     dailyVisitors: publicProcedure.query(async ({ ctx }) => {
       await requireAdmin(ctx);
       return dailyStorefrontVisitors();
     }),
-    updateProduct: publicProcedure.input(z.object({ id: z.number().int(), displayName: z.string().max(255).nullable(), categoryId: z.number().int().nullable(), isJustIn: z.boolean().optional(), lifecycleStatus: z.enum(["active", "out_of_stock", "discontinued"]).optional() })).mutation(async ({ ctx, input }) => {
+    salesAnalysis: publicProcedure.input(z3.object({ importId: z3.number().int().positive().optional() })).query(async ({ ctx, input }) => {
+      await requireAdmin(ctx);
+      const exportDay = (row) => row.source_export_date ?? (row.applied_at ?? row.created_at).slice(0, 10);
+      const imports = (await readAppliedImports()).sort((a, b) => exportDay(b).localeCompare(exportDay(a)) || (b.applied_at ?? b.created_at).localeCompare(a.applied_at ?? a.created_at) || b.id - a.id);
+      const selected = input.importId === void 0 ? 0 : imports.findIndex((row) => row.id === input.importId);
+      if (selected < 0) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected POS import is no longer available." });
+      const current = imports[selected];
+      const previous = imports[selected + 1];
+      const options = imports.map((row) => ({ id: row.id, filename: row.original_filename, date: row.source_export_date ?? null }));
+      if (!current || !previous) return { status: "needs_imports", options, current: current?.id ?? null, period: null, analysis: null };
+      const sources = await supabaseRequest(`imports?select=id,source_items_json&id=in.(${previous.id},${current.id})&status=eq.applied`);
+      const before = salesSource.safeParse(sources.find((row) => row.id === previous.id)?.source_items_json);
+      const after = salesSource.safeParse(sources.find((row) => row.id === current.id)?.source_items_json);
+      const period = { from: previous.source_export_date ?? previous.applied_at ?? previous.created_at, to: current.source_export_date ?? current.applied_at ?? current.created_at, previousFilename: previous.original_filename, currentFilename: current.original_filename };
+      if (!before.success || !after.success) return { status: "missing_source", options, current: current.id, period, analysis: null };
+      const analysis = analyseSales(before.data, after.data);
+      return { status: "ready", options, current: current.id, period, analysis };
+    }),
+    updateProduct: publicProcedure.input(z3.object({ id: z3.number().int(), displayName: z3.string().max(255).nullable(), categoryId: z3.number().int().nullable(), isJustIn: z3.boolean().optional(), lifecycleStatus: z3.enum(["active", "out_of_stock", "discontinued"]).optional() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       await supabaseRequest(`products?${supabaseEq("id", input.id)}`, { method: "PATCH", body: JSON.stringify({ display_name: input.displayName, category_id: input.categoryId, category_source: input.categoryId ? "manual" : "unassigned", ...input.isJustIn === void 0 ? {} : { is_just_in: input.isJustIn }, ...input.lifecycleStatus === void 0 ? {} : { lifecycle_status: input.lifecycleStatus } }) });
       return { success: true };
     }),
-    deleteProduct: publicProcedure.input(z.object({ productId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+    deleteProduct: publicProcedure.input(z3.object({ productId: z3.number().int().positive() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       return deleteProductAndMedia(input.productId);
     }),
-    reuseArchivedContent: publicProcedure.input(z.object({ sourceProductId: z.number().int().positive(), targetProductId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+    reuseArchivedContent: publicProcedure.input(z3.object({ sourceProductId: z3.number().int().positive(), targetProductId: z3.number().int().positive() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       return copyArchivedWebsiteContent(input.sourceProductId, input.targetProductId);
     }),
@@ -959,7 +1101,7 @@ var storeRouter = router({
       await requireAdmin(ctx);
       return createPreview(input);
     }),
-    applyImport: publicProcedure.input(importInput.extend({ importId: z.number().int() })).mutation(async ({ ctx, input }) => {
+    applyImport: publicProcedure.input(importInput.extend({ importId: z3.number().int() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       return applyImport(input);
     }),
@@ -978,20 +1120,20 @@ var storeRouter = router({
       const [rows, state] = await Promise.all([readAppliedImports(), readImportHistoryState()]);
       return rows.map((row) => ({ id: row.id, originalFilename: row.original_filename, status: row.status, createdAt: row.created_at, appliedAt: row.applied_at ?? null, sourceExportDate: row.source_export_date ?? null, parsedRows: row.parsed_rows ?? 0, summary: row.summary_json ?? {}, ...importHistoryMetadata(row, state, rows[0]?.id ?? null) }));
     }),
-    importDetails: publicProcedure.input(z.object({ importId: z.number().int().positive() })).query(async ({ ctx, input }) => {
+    importDetails: publicProcedure.input(z3.object({ importId: z3.number().int().positive() })).query(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       const [imports, changes, state, latest] = await Promise.all([supabaseRequest(`imports?select=id,original_filename,status,created_at,applied_at,source_export_date,parsed_rows,summary_json&${supabaseEq("id", input.importId)}&limit=1`), supabaseRequest(`import_changes?select=id,import_id,product_id,variant_id,pos_code,change_type,before_json,after_json,created_at&${supabaseEq("import_id", input.importId)}&order=created_at.asc&limit=5000`), readImportHistoryState(), supabaseRequest("imports?select=id&status=eq.applied&order=applied_at.desc,id.desc&limit=1")]);
       const importRow = imports[0];
-      if (!importRow) throw new TRPCError3({ code: "NOT_FOUND", message: "The selected import was not found." });
+      if (!importRow) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected import was not found." });
       const detailChanges = reviewableImportChanges(changes.map(importDetailChange));
       return { id: importRow.id, originalFilename: importRow.original_filename, status: importRow.status, createdAt: importRow.created_at, appliedAt: importRow.applied_at ?? null, sourceExportDate: importRow.source_export_date ?? null, parsedRows: importRow.parsed_rows ?? 0, summary: importRow.summary_json ?? {}, changes: detailChanges, changeGroups: groupImportChanges(detailChanges), ...importHistoryMetadata(importRow, state, latest[0]?.id ?? null) };
     }),
-    signMediaUpload: publicProcedure.input(z.object({ productCode: z.string().min(1), categorySlug: z.string().min(1), colorTag: z.string().min(1) })).mutation(async ({ ctx, input }) => {
+    signMediaUpload: publicProcedure.input(z3.object({ productCode: z3.string().min(1), categorySlug: z3.string().min(1), colorTag: z3.string().min(1) })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
       const apiKey = process.env.CLOUDINARY_API_KEY;
       const apiSecret = process.env.CLOUDINARY_API_SECRET;
-      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+      if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
       const normalized = input.productCode.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       const timestamp = Math.floor(Date.now() / 1e3);
       const folder = `orange/products/${normalized}`;
@@ -999,29 +1141,29 @@ var storeRouter = router({
       const signature = crypto4.createHash("sha256").update(`folder=${folder}&tags=${tags}&timestamp=${timestamp}${apiSecret}`).digest("hex");
       return { uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, apiKey, timestamp, folder, tags, signature };
     }),
-    registerMedia: publicProcedure.input(z.object({ productId: z.number().int(), variantId: z.number().int().nullable().optional(), publicId: z.string().min(1), secureUrl: z.string().url(), altText: z.string().max(255).nullable().optional(), colorTag: z.string().max(128).nullable().optional(), isPrimary: z.boolean().default(false) })).mutation(async ({ ctx, input }) => {
+    registerMedia: publicProcedure.input(z3.object({ productId: z3.number().int(), variantId: z3.number().int().nullable().optional(), publicId: z3.string().min(1), secureUrl: z3.string().url(), altText: z3.string().max(255).nullable().optional(), colorTag: z3.string().max(128).nullable().optional(), isPrimary: z3.boolean().default(false) })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
-      if (!input.publicId.startsWith("orange/products/")) throw new TRPCError3({ code: "BAD_REQUEST", message: "The uploaded media is not in an approved Orange product folder." });
+      if (!input.publicId.startsWith("orange/products/")) throw new TRPCError4({ code: "BAD_REQUEST", message: "The uploaded media is not in an approved Orange product folder." });
       const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
       if (input.isPrimary) await supabaseRequest(`product_media?${supabaseEq("product_id", input.productId)}`, { method: "PATCH", body: JSON.stringify({ is_primary: false }) });
       await supabaseRequest("product_media", { method: "POST", body: JSON.stringify({ product_id: input.productId, variant_id: input.variantId ?? null, cloudinary_public_id: input.publicId, optimized_url: `https://res.cloudinary.com/${cloudName}/image/upload/f_auto,q_auto/${input.publicId}`, alt_text: input.altText ?? null, color_tag: input.colorTag ?? null, is_primary: input.isPrimary }) });
       return { success: true };
     }),
-    deleteMedia: publicProcedure.input(z.object({ mediaId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+    deleteMedia: publicProcedure.input(z3.object({ mediaId: z3.number().int().positive() })).mutation(async ({ ctx, input }) => {
       await requireAdmin(ctx);
       const mediaRows = await supabaseRequest(`product_media?select=id,cloudinary_public_id&${supabaseEq("id", input.mediaId)}&limit=1`);
       const media = mediaRows[0];
-      if (!media) throw new TRPCError3({ code: "NOT_FOUND", message: "The selected photo record was not found." });
+      if (!media) throw new TRPCError4({ code: "NOT_FOUND", message: "The selected photo record was not found." });
       const otherAssociations = await supabaseRequest(`product_media?select=id&${supabaseEq("cloudinary_public_id", media.cloudinary_public_id)}&id=neq.${media.id}&limit=1`);
       if (!otherAssociations.length) {
         const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
         const apiKey = process.env.CLOUDINARY_API_KEY;
         const apiSecret = process.env.CLOUDINARY_API_SECRET;
-        if (!cloudName || !apiKey || !apiSecret) throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
+        if (!cloudName || !apiKey || !apiSecret) throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: "Cloudinary media configuration is incomplete." });
         try {
           await destroyCloudinaryProductImage(media.cloudinary_public_id, { cloudName, apiKey, apiSecret });
         } catch (error) {
-          throw new TRPCError3({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
+          throw new TRPCError4({ code: "INTERNAL_SERVER_ERROR", message: error instanceof Error ? error.message : "Cloudinary could not remove the photo." });
         }
       }
       await supabaseRequest(`product_media?${supabaseEq("id", media.id)}`, { method: "DELETE", headers: { Prefer: "return=minimal" } });

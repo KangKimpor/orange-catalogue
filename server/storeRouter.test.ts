@@ -118,7 +118,11 @@ describe("Orange admin and catalogue boundaries", () => {
     expect(firstColor).toBeDefined();
     expect(firstColor).toHaveProperty("available");
     expect(firstColor).not.toHaveProperty("stockQuantity");
-    expect(firstColor).not.toHaveProperty("variants");
+    expect(firstColor.variants[0]).toHaveProperty("available");
+    expect(firstColor.variants[0]).not.toHaveProperty("stockQuantity");
+    expect(firstColor.variants[0]).not.toHaveProperty("stock_quantity");
+    expect(firstColor.variants[0]).not.toHaveProperty("posCode");
+    expect(firstColor.variants[0]).not.toHaveProperty("id");
   });
 
   it("issues Cloudinary upload parameters only to a verified admin session", async () => {

@@ -29,6 +29,12 @@ describe("storefront return position", () => {
     expect(readStorefrontReturnPosition(storage)).toBeNull();
   });
 
+  it("restores the favorites page together with its search and filters", () => {
+    const storage = memoryStorage();
+    saveStorefrontReturnPosition(storage, { pathname: "/favorites", search: "?category=all&q=shirt&size=M" }, 320);
+    expect(readStorefrontReturnPosition(storage)).toEqual({ href: "/favorites?category=all&q=shirt&size=M", scrollY: 320 });
+  });
+
   it("clears a restored return position so a later direct storefront visit starts normally", () => {
     const storage = memoryStorage();
     saveStorefrontReturnPosition(storage, { pathname: "/", search: "" }, 128);

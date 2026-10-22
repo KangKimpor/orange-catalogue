@@ -17,6 +17,7 @@ const product = {
   id: 10,
   slug: "zl-0041",
   cleaned_code: "ZL 0041",
+  created_at: "2026-10-21T00:00:00Z",
   display_name: "Graphic Tee",
   category_id: 1,
   category_source: "manual",
@@ -80,6 +81,7 @@ describe("compact public catalogue queries", () => {
     expect(payload.categories).toEqual([{ slug: "tops", label: "Tops" }]);
     expect(payload.products[0]).toMatchObject({
       slug: "zl-0041",
+      createdAt: product.created_at,
       priceMin: 19,
       priceMax: 19,
       colors: [{ englishName: "Black", available: true }],
@@ -93,6 +95,9 @@ describe("compact public catalogue queries", () => {
       },
     ]);
     expect(payload.products[0]).not.toHaveProperty("detail");
+    expect(payload.products[0].colors[0].variants).toEqual([{ size: "S", price: 19, available: true }]);
+    expect(JSON.stringify(payload)).not.toContain("stockQuantity");
+    expect(JSON.stringify(payload)).not.toContain("stock_quantity");
     expect(JSON.stringify(payload.products[0])).not.toContain("ZL0041-BLK-S");
     expect(
       request.mock.calls.some(

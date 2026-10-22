@@ -9,7 +9,7 @@ export type StorefrontReturnPosition = {
 };
 
 function isStorefrontHref(value: unknown): value is string {
-  return typeof value === "string" && (value === "/" || value.startsWith("/?"));
+  return typeof value === "string" && (value === "/" || value.startsWith("/?") || value === "/favorites" || value.startsWith("/favorites?"));
 }
 
 export function storefrontHref(location: StorefrontLocation) {

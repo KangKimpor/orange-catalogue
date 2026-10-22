@@ -24,12 +24,14 @@ import CatalogueImage from "@/components/CatalogueImage";
 import VercelAnalyticsPanel from "@/components/VercelAnalyticsPanel";
 import SalesAnalysisPanel from "@/components/SalesAnalysisPanel";
 import ImportHistoryActions from "@/components/ImportHistoryActions";
+import RestockRequestsPanel from "@/components/RestockRequestsPanel";
 import { fallbackToLocalBrandLogo, SUPABASE_BRAND_LOGO_URL } from "@/lib/brandLogo";
 import { BATCH_PHOTO_FILENAME_PATTERN, type BatchPhotoMatch, planBatchPhotoIntake, sortBatchPhotoMatches } from "@/lib/batchPhotoIntake";
 
 const workspaceMeta: Array<{ id: Workspace; label: string; path: string; icon: typeof LayoutDashboard; hint: string }> = [
   { id: "overview", label: "Overview", path: "/admin", icon: LayoutDashboard, hint: "Today’s catalogue health" },
   { id: "sales", label: "Sales analysis", path: "/admin/sales", icon: TrendingUp, hint: "Item performance between POS imports" },
+  { id: "restock", label: "Restock requests", path: "/admin/restock", icon: PackageSearch, hint: "Customer requests and stock availability" },
   { id: "catalogue", label: "Catalogue editor", path: "/admin/items", icon: PackageSearch, hint: "Items, colors, and photos" },
   { id: "imports", label: "POS imports", path: "/admin/import", icon: FileSpreadsheet, hint: "Preview and apply POS updates" },
   { id: "settings", label: "Security", path: "/admin/security", icon: Settings, hint: "Admin password and access" },
@@ -650,6 +652,7 @@ export default function Admin() {
 
         {logout.error && <p className="form-error" role="alert">{logout.error.message}</p>}
         {workspace === "sales" && <SalesAnalysisPanel />}
+        {workspace === "restock" && <RestockRequestsPanel />}
         {requiresOverview && overview.isLoading && <p className="empty-workspace" role="status">Loading catalogue workspace…</p>}
         {requiresOverview && overview.error && <div className="empty-workspace" role="alert"><p>Couldn’t load catalogue information.</p><button type="button" className="secondary-action" onClick={() => void overview.refetch()}>Retry catalogue information</button></div>}
         {workspace === "overview" && !overview.isLoading && !overview.error && (

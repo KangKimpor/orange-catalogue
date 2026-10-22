@@ -4,6 +4,7 @@ import { Route, Switch } from "wouter";
 import NotFound from "@/pages/NotFound";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Storefront from "./pages/Storefront";
+import { FavoritesProvider } from "./components/Favorites";
 
 const Admin = lazy(() => import("./pages/Admin"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
@@ -12,10 +13,12 @@ function Router() {
   return (
     <Suspense fallback={<main id="main-content" className="route-loading" role="status">Loading Orange…</main>}>
       <Switch>
-        <Route path="/" component={Storefront} />
+        <Route path="/"><Storefront key="catalogue" /></Route>
+        <Route path="/favorites"><Storefront key="favorites" favoritesOnly /></Route>
         <Route path="/product/:slug" component={ProductDetail} />
         <Route path="/admin" component={Admin} />
         <Route path="/admin/sales" component={Admin} />
+        <Route path="/admin/restock" component={Admin} />
         <Route path="/admin/items" component={Admin} />
         <Route path="/admin/photos" component={Admin} />
         <Route path="/admin/import" component={Admin} />
@@ -32,7 +35,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <a className="skip-link" href="#main-content">Skip to content</a>
-      <Router />
+      <FavoritesProvider><Router /></FavoritesProvider>
       <Analytics mode="production" />
     </ErrorBoundary>
   );

@@ -58,6 +58,7 @@ export type ColorRow = {
 
 export type ProductRow = {
   id: number;
+  created_at?: string;
   slug: string;
   cleaned_code: string;
   display_name: string | null;

@@ -3,7 +3,7 @@ import { mapWithConcurrency } from "../shared/asyncPool";
 
 type PublicCategory = { slug: string; label: string };
 type CardMedia = { id: number; url: string; altText: string | null; isPrimary: boolean };
-type CardColor = { id: number | null; englishName: string; hex: string; available: boolean };
+type CardColor = { id: number | null; englishName: string; hex: string; available: boolean; variants: { size: string | null; price: number; available: boolean }[] };
 
 export async function fetchCatalogueRows(includeHidden = false) {
   const [categoryRows, productRows, variantRows, mediaRows, colorRows] = await Promise.all([
@@ -58,6 +58,7 @@ function cardColors(variants: VariantRow[], colorsById: ReturnType<typeof colorM
       englishName: color?.englishName ?? "One Color",
       hex: color?.hex ?? "#9A9A94",
       available: lifecycleStatus === "active" && groupedVariants.some(variant => variant.stock_quantity > 0),
+      variants: groupedVariants.map(variant => ({ size: variant.size, price: Number(variant.price), available: lifecycleStatus === "active" && variant.stock_quantity > 0 })),
     };
   });
 }
@@ -67,6 +68,7 @@ function cardProduct(product: ProductRow, variants: VariantRow[], primaryMedia: 
   const prices = variants.map(variant => Number(variant.price));
   return {
     id: product.id,
+    createdAt: product.created_at ?? null,
     slug: product.slug,
     displayName: product.display_name,
     cleanedCode: product.cleaned_code,
@@ -124,8 +126,8 @@ function publicDetailProduct(product: ProductRow, variants: VariantRow[], mediaR
 export async function fetchStorefrontCards() {
   const [categoryRows, productRows, variantRows, mediaRows, colorRows] = await Promise.all([
     supabaseRequest<CategoryRow[]>("categories?select=id,slug,label,is_visible&order=sort_order.asc"),
-    supabaseRequest<ProductRow[]>("products?select=id,slug,cleaned_code,display_name,category_id,is_just_in,lifecycle_status&is_published=eq.true&lifecycle_status=neq.discontinued"),
-    supabaseRequest<VariantRow[]>("variants?select=id,product_id,color_id,price,stock_quantity&is_visible=eq.true"),
+    supabaseRequest<ProductRow[]>("products?select=id,slug,cleaned_code,display_name,category_id,is_just_in,lifecycle_status,created_at&is_published=eq.true&lifecycle_status=neq.discontinued"),
+    supabaseRequest<VariantRow[]>("variants?select=id,product_id,color_id,size,price,stock_quantity&is_visible=eq.true"),
     supabaseRequest<ProductMediaRow[]>("product_media?select=id,product_id,optimized_url,alt_text,is_primary&is_primary=eq.true&order=sort_order.asc"),
     supabaseRequest<ColorRow[]>("colors?select=id,english_name,hex&order=sort_order.asc"),
   ]);

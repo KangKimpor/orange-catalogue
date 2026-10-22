@@ -196,6 +196,7 @@ export async function installFixtures(
     canRemove: true,
   })).reverse();
   let currentImportId: number | null = history[0]?.id ?? null;
+  const restockRequests: Array<{ id: number; pos_code: string; product_code: string; color_name: string; size: string | null; contact_type: string; contact: string; status: string; created_at: string; contacted_at: string | null; available: boolean; product: { slug: string; display_name: string | null } }> = [];
   const historyRow = (item: (typeof history)[number]) => ({
     ...item,
     canRemove: !options.restoreUnavailable,
@@ -206,7 +207,7 @@ export async function installFixtures(
       : null,
   });
   await page.route("https://fonts.googleapis.com/**", route => route.abort()); // Also exercise font fallbacks without network dependency.
-  await page.route("https://ccaavswuaeqdkgvetlai.supabase.co/**", route =>
+  await page.route("https://mxgfdoogvvpwdzvxcaku.supabase.co/**", route =>
     route.fulfill({
       contentType: "image/png",
       body: readFileSync(
@@ -257,6 +258,22 @@ export async function installFixtures(
       else if (path === "store.catalogue.getBySlug") {
         data = asPublic(items.find(item => item.slug === input.slug) ?? first);
         if (input.slug === "missing") failure = "NOT_FOUND";
+      } else if (path === "store.requestRestock") {
+        const variant = first.colors.flatMap(color => color.variants.map(variant => ({ ...variant, color: color.englishName }))).find(variant => variant.id === input.variantId);
+        if (!variant || variant.available) failure = "BAD_REQUEST";
+        else {
+          restockRequests.push({ id: restockRequests.length + 1, pos_code: variant.posCode, product_code: first.cleanedCode, color_name: variant.color, size: variant.size, contact_type: input.contactType, contact: input.contact, status: "pending", created_at: "2026-10-21T00:00:00Z", contacted_at: null, available: false, product: { slug: first.slug, display_name: first.displayName } });
+          data = { success: true };
+        }
+      } else if (path === "store.admin.restockRequests") data = { requests: restockRequests.filter(request => request.status === input.status), hasMore: false };
+      else if (path === "store.admin.contactRestockRequest") {
+        const request = restockRequests.find(request => request.id === input.id);
+        if (request) { request.status = "contacted"; request.contacted_at = "2026-10-21T01:00:00Z"; }
+        data = { success: true };
+      } else if (path === "store.admin.deleteRestockRequest") {
+        const index = restockRequests.findIndex(request => request.id === input.id);
+        if (index >= 0) restockRequests.splice(index, 1);
+        data = { success: true };
       } else if (path === "store.admin.overview")
         data = { categories, products: items };
       else if (path === "store.admin.dailyVisitors")

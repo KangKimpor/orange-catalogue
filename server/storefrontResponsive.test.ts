@@ -26,7 +26,7 @@ const catalogueMedia = readFileSync(
 describe("public storefront branding and responsiveness", () => {
   it("uses the Supabase-hosted Orange logo and a resilient same-origin fallback in both public navigation surfaces", () => {
     const hostedLogo =
-      "https://ccaavswuaeqdkgvetlai.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png";
+      "https://mxgfdoogvvpwdzvxcaku.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png";
     expect(brandLogo).toContain(hostedLogo);
     expect(brandLogo).toContain('LOCAL_BRAND_LOGO_URL = "/orange-logo.png"');
     for (const page of [storefront, detail]) {

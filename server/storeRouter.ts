@@ -12,6 +12,7 @@ import { publicProcedure, router } from "./_core/trpc";
 import { destroyCloudinaryProductImage } from "./cloudinaryMedia";
 import { dailyStorefrontVisitors } from "./vercelAnalytics";
 import { analyseSales, salesSource } from "./salesAnalysis";
+import { listRestockRequests, requestRestock, restockRequestInput } from "./restockRequests";
 
 const ADMIN_COOKIE = "orange_admin_session";
 const ADMIN_PASSWORD_KEY = "admin_password_hash";
@@ -371,6 +372,7 @@ async function copyArchivedWebsiteContent(sourceProductId: number, targetProduct
 }
 
 export const storeRouter = router({
+  requestRestock: publicProcedure.input(restockRequestInput).mutation(({ ctx, input }) => requestRestock(input, `${adminLoginClientKey(ctx.req.headers)}:restock`)),
   catalogue: router({ list: publicProcedure.query(() => fetchStorefrontCards()), getBySlug: publicProcedure.input(z.object({ slug: z.string().min(1) })).query(async ({ input }) => { const product = await fetchStorefrontProduct(input.slug); if (!product) throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." }); return product; }), categories: publicProcedure.query(() => PUBLIC_CATEGORIES), messengerUrl: publicProcedure.input(z.object({ productCode: z.string(), color: z.string(), size: z.string().nullable().optional() })).query(({ input }) => buildMessengerOrderUrl(input)) }),
   admin: router({
     session: publicProcedure.query(({ ctx }) => hasAdminSession(ctx as Context)),
@@ -378,6 +380,14 @@ export const storeRouter = router({
     logout: publicProcedure.mutation(({ ctx }) => { ctx.res.clearCookie(ADMIN_COOKIE, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" }); return { success: true }; }),
     changePassword: publicProcedure.input(adminPasswordChangeInput).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); const stored = await readStoredPasswordHash(); const valid = stored ? passwordMatches(input.currentPassword, stored) : input.currentPassword === process.env.ADMIN_PASSWORD; if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password is incorrect." }); await savePasswordHash(hashPassword(input.newPassword)); await issueAdminSession(ctx as Context); return { success: true }; }),
     overview: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); return cataloguePayload(true, true); }),
+    restockRequests: publicProcedure.input(z.object({ status: z.enum(["pending", "contacted"]), offset: z.number().int().min(0).default(0) })).query(async ({ ctx, input }) => { await requireAdmin(ctx as Context); ctx.res.setHeader("Cache-Control", "no-store"); return listRestockRequests(input.status, input.offset); }),
+    contactRestockRequest: publicProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      await requireAdmin(ctx as Context);
+      const rows = await supabaseRequest<Array<{ id: number }>>(`restock_requests?id=eq.${input.id}&status=eq.pending`, { method: "PATCH", body: JSON.stringify({ status: "contacted", contacted_at: new Date().toISOString() }) });
+      if (!rows.length) throw new TRPCError({ code: "NOT_FOUND", message: "This request has already been handled or removed." });
+      return { success: true };
+    }),
+    deleteRestockRequest: publicProcedure.input(z.object({ id: z.number().int().positive() })).mutation(async ({ ctx, input }) => { await requireAdmin(ctx as Context); await supabaseRequest(`restock_requests?id=eq.${input.id}`, { method: "DELETE" }); return { success: true }; }),
     dailyVisitors: publicProcedure.query(async ({ ctx }) => { await requireAdmin(ctx as Context); return dailyStorefrontVisitors(); }),
     salesAnalysis: publicProcedure.input(z.object({ importId: z.number().int().positive().optional() })).query(async ({ ctx, input }) => {
       await requireAdmin(ctx as Context);

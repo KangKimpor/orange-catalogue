@@ -108,9 +108,11 @@ async function touchSize(locator: Locator) {
 
 const routes = [
   { path: "/", ready: ".product-card:not(.product-card-skeleton)" },
+  { path: "/favorites", ready: ".catalogue-tools" },
   { path: "/product/fixture-piece", ready: ".detail-content" },
   { path: "/admin", ready: ".metric-grid" },
   { path: "/admin/sales", ready: ".sales-items-panel" },
+  { path: "/admin/restock", ready: ".restock-requests" },
   { path: "/admin/items", ready: ".model-editor-heading" },
   { path: "/admin/photos", ready: ".model-editor-heading" },
   { path: "/admin/import", ready: ".import-workbench" },

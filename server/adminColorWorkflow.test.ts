@@ -72,7 +72,7 @@ describe("cleaned-code admin and color media workflow", () => {
 
   it("loads the versioned Supabase logo before application rendering and falls back to the packaged same-origin asset", () => {
     expect(brandLogo).toContain(
-      "https://ccaavswuaeqdkgvetlai.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png"
+      "https://mxgfdoogvvpwdzvxcaku.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png"
     );
     expect(brandLogo).toContain(
       'export const LOCAL_BRAND_LOGO_URL = "/orange-logo.png"'
@@ -80,10 +80,10 @@ describe("cleaned-code admin and color media workflow", () => {
     expect(brandLogo).toContain("image.dataset.logoFallbackApplied");
     expect(brandLogo).toContain('image.removeAttribute("srcset")');
     expect(indexHtml).toContain(
-      'rel="preconnect" href="https://ccaavswuaeqdkgvetlai.supabase.co"'
+      'rel="preconnect" href="https://mxgfdoogvvpwdzvxcaku.supabase.co"'
     );
     expect(indexHtml).toContain(
-      'rel="preload" as="image" href="https://ccaavswuaeqdkgvetlai.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png"'
+      'rel="preload" as="image" href="https://mxgfdoogvvpwdzvxcaku.supabase.co/storage/v1/object/public/brand-assets/orange/orange-logo-v2.png"'
     );
     for (const page of [admin, storefront, detail]) {
       expect(page).toContain("SUPABASE_BRAND_LOGO_URL");

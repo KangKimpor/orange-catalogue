@@ -13,6 +13,8 @@ describe("storefront category membership", () => {
   it("does not show non-featured items in Just In", () => {
     expect(belongsInStorefrontCategory(regularTop, "tops")).toBe(true);
     expect(belongsInStorefrontCategory(regularTop, "just-in")).toBe(false);
+    expect(belongsInStorefrontCategory(regularTop, "all")).toBe(true);
+    expect(canonicalStorefrontCategorySlug("all")).toBe("all");
   });
 
   it("keeps all legwear in the shared category and resolves historical category links", () => {

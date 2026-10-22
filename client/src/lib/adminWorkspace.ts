@@ -1,8 +1,9 @@
-export type AdminWorkspace = "overview" | "sales" | "catalogue" | "imports" | "settings";
+export type AdminWorkspace = "overview" | "sales" | "catalogue" | "imports" | "settings" | "restock";
 
 export function workspaceFromPath(path: string, search = ""): AdminWorkspace {
   const normalizedPath = path.split("?")[0];
   if (normalizedPath === "/admin/sales") return "sales";
+  if (normalizedPath === "/admin/restock") return "restock";
   if (normalizedPath === "/admin/items" || normalizedPath === "/admin/photos") return "catalogue";
   if (normalizedPath === "/admin/import") return "imports";
   if (normalizedPath === "/admin/review-queue") return "imports";
